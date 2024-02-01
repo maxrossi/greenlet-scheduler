@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(project_name VERSION 1.0.0)
+project(scheduler VERSION 1.0.0)
 
 if(NOT DEFINED ENV{CCP_EVE_PERFORCE_BRANCH_PATH})
     message(FATAL_ERROR "Missing required environment variable CCP_EVE_PERFORCE_BRANCH_PATH")
@@ -19,22 +19,22 @@ list(INSERT CMAKE_MODULE_PATH 0 ${BRANCH_ROOT_DIR}/cmake)
 include(CcpGlobalSettings)
 include(CcpPackageConfigHelpers)
 
-ccp_add_library(project_name SHARED)
+ccp_add_library(scheduler SHARED)
 
-get_target_property(_SOURCES project_name SOURCES)
+get_target_property(_SOURCES scheduler SOURCES)
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}"
         PREFIX "Sources"
         FILES ${_SOURCES}
 )
 
-set_target_properties(project_name PROPERTIES OUTPUT_NAME "_project_name")
+set_target_properties(scheduler PROPERTIES OUTPUT_NAME "_scheduler")
 
 # Provide an install target if this is the top level project only
-if(CMAKE_PROJECT_NAME STREQUAL project_name)
+if(CMAKE_PROJECT_NAME STREQUAL scheduler)
     # Install rule to ensure that our runtime and linker files are in the expected, platform-specific folders
     install(
-            TARGETS project_name
-            EXPORT project_nameTarget
+            TARGETS scheduler
+            EXPORT schedulerTarget
             CONFIGURATIONS ${CMAKE_CONFIGURATION_TYPES}
             LIBRARY DESTINATION lib/${CCP_PLATFORM}/${CCP_ARCHITECTURE}/${CCP_TOOLSET}/
             ARCHIVE DESTINATION lib/${CCP_PLATFORM}/${CCP_ARCHITECTURE}/${CCP_TOOLSET}/
@@ -44,14 +44,14 @@ if(CMAKE_PROJECT_NAME STREQUAL project_name)
     install(FILES ${PUBLIC_HEADER_FILES} DESTINATION include)
 
     configure_ccp_vendor_config_file(
-            TARGET project_name
-            DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/project_nameConfig.cmake"
+            TARGET scheduler
+            DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/schedulerConfig.cmake"
             DEPENDENCIES ""
     )
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/project_nameConfig.cmake DESTINATION .)
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/schedulerConfig.cmake DESTINATION .)
 
     # Install python package
-    install(DIRECTORY python/ DESTINATION project_name
+    install(DIRECTORY python/ DESTINATION scheduler
             FILES_MATCHING
             PATTERN "*.py"
             PATTERN "package.yaml"
