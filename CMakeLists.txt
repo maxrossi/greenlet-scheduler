@@ -38,7 +38,7 @@ set(SRC_FILES
     src/stdafx.cpp
 )
 
-set(PUBLIC_HEADER_FILES src/PyScheduler.h)
+set(PUBLIC_HEADER_FILES src/SchedulerModule.h)
 ccp_add_library(scheduler SHARED ${SRC_FILES})
 
 target_link_libraries(scheduler PRIVATE Python)
