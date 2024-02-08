@@ -1,3 +1,21 @@
+/* 
+	*************************************************************************
+
+	Scheduler.h
+
+	Author:    James Hawk
+	Created:   Feb. 2024
+	Project:   Scheduler
+
+	Description:   
+
+	 Provides channels and a scheduler for Greenlet coroutines.
+
+	(c) CCP 2024
+
+	*************************************************************************
+*/
+
 #ifndef Py_SCHEDULER_H
 #define Py_SCHEDULER_H
 #ifdef __cplusplus
@@ -5,7 +23,7 @@ extern "C"
 {
 #endif
 
-/* Header file for schedulermodule */
+/* Header file for scheduler */
 
 /* C API functions */
 class PyTasklet;
@@ -87,7 +105,7 @@ class PyChannel;
 
 
 #ifdef SCHEDULER_MODULE
-	/* This section is used when compiling schedulermodule.c */
+	/* This section is used when compiling scheduler.cpp */
 
 
     // Tasklet Functions
@@ -128,7 +146,7 @@ class PyChannel;
 
 #else
 
-/* This section is used in modules that use schedulermodule's API */
+/* This section is used in modules that use scheduler's API */
 
 static void** PyScheduler_API;
 
