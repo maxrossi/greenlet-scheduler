@@ -134,6 +134,8 @@ class PyChannel;
 
     static PyChannel_SetPreference_RETURN PyChannel_SetPreference PyChannel_SetPreference_PROTO;
 
+    static PyChannel_GetBalance_RETURN PyChannel_GetBalance PyChannel_GetBalance_PROTO;
+
     // Scheduler Functions
     static PyScheduler_Schedule_RETURN PyScheduler_Shedule PyScheduler_Schedule_PROTO;
 
@@ -187,6 +189,9 @@ static void** PyScheduler_API;
 
 #define PyChannel_SetPreference \
 	( *(PyChannel_SetPreference_RETURN( * ) PyChannel_SetPreference_PROTO)PyScheduler_API[PyChannel_SetPreference_NUM] )
+
+#define PyChannel_GetBalance \
+	( *(PyChannel_GetBalance_RETURN( * ) PyChannel_GetBalance_PROTO)PyScheduler_API[PyChannel_GetBalance_NUM] )
 
 // Scheduler Functions
 #define PyScheduler_Schedule \
