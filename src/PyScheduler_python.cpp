@@ -15,8 +15,16 @@ static PyObject*
 	return Py_NewRef(reinterpret_cast<PyObject*>(self->current));
 }
 
+static PyObject*
+	Scheduler_main_get( PyScheduler* self, void* closure )
+{
+	PySys_WriteStdout( "Scheduler_main_get Not yet implemented \n" );  //TODO
+	return Py_None;
+}
+
 static PyGetSetDef Scheduler_getsetters[] = {
-	{ "current", (getter)Scheduler_current_get, NULL, "Get current", NULL },
+	{ "current", (getter)Scheduler_current_get, NULL, "The currently executing tasklet of this thread", NULL },
+	{ "main", (getter)Scheduler_main_get, NULL, "The main tasklet of this thread", NULL },
 	{ NULL } /* Sentinel */
 };
 
@@ -28,6 +36,61 @@ static PyObject*
 	return reinterpret_cast<PyObject*>(self->get_current());
 }
 
+static PyObject*
+	Scheduler_getmain( PyScheduler* self, PyObject* Py_UNUSED( ignored ) )
+{
+	PyErr_SetString( PyExc_RuntimeError, "Scheduler_getmain Not yet implemented" ); //TODO
+	return NULL;
+}
+
+static PyObject*
+	Scheduler_getruncount( PyScheduler* self, PyObject* Py_UNUSED( ignored ) )
+{
+	PyErr_SetString( PyExc_RuntimeError, "Scheduler_getruncount Not yet implemented" ); //TODO
+	return NULL;
+}
+
+static PyObject*
+	Scheduler_schedule( PyScheduler* self, PyObject* Py_UNUSED( ignored ) )
+{
+	PyErr_SetString( PyExc_RuntimeError, "Scheduler_schedule Not yet implemented" ); //TODO
+	return NULL;
+}
+
+static PyObject*
+	Scheduler_scheduleremove( PyScheduler* self, PyObject* Py_UNUSED( ignored ) )
+{
+	PyErr_SetString( PyExc_RuntimeError, "Scheduler_scheduleremove Not yet implemented" ); //TODO
+	return NULL;
+}
+
+static PyObject*
+	Scheduler_run( PyScheduler* self, PyObject* Py_UNUSED( ignored ) )
+{
+	PyErr_SetString( PyExc_RuntimeError, "Scheduler_run Not yet implemented" ); //TODO
+	return NULL;
+}
+
+static PyObject*
+	Scheduler_set_schedule_callback( PyScheduler* self, PyObject* Py_UNUSED( ignored ) )
+{
+	PyErr_SetString( PyExc_RuntimeError, "Scheduler_set_schedule_callback Not yet implemented" ); //TODO
+	return NULL;
+}
+
+static PyObject*
+	Scheduler_get_schedule_callback( PyScheduler* self, PyObject* Py_UNUSED( ignored ) )
+{
+	PyErr_SetString( PyExc_RuntimeError, "Scheduler_get_schedule_callback Not yet implemented" ); //TODO
+	return NULL;
+}
+
+static PyObject*
+	Scheduler_get_thread_info( PyScheduler* self, PyObject* Py_UNUSED( ignored ) )
+{
+	PyErr_SetString( PyExc_RuntimeError, "Scheduler_get_thread_info Not yet implemented" ); //TODO
+	return NULL;
+}
 
 
 /* Methods end */
@@ -35,6 +98,14 @@ static PyObject*
 
 static PyMethodDef Scheduler_methods[] = {
 	{ "getcurrent", (PyCFunction)Scheduler_getcurrent, METH_NOARGS, "Return the currently executing tasklet of this thread" },
+	{ "getmain", (PyCFunction)Scheduler_getmain, METH_NOARGS, "Return the main tasklet of this thread" },
+	{ "getruncount", (PyCFunction)Scheduler_getruncount, METH_NOARGS, "Return the number of currently runnable tasklets" },
+	{ "schedule", (PyCFunction)Scheduler_schedule, METH_NOARGS, "Yield execution of the currently running tasklet" },
+	{ "schedule_remove", (PyCFunction)Scheduler_scheduleremove, METH_NOARGS, "Yield execution of the currently running tasklet and remove" },
+	{ "run", (PyCFunction)Scheduler_run, METH_NOARGS, "Run scheduler" },
+	{ "set_schedule_callback", (PyCFunction)Scheduler_set_schedule_callback, METH_NOARGS, "Install a callback for scheduling" },
+	{ "get_schedule_callback", (PyCFunction)Scheduler_get_schedule_callback, METH_NOARGS, "Get the current global schedule callback" },
+	{ "get_thread_info", (PyCFunction)Scheduler_get_thread_info, METH_NOARGS, "Return a tuple containing the threads main tasklet, current tasklet and run-count" },
 	{ NULL } /* Sentinel */
 };
 
