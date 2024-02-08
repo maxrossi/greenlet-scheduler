@@ -3,56 +3,56 @@
 static PyObject* TaskletExit;
 
 static int
-	Tasklet_init( PyTasklet* self, PyObject* args, PyObject* kwds )
+	Tasklet_init( PyTaskletObject* self, PyObject* args, PyObject* kwds )
 {
-	self->alive = 0;
+	self->m_alive = 0;
 
 	return 0;
 }
 
 static PyObject*
-	Tasklet_alive_get( PyTasklet* self, void* closure )
+	Tasklet_alive_get( PyTaskletObject* self, void* closure )
 {
-	return PyBool_FromLong( self->alive ); //TODO remove
+	return PyBool_FromLong( self->m_alive ); //TODO remove
 }
 
 static PyObject*
-	Tasklet_blocked_get( PyTasklet* self, void* closure )
+	Tasklet_blocked_get( PyTaskletObject* self, void* closure )
 {
 	PyErr_SetString( PyExc_RuntimeError, "Tasklet_blocked_get Not yet implemented" ); //TODO
 	return NULL;
 }
 
 static PyObject*
-	Tasklet_scheduled_get( PyTasklet* self, void* closure )
+	Tasklet_scheduled_get( PyTaskletObject* self, void* closure )
 {
 	PyErr_SetString( PyExc_RuntimeError, "Tasklet_scheduled_get Not yet implemented" ); //TODO
 	return NULL;
 }
 
 static PyObject*
-	Tasklet_blocktrap_get( PyTasklet* self, void* closure )
+	Tasklet_blocktrap_get( PyTaskletObject* self, void* closure )
 {
 	PyErr_SetString( PyExc_RuntimeError, "Tasklet_blocktrap_get Not yet implemented" ); //TODO
 	return NULL;
 }
 
 static PyObject*
-	Tasklet_iscurrent_get( PyTasklet* self, void* closure )
+	Tasklet_iscurrent_get( PyTaskletObject* self, void* closure )
 {
 	PyErr_SetString( PyExc_RuntimeError, "Tasklet_iscurrent_get Not yet implemented" ); //TODO
 	return NULL;
 }
 
 static PyObject*
-	Tasklet_ismain_get( PyTasklet* self, void* closure )
+	Tasklet_ismain_get( PyTaskletObject* self, void* closure )
 {
 	PyErr_SetString( PyExc_RuntimeError, "Tasklet_ismain_get Not yet implemented" ); //TODO
 	return NULL;
 }
 
 static PyObject*
-	Tasklet_threadid_get( PyTasklet* self, void* closure )
+	Tasklet_threadid_get( PyTaskletObject* self, void* closure )
 {
 	PyErr_SetString( PyExc_RuntimeError, "Tasklet_threadid_get Not yet implemented" ); //TODO
 	return NULL;
@@ -71,7 +71,7 @@ static PyGetSetDef Tasklet_getsetters[] = {
 
 
 static PyObject*
-	Tasklet_insert( PyTasklet* self, PyObject* Py_UNUSED( ignored ) )
+	Tasklet_insert( PyTaskletObject* self, PyObject* Py_UNUSED( ignored ) )
 {
 	self->insert();
 
@@ -79,35 +79,35 @@ static PyObject*
 }
 
 static PyObject*
-	Tasklet_run( PyTasklet* self, void* closure )
+	Tasklet_run( PyTaskletObject* self, void* closure )
 {
 	PyErr_SetString( PyExc_RuntimeError, "Tasklet_run Not yet implemented" ); //TODO
 	return NULL;
 }
 
 static PyObject*
-	Tasklet_switch( PyTasklet* self, void* closure )
+	Tasklet_switch( PyTaskletObject* self, void* closure )
 {
 	PyErr_SetString( PyExc_RuntimeError, "Tasklet_switch Not yet implemented" ); //TODO
 	return NULL;
 }
 
 static PyObject*
-	Tasklet_raiseexception( PyTasklet* self, void* closure )
+	Tasklet_raiseexception( PyTaskletObject* self, void* closure )
 {
 	PyErr_SetString( PyExc_RuntimeError, "Tasklet_raiseexception Not yet implemented" ); //TODO
 	return NULL;
 }
 
 static PyObject*
-	Tasklet_kill( PyTasklet* self, void* closure )
+	Tasklet_kill( PyTaskletObject* self, void* closure )
 {
 	PyErr_SetString( PyExc_RuntimeError, "Tasklet_kill Not yet implemented" ); //TODO
 	return NULL;
 }
 
 static PyObject*
-	Tasklet_setcontext( PyTasklet* self, void* closure )
+	Tasklet_setcontext( PyTaskletObject* self, void* closure )
 {
 	PyErr_SetString( PyExc_RuntimeError, "Tasklet_setcontext Not yet implemented" ); //TODO
 	return NULL;
@@ -129,7 +129,7 @@ static PyTypeObject TaskletType = {
 	/* The ob_type field must be initialized in the module init function
      * to be portable to Windows without using C++. */
 	PyVarObject_HEAD_INIT( NULL, 0 ) "scheduler.Tasklet", /*tp_name*/
-	sizeof( PyTasklet ), /*tp_basicsize*/
+	sizeof( PyTaskletObject ), /*tp_basicsize*/
 	0, /*tp_itemsize*/
 	/* methods */
 	0, /*tp_dealloc*/

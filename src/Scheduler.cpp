@@ -9,7 +9,7 @@
 #include "PyTasklet_python.cpp"
 #include "PyChannel_python.cpp"
 
-static PyScheduler* g_scheduler = nullptr;
+static PySchedulerObject* g_scheduler = nullptr;
 /*
 C Interface
 
@@ -18,12 +18,6 @@ C Interface
 extern "C"
 {
 	// Tasklet functions
-	static PyTasklet_Check_RETURN PyTasklet_Check PyTasklet_Check_PROTO
-	{
-		PyErr_SetString( PyExc_RuntimeError, "PyTasklet_Check Not yet implemented" ); //TODO
-		return 0;
-	}
-
 	static PyTasklet_Setup_RETURN PyTasklet_Setup PyTasklet_Setup_PROTO
 	{
 		PyErr_SetString( PyExc_RuntimeError, "PyTasklet_Setup Not yet implemented" ); //TODO
@@ -205,13 +199,18 @@ PyInit__scheduler(void)
     }
 
 	//Create the main scheduler object
-	g_scheduler =  PyObject_New( PyScheduler, &SchedulerType );
+	g_scheduler =  PyObject_New( PySchedulerObject, &SchedulerType );
 	Scheduler_init( g_scheduler, nullptr, nullptr );
 
 	//C_API
 	/* Initialize the C API pointer array */
+    // Types
+	PyScheduler_API[PyTasklet_Type_NUM] = (void*)&TaskletType;
+
+    // Exceptions
+	PyScheduler_API[PyExc_TaskletExit_NUM] = (void*)&TaskletExit;
+
     // Tasklet Functions
-	PyScheduler_API[PyTasklet_Check_NUM] = (void*)PyTasklet_Check;
 	PyScheduler_API[PyTasklet_Setup_NUM] = (void*)PyTasklet_Setup;
 	PyScheduler_API[PyTasklet_Insert_NUM] = (void*)PyTasklet_Insert;
 	PyScheduler_API[PyTasklet_GetBlockTrap_NUM] = (void*)PyTasklet_GetBlockTrap;

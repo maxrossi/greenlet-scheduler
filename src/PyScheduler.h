@@ -19,15 +19,15 @@
 
 #include "stdafx.h"
 
-class PyTasklet;
+class PyTaskletObject;
 
-class PyScheduler
+class PySchedulerObject
 {
 	PyObject_HEAD
 
 public:
-	PyTasklet* get_current();
+	PyTaskletObject* get_current();
 
 public:
-	PyTasklet* current;
+	PyTaskletObject* m_current;
 };

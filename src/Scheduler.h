@@ -26,82 +26,87 @@ extern "C"
 /* Header file for scheduler */
 
 /* C API functions */
-class PyTasklet;
-class PyChannel;
+class PyTaskletObject;
+class PyChannelObject;
+
+
+#define PyTasklet_Check( op ) ( op && PyObject_TypeCheck( op, &PyTasklet_Type ) )
+
+// Types
+#define PyTasklet_Type_NUM 0
+
+// Exceptions
+#define PyExc_TaskletExit_NUM 1
 
 // Tasklet Functions
-#define PyTasklet_Check_NUM 0
-#define PyTasklet_Check_RETURN int
-#define PyTasklet_Check_PROTO ( PyTasklet* )
-
-#define PyTasklet_Setup_NUM 1
+#define PyTasklet_Setup_NUM 2
 #define PyTasklet_Setup_RETURN int
-#define PyTasklet_Setup_PROTO ( PyTasklet*, PyObject* args, PyObject* kwds )
+#define PyTasklet_Setup_PROTO ( PyTaskletObject*, PyObject* args, PyObject* kwds )
 
-#define PyTasklet_Insert_NUM 2
+#define PyTasklet_Insert_NUM 3
 #define PyTasklet_Insert_RETURN int
-#define PyTasklet_Insert_PROTO ( PyTasklet* )
+#define PyTasklet_Insert_PROTO ( PyTaskletObject* )
 
-#define PyTasklet_GetBlockTrap_NUM 3
+#define PyTasklet_GetBlockTrap_NUM 4
 #define PyTasklet_GetBlockTrap_RETURN int
-#define PyTasklet_GetBlockTrap_PROTO ( PyTasklet* )
+#define PyTasklet_GetBlockTrap_PROTO ( PyTaskletObject* )
 
-#define PyTasklet_SetBlockTrap_NUM 4
+#define PyTasklet_SetBlockTrap_NUM 5
 #define PyTasklet_SetBlockTrap_RETURN void
-#define PyTasklet_SetBlockTrap_PROTO ( PyTasklet*, int )
+#define PyTasklet_SetBlockTrap_PROTO ( PyTaskletObject*, int )
 
-#define PyTasklet_IsMain_NUM 5
+#define PyTasklet_IsMain_NUM 6
 #define PyTasklet_IsMain_RETURN int
-#define PyTasklet_IsMain_PROTO ( PyTasklet* )
+#define PyTasklet_IsMain_PROTO ( PyTaskletObject* )
 
 // Channel Functions
-#define PyChannel_New_NUM 6
-#define PyChannel_New_RETURN PyChannel*
+#define PyChannel_New_NUM 7
+#define PyChannel_New_RETURN PyChannelObject*
 #define PyChannel_New_PROTO ( PyTypeObject* )
 
-#define PyChannel_Send_NUM 7
+#define PyChannel_Send_NUM 8
 #define PyChannel_Send_RETURN int
-#define PyChannel_Send_PROTO ( PyChannel*, PyObject* )
+#define PyChannel_Send_PROTO ( PyChannelObject*, PyObject* )
 
-#define PyChannel_Receive_NUM 8
+#define PyChannel_Receive_NUM 9
 #define PyChannel_Receive_RETURN PyObject*
-#define PyChannel_Receive_PROTO ( PyChannel* )
+#define PyChannel_Receive_PROTO ( PyChannelObject* )
 
-#define PyChannel_SendException_NUM 9
+#define PyChannel_SendException_NUM 10
 #define PyChannel_SendException_RETURN int
-#define PyChannel_SendException_PROTO ( PyChannel*, PyObject*, PyObject* )
+#define PyChannel_SendException_PROTO ( PyChannelObject*, PyObject*, PyObject* )
 
-#define PyChannel_GetQueue_NUM 10
+#define PyChannel_GetQueue_NUM 11
 #define PyChannel_GetQueue_RETURN PyObject*
-#define PyChannel_GetQueue_PROTO ( PyChannel* )
+#define PyChannel_GetQueue_PROTO ( PyChannelObject* )
 
-#define PyChannel_SetPreference_NUM 11
+#define PyChannel_SetPreference_NUM 12
 #define PyChannel_SetPreference_RETURN void
-#define PyChannel_SetPreference_PROTO ( PyChannel*, int )
+#define PyChannel_SetPreference_PROTO ( PyChannelObject*, int )
 
-#define PyChannel_GetBalance_NUM 12
+#define PyChannel_GetBalance_NUM 13
 #define PyChannel_GetBalance_RETURN int
-#define PyChannel_GetBalance_PROTO ( PyChannel* )
+#define PyChannel_GetBalance_PROTO ( PyChannelObject* )
 
 // Scheduler Functions
-#define PyScheduler_Schedule_NUM 13
+#define PyScheduler_Schedule_NUM 14
 #define PyScheduler_Schedule_RETURN PyObject*
 #define PyScheduler_Schedule_PROTO ( PyObject*, int )
 
-#define PyScheduler_GetRunCount_NUM 14
+#define PyScheduler_GetRunCount_NUM 15
 #define PyScheduler_GetRunCount_RETURN int
 #define PyScheduler_GetRunCount_PROTO ( )
 
-#define PyScheduler_GetCurrent_NUM 15
+#define PyScheduler_GetCurrent_NUM 16
 #define PyScheduler_GetCurrent_RETURN PyObject*
 #define PyScheduler_GetCurrent_PROTO ( )
 
-#define PyScheduler_RunWatchdogEx_NUM 16
+#define PyScheduler_RunWatchdogEx_NUM 17
 #define PyScheduler_RunWatchdogEx_RETURN PyObject*
 #define PyScheduler_RunWatchdogEx_PROTO ( long,int )
 
 /* Total number of C API pointers */
-#define PyScheduler_API_pointers 17
+#define PyScheduler_API_pointers 18
 
 
 #ifdef SCHEDULER_MODULE
@@ -109,8 +114,6 @@ class PyChannel;
 
 
     // Tasklet Functions
-	static PyTasklet_Check_RETURN PyTasklet_Check PyTasklet_Check_PROTO;
-
 	static PyTasklet_Setup_RETURN PyTasklet_Setup PyTasklet_Setup_PROTO;
 
     static PyTasklet_Insert_RETURN PyTasklet_Insert PyTasklet_Insert_PROTO;
@@ -152,10 +155,15 @@ class PyChannel;
 
 static void** PyScheduler_API;
 
-// Tasklet Functions
-#define PyTasklet_Check \
-	( *(PyTasklet_Check_RETURN( * ) PyTasklet_Check_PROTO)PyScheduler_API[PyTasklet_Check_NUM] )
+// Types
+#define PyTasklet_Type \
+	( *(PyTypeObject*)PyScheduler_API[PyTasklet_Type_NUM] )
 
+// Exceptions
+#define PyExc_TaskletExit \
+	( (PyObject*)PyScheduler_API[PyExc_TaskletExit_NUM] )
+
+// Tasklet Functions
 #define PyTasklet_Setup \
 	( *(PyTasklet_Setup_RETURN( * ) PyTasklet_Setup_PROTO)PyScheduler_API[PyTasklet_Setup_NUM] )
 

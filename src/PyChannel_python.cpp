@@ -2,21 +2,21 @@
 
 
 static int
-	Channel_init( PyChannel* self, PyObject* args, PyObject* kwds )
+	Channel_init( PyChannelObject* self, PyObject* args, PyObject* kwds )
 {
-	self->preference = 0;
+	self->m_preference = 0;
 
 	return 0;
 }
 
 static PyObject*
-	Channel_preference_get( PyChannel* self, void* closure )
+	Channel_preference_get( PyChannelObject* self, void* closure )
 {
-	return PyLong_FromLong( self->preference );
+	return PyLong_FromLong( self->m_preference );
 }
 
 static int
-	Channel_preference_set( PyChannel* self, PyObject* value, void* closure ) //TODO just test
+	Channel_preference_set( PyChannelObject* self, PyObject* value, void* closure ) //TODO just test
 {
 	if( value == NULL )
 	{
@@ -30,26 +30,26 @@ static int
 		return -1;
 	}
 
-	self->preference = PyLong_AsLong( value );
+	self->m_preference = PyLong_AsLong( value );
 	return 0;
 }
 
 static PyObject*
-	Channel_balance_get( PyChannel* self, void* closure )
+	Channel_balance_get( PyChannelObject* self, void* closure )
 {
 	PyErr_SetString( PyExc_RuntimeError, "Channel_balance_get Not yet implemented" ); //TODO
 	return NULL;
 }
 
 static int
-	Channel_balance_set( PyChannel* self, PyObject* value, void* closure ) //TODO just test
+	Channel_balance_set( PyChannelObject* self, PyObject* value, void* closure ) //TODO just test
 {
 	PyErr_SetString( PyExc_RuntimeError, "Channel_balance_set Not yet implemented" ); //TODO
 	return -1;
 }
 
 static PyObject*
-	Channel_queue_get( PyChannel* self, void* closure )
+	Channel_queue_get( PyChannelObject* self, void* closure )
 {
 	PyErr_SetString( PyExc_RuntimeError, "Channel_queue_get Not yet implemented" ); //TODO
 	return NULL;
@@ -64,7 +64,7 @@ static PyGetSetDef Channel_getsetters[] = {
 
 
 static PyObject*
-	Channel_send( PyChannel* self, PyObject* Py_UNUSED( ignored ) )
+	Channel_send( PyChannelObject* self, PyObject* Py_UNUSED( ignored ) )
 {
 	self->send();
 
@@ -72,14 +72,14 @@ static PyObject*
 }
 
 static PyObject*
-	Channel_receive( PyChannel* self, PyObject* Py_UNUSED( ignored ) )
+	Channel_receive( PyChannelObject* self, PyObject* Py_UNUSED( ignored ) )
 {
 	PyErr_SetString( PyExc_RuntimeError, "Channel_receive Not yet implemented" ); //TODO
 	return NULL;
 }
 
 static PyObject*
-	Channel_sendexception( PyChannel* self, PyObject* Py_UNUSED( ignored ) )
+	Channel_sendexception( PyChannelObject* self, PyObject* Py_UNUSED( ignored ) )
 {
 	PyErr_SetString( PyExc_RuntimeError, "Channel_sendexception Not yet implemented" ); //TODO
 	return NULL;
@@ -98,7 +98,7 @@ static PyTypeObject ChannelType = {
 	/* The ob_type field must be initialized in the module init function
      * to be portable to Windows without using C++. */
 	PyVarObject_HEAD_INIT( NULL, 0 ) "scheduler.Channel", /*tp_name*/
-	sizeof( PyChannel ), /*tp_basicsize*/
+	sizeof( PyChannelObject ), /*tp_basicsize*/
 	0, /*tp_itemsize*/
 	/* methods */
 	0, /*tp_dealloc*/

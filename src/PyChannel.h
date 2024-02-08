@@ -19,7 +19,7 @@
 
 #include "stdafx.h"
 
-class PyChannel
+class PyChannelObject
 {
 	PyObject_HEAD
 
@@ -27,5 +27,5 @@ public:
 	bool send();
 
 public:
-	int preference;
+	int m_preference;
 };

@@ -2,21 +2,21 @@
 
 
 static int
-	Scheduler_init( PyScheduler* self, PyObject* args, PyObject* kwds )
+	Scheduler_init( PySchedulerObject* self, PyObject* args, PyObject* kwds )
 {
-	self->current = reinterpret_cast<PyTasklet*>(Py_None);
+	self->m_current = reinterpret_cast<PyTaskletObject*>(Py_None);
 
 	return 0;
 }
 
 static PyObject*
-	Scheduler_current_get( PyScheduler* self, void* closure )
+	Scheduler_current_get( PySchedulerObject* self, void* closure )
 {
-	return Py_NewRef(reinterpret_cast<PyObject*>(self->current));
+	return Py_NewRef(reinterpret_cast<PyObject*>(self->m_current));
 }
 
 static PyObject*
-	Scheduler_main_get( PyScheduler* self, void* closure )
+	Scheduler_main_get( PySchedulerObject* self, void* closure )
 {
 	PySys_WriteStdout( "Scheduler_main_get Not yet implemented \n" );  //TODO
 	return Py_None;
@@ -31,62 +31,62 @@ static PyGetSetDef Scheduler_getsetters[] = {
 
 /* Methods */
 static PyObject*
-	Scheduler_getcurrent( PyScheduler* self, PyObject* Py_UNUSED( ignored ) )
+	Scheduler_getcurrent( PySchedulerObject* self, PyObject* Py_UNUSED( ignored ) )
 {
 	return reinterpret_cast<PyObject*>(self->get_current());
 }
 
 static PyObject*
-	Scheduler_getmain( PyScheduler* self, PyObject* Py_UNUSED( ignored ) )
+	Scheduler_getmain( PySchedulerObject* self, PyObject* Py_UNUSED( ignored ) )
 {
 	PyErr_SetString( PyExc_RuntimeError, "Scheduler_getmain Not yet implemented" ); //TODO
 	return NULL;
 }
 
 static PyObject*
-	Scheduler_getruncount( PyScheduler* self, PyObject* Py_UNUSED( ignored ) )
+	Scheduler_getruncount( PySchedulerObject* self, PyObject* Py_UNUSED( ignored ) )
 {
 	PyErr_SetString( PyExc_RuntimeError, "Scheduler_getruncount Not yet implemented" ); //TODO
 	return NULL;
 }
 
 static PyObject*
-	Scheduler_schedule( PyScheduler* self, PyObject* Py_UNUSED( ignored ) )
+	Scheduler_schedule( PySchedulerObject* self, PyObject* Py_UNUSED( ignored ) )
 {
 	PyErr_SetString( PyExc_RuntimeError, "Scheduler_schedule Not yet implemented" ); //TODO
 	return NULL;
 }
 
 static PyObject*
-	Scheduler_scheduleremove( PyScheduler* self, PyObject* Py_UNUSED( ignored ) )
+	Scheduler_scheduleremove( PySchedulerObject* self, PyObject* Py_UNUSED( ignored ) )
 {
 	PyErr_SetString( PyExc_RuntimeError, "Scheduler_scheduleremove Not yet implemented" ); //TODO
 	return NULL;
 }
 
 static PyObject*
-	Scheduler_run( PyScheduler* self, PyObject* Py_UNUSED( ignored ) )
+	Scheduler_run( PySchedulerObject* self, PyObject* Py_UNUSED( ignored ) )
 {
 	PyErr_SetString( PyExc_RuntimeError, "Scheduler_run Not yet implemented" ); //TODO
 	return NULL;
 }
 
 static PyObject*
-	Scheduler_set_schedule_callback( PyScheduler* self, PyObject* Py_UNUSED( ignored ) )
+	Scheduler_set_schedule_callback( PySchedulerObject* self, PyObject* Py_UNUSED( ignored ) )
 {
 	PyErr_SetString( PyExc_RuntimeError, "Scheduler_set_schedule_callback Not yet implemented" ); //TODO
 	return NULL;
 }
 
 static PyObject*
-	Scheduler_get_schedule_callback( PyScheduler* self, PyObject* Py_UNUSED( ignored ) )
+	Scheduler_get_schedule_callback( PySchedulerObject* self, PyObject* Py_UNUSED( ignored ) )
 {
 	PyErr_SetString( PyExc_RuntimeError, "Scheduler_get_schedule_callback Not yet implemented" ); //TODO
 	return NULL;
 }
 
 static PyObject*
-	Scheduler_get_thread_info( PyScheduler* self, PyObject* Py_UNUSED( ignored ) )
+	Scheduler_get_thread_info( PySchedulerObject* self, PyObject* Py_UNUSED( ignored ) )
 {
 	PyErr_SetString( PyExc_RuntimeError, "Scheduler_get_thread_info Not yet implemented" ); //TODO
 	return NULL;
@@ -114,7 +114,7 @@ static PyTypeObject SchedulerType = {
 	/* The ob_type field must be initialized in the module init function
      * to be portable to Windows without using C++. */
 	PyVarObject_HEAD_INIT( NULL, 0 ) "scheduler.Scheduler", /*tp_name*/
-	sizeof( PyScheduler ), /*tp_basicsize*/
+	sizeof( PySchedulerObject ), /*tp_basicsize*/
 	0, /*tp_itemsize*/
 	/* methods */
 	0, /*tp_dealloc*/

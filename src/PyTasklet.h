@@ -19,7 +19,7 @@
 
 #include "stdafx.h"
 
-class PyTasklet
+class PyTaskletObject
 {
 	PyObject_HEAD
 
@@ -27,5 +27,5 @@ public:
 	bool insert();
 
 public:
-	int alive;
+	int m_alive;
 };
