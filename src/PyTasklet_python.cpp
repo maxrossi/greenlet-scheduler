@@ -11,32 +11,61 @@ static int
 }
 
 static PyObject*
-	Tasklet_getalive( PyTasklet* self, void* closure )
+	Tasklet_alive_get( PyTasklet* self, void* closure )
 {
 	return PyBool_FromLong( self->alive ); //TODO remove
 }
 
-static int
-	Tasklet_setalive( PyTasklet* self, PyObject* value, void* closure ) //TODO just test
+static PyObject*
+	Tasklet_blocked_get( PyTasklet* self, void* closure )
 {
-	if( value == NULL )
-	{
-		PyErr_SetString( PyExc_TypeError, "Cannot delete the first attribute" );
-		return -1;
-	}
-	if( !PyLong_Check( value ) )
-	{
-		PyErr_SetString( PyExc_TypeError,
-						 "The first attribute value must be a bool" );
-		return -1;
-	}
+	PyErr_SetString( PyExc_RuntimeError, "Tasklet_blocked_get Not yet implemented" ); //TODO
+	return NULL;
+}
 
-	self->alive = PyLong_AsLong( value );
-	return 0;
+static PyObject*
+	Tasklet_scheduled_get( PyTasklet* self, void* closure )
+{
+	PyErr_SetString( PyExc_RuntimeError, "Tasklet_scheduled_get Not yet implemented" ); //TODO
+	return NULL;
+}
+
+static PyObject*
+	Tasklet_blocktrap_get( PyTasklet* self, void* closure )
+{
+	PyErr_SetString( PyExc_RuntimeError, "Tasklet_blocktrap_get Not yet implemented" ); //TODO
+	return NULL;
+}
+
+static PyObject*
+	Tasklet_iscurrent_get( PyTasklet* self, void* closure )
+{
+	PyErr_SetString( PyExc_RuntimeError, "Tasklet_iscurrent_get Not yet implemented" ); //TODO
+	return NULL;
+}
+
+static PyObject*
+	Tasklet_ismain_get( PyTasklet* self, void* closure )
+{
+	PyErr_SetString( PyExc_RuntimeError, "Tasklet_ismain_get Not yet implemented" ); //TODO
+	return NULL;
+}
+
+static PyObject*
+	Tasklet_threadid_get( PyTasklet* self, void* closure )
+{
+	PyErr_SetString( PyExc_RuntimeError, "Tasklet_threadid_get Not yet implemented" ); //TODO
+	return NULL;
 }
 
 static PyGetSetDef Tasklet_getsetters[] = {
-	{ "alive", (getter)Tasklet_getalive, (setter)Tasklet_setalive, "is tasklet alive", NULL },
+	{ "alive", (getter)Tasklet_alive_get, NULL, "True while a tasklet is still running", NULL },
+	{ "blocked", (getter)Tasklet_blocked_get, NULL, "True when a tasklet is blocked on a channel", NULL },
+	{ "scheduled", (getter)Tasklet_scheduled_get, NULL, "True when the tasklet is either in the runnables list or blocked on a channel", NULL },
+	{ "block_trap", (getter)Tasklet_blocktrap_get, NULL, "True while this tasklet is within a n atomic block", NULL },
+	{ "is_current", (getter)Tasklet_iscurrent_get, NULL, "True if the tasklet is the current tasklet", NULL },
+	{ "is_main", (getter)Tasklet_ismain_get, NULL, "True if the tasklet is the main tasklet", NULL },
+	{ "thread_id", (getter)Tasklet_threadid_get, NULL, "Id of the thread the tasklet belongs to", NULL },
 	{ NULL } /* Sentinel */
 };
 
@@ -49,9 +78,49 @@ static PyObject*
 	return NULL;
 }
 
+static PyObject*
+	Tasklet_run( PyTasklet* self, void* closure )
+{
+	PyErr_SetString( PyExc_RuntimeError, "Tasklet_run Not yet implemented" ); //TODO
+	return NULL;
+}
+
+static PyObject*
+	Tasklet_switch( PyTasklet* self, void* closure )
+{
+	PyErr_SetString( PyExc_RuntimeError, "Tasklet_switch Not yet implemented" ); //TODO
+	return NULL;
+}
+
+static PyObject*
+	Tasklet_raiseexception( PyTasklet* self, void* closure )
+{
+	PyErr_SetString( PyExc_RuntimeError, "Tasklet_raiseexception Not yet implemented" ); //TODO
+	return NULL;
+}
+
+static PyObject*
+	Tasklet_kill( PyTasklet* self, void* closure )
+{
+	PyErr_SetString( PyExc_RuntimeError, "Tasklet_kill Not yet implemented" ); //TODO
+	return NULL;
+}
+
+static PyObject*
+	Tasklet_setcontext( PyTasklet* self, void* closure )
+{
+	PyErr_SetString( PyExc_RuntimeError, "Tasklet_setcontext Not yet implemented" ); //TODO
+	return NULL;
+}
 
 static PyMethodDef Tasklet_methods[] = {
-	{ "insert", (PyCFunction)Tasklet_insert, METH_NOARGS, "TODO description" },
+	{ "insert", (PyCFunction)Tasklet_insert, METH_NOARGS, "Insert a tasklet at the end of the scheduler runnables queue" },
+	{ "run", (PyCFunction)Tasklet_run, METH_NOARGS, "run immediately*" },
+	{ "switch", (PyCFunction)Tasklet_switch, METH_NOARGS, "run immediately, pause caller" },
+	{ "raise_exception", (PyCFunction)Tasklet_raiseexception, METH_NOARGS, "Raise an exception on the given tasklet" },
+	{ "kill", (PyCFunction)Tasklet_kill, METH_NOARGS, "Terminates the tasklet and unblocks it" },
+	{ "set_context", (PyCFunction)Tasklet_setcontext, METH_NOARGS, "Set the Context object to be used while this tasklet runs" },
+
 	{ NULL } /* Sentinel */
 };
 

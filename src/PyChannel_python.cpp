@@ -10,13 +10,13 @@ static int
 }
 
 static PyObject*
-	Channel_getpreference( PyChannel* self, void* closure )
+	Channel_preference_get( PyChannel* self, void* closure )
 {
 	return PyLong_FromLong( self->preference );
 }
 
 static int
-	Channel_setpreference( PyChannel* self, PyObject* value, void* closure ) //TODO just test
+	Channel_preference_set( PyChannel* self, PyObject* value, void* closure ) //TODO just test
 {
 	if( value == NULL )
 	{
@@ -34,8 +34,31 @@ static int
 	return 0;
 }
 
+static PyObject*
+	Channel_balance_get( PyChannel* self, void* closure )
+{
+	PyErr_SetString( PyExc_RuntimeError, "Channel_balance_get Not yet implemented" ); //TODO
+	return NULL;
+}
+
+static int
+	Channel_balance_set( PyChannel* self, PyObject* value, void* closure ) //TODO just test
+{
+	PyErr_SetString( PyExc_RuntimeError, "Channel_balance_set Not yet implemented" ); //TODO
+	return -1;
+}
+
+static PyObject*
+	Channel_queue_get( PyChannel* self, void* closure )
+{
+	PyErr_SetString( PyExc_RuntimeError, "Channel_queue_get Not yet implemented" ); //TODO
+	return NULL;
+}
+
 static PyGetSetDef Channel_getsetters[] = {
-	{ "preference", (getter)Channel_getpreference, (setter)Channel_setpreference, "Channel Preference", NULL },
+	{ "preference", (getter)Channel_preference_get, (setter)Channel_preference_set, "allows for customisation of how the channel actions", NULL },
+	{ "balance", (getter)Channel_balance_get, (setter)Channel_balance_set, "number of tasklets waiting to send (>0) or receive (<0)", NULL },
+	{ "queue", (getter)Channel_queue_get, NULL, "the first tasklet in the chain of tasklets that are blocked on the channel", NULL },
 	{ NULL } /* Sentinel */
 };
 
@@ -48,9 +71,25 @@ static PyObject*
 	return NULL;
 }
 
+static PyObject*
+	Channel_receive( PyChannel* self, PyObject* Py_UNUSED( ignored ) )
+{
+	PyErr_SetString( PyExc_RuntimeError, "Channel_receive Not yet implemented" ); //TODO
+	return NULL;
+}
+
+static PyObject*
+	Channel_sendexception( PyChannel* self, PyObject* Py_UNUSED( ignored ) )
+{
+	PyErr_SetString( PyExc_RuntimeError, "Channel_sendexception Not yet implemented" ); //TODO
+	return NULL;
+}
+
 
 static PyMethodDef Channel_methods[] = {
-	{ "send", (PyCFunction)Channel_send, METH_NOARGS, "TODO description" },
+	{ "send", (PyCFunction)Channel_send, METH_NOARGS, "Send a value over the channel" },
+	{ "receive", (PyCFunction)Channel_receive, METH_NOARGS, "Receive a value over the channel" },
+	{ "send_exception", (PyCFunction)Channel_sendexception, METH_NOARGS, "Send an exception over the channel" },
 	{ NULL } /* Sentinel */
 };
 
