@@ -3,7 +3,7 @@
 
 #define SCHEDULERTEST_MODULE
 #include "SchedulerTestModule.h"
-#include <SchedulerModule.h>
+#include <Scheduler.h>
 
 static PyObject*
 	test_PyScheduler_GetCurrent( PyObject* self, PyObject* args )

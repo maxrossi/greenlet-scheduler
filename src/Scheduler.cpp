@@ -2,7 +2,7 @@
 #include "stdafx.h"
 
 #define SCHEDULER_MODULE
-#include "SchedulerModule.h"
+#include "Scheduler.h"
 
 //Types
 #include "PyScheduler_python.cpp"
