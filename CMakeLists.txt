@@ -24,8 +24,8 @@ include(CcpPackageConfigHelpers)
 find_package(Python REQUIRED NO_CMAKE_PATH)
 
 set(SRC_FILES
+    include/Scheduler.h
     src/Scheduler.cpp
-    src/Scheduler.h
     src/PyTasklet_python.cpp
     src/PyTasklet.cpp
     src/PyTasklet.h
@@ -38,8 +38,10 @@ set(SRC_FILES
     src/stdafx.cpp
 )
 
-set(PUBLIC_HEADER_FILES src/Scheduler.h)
+set(PUBLIC_HEADER_FILES include/Scheduler.h)
 ccp_add_library(scheduler SHARED ${SRC_FILES})
+
+target_include_directories(scheduler PRIVATE ${CMAKE_CURRENT_LIST_DIR}/include)
 
 target_link_libraries(scheduler PRIVATE Python)
 
