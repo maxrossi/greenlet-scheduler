@@ -29,6 +29,11 @@ extern "C"
 class PyTaskletObject;
 class PyChannelObject;
 
+#define Py_WATCHDOG_THREADBLOCK 1
+#define PY_WATCHDOG_SOFT 2
+#define PY_WATCHDOG_IGNORE_NESTING 4
+#define PY_WATCHDOG_TOTALTIMEOUT 8
+
 
 #define PyTasklet_Check( op ) ( op && PyObject_TypeCheck( op, &PyTasklet_Type ) )
 

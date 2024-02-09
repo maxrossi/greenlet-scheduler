@@ -107,6 +107,10 @@ extern "C"
 		return reinterpret_cast<PyObject*>(g_scheduler->get_current());
 	}
 
+    // Note: flags used in game are PY_WATCHDOG_SOFT | PY_WATCHDOG_IGNORE_NESTING | PY_WATCHDOG_TOTALTIMEOUT
+    // We can in theory remove the flags from proto and always assume these flags, we don't need to support
+    // all combinations.
+    // Initially left in just to keep api the same during the first stubbing out.
 	static PyScheduler_RunWatchdogEx_RETURN PyScheduler_RunWatchdogEx PyScheduler_RunWatchdogEx_PROTO
 	{
 		PyErr_SetString( PyExc_RuntimeError, "PyScheduler_RunWatchdogEx Not yet implemented" ); //TODO
