@@ -13,6 +13,8 @@ __all__ = [
     'set_schedule_callback',
     'get_schedule_callback',
     'get_thread_info',
+    'set_channel_callback',
+    'get_channel_callback',
 ]
 
 import _scheduler
@@ -34,6 +36,8 @@ run = mainScheduler.run
 set_schedule_callback = mainScheduler.set_schedule_callback
 get_schedule_callback = mainScheduler.get_schedule_callback
 get_thread_info = mainScheduler.get_thread_info
+set_channel_callback = _scheduler.set_channel_callback
+get_channel_callback = _scheduler.get_channel_callback
 
 current = mainScheduler.current
 main = mainScheduler.main

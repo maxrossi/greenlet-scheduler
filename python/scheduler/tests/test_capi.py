@@ -1,0 +1,420 @@
+#
+# -*- coding: utf-8 -*-
+#
+#  Copyright 2018 science + computing ag
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#  limitations under the License.
+
+"""Test the (Stackless)-Python C-API
+
+Tests not relevant for pure Python code.
+
+Joseph Frangoudes: Leaving this in for now. We will want to make sure that we're not missing anything in our own
+CAPI tests for scheduler.
+"""
+
+from __future__ import print_function, absolute_import, division
+
+import inspect
+import io
+import scheduler
+import sys
+import time
+import traceback
+import unittest
+import os
+import subprocess
+import glob
+import pickle
+import types
+import _testscheduler
+from support import (SchedulerTestCase, withThreads, require_one_thread,
+                     testcase_leaks_references)
+
+from test.support import args_from_interpreter_flags, temp_cwd
+
+if withThreads:
+    try:
+        import thread as _thread
+    except ImportError:
+        import _thread
+else:
+    _thread = None
+
+
+_with_old_cython_hack = False
+
+
+
+class Test_PyEval_EvalFrameEx(SchedulerTestCase):
+    @staticmethod
+    def function(arg):
+        return arg
+
+    def call_PyEval_EvalFrameEx(self, *args, **kw):
+        f = self.function
+        if inspect.ismethod(f):
+            f = f.__func__
+        return _testscheduler.test_PyEval_EvalFrameEx(f.__code__, f.__globals__, args, **kw)
+
+    def test_free_vars(self):
+        # _teststackless.test_PyEval_EvalFrameEx can't handle code, that contains free variables.
+        x = None
+
+        def f():
+            return x
+        self.assertTupleEqual(f.__code__.co_freevars, ('x',))
+        self.assertRaises(ValueError, _testscheduler.test_PyEval_EvalFrameEx, f.__code__, f.__globals__)
+
+    def test_0_args(self):
+        self.assertRaises(UnboundLocalError, self.call_PyEval_EvalFrameEx)
+
+    def test_1_args(self):
+        self.assertEqual(self.call_PyEval_EvalFrameEx(47110815), 47110815)
+
+    def test_2_args(self):
+        self.assertRaises(ValueError, self.call_PyEval_EvalFrameEx, 4711, None)
+
+    def test_cstack_spilling(self):
+        # Force stack spilling. 16384 is the value of CSTACK_WATERMARK from slp_platformselect.h
+        self.call_PyEval_EvalFrameEx(None, alloca=16384 * 8)
+
+    def test_stack_unwinding(self):
+        # Calling the __init__ method of a new-style class involves stack unwinding
+        class C(object):
+            def __init__(self):
+                self.initialized = True
+
+        def f(C):
+            return C()
+
+        c = _testscheduler.test_PyEval_EvalFrameEx(f.__code__, f.__globals__, (C,))
+        self.assertIsInstance(c, C)
+        self.assertTrue(c.initialized)
+
+    def test_tasklet_switch(self):
+        # test a tasklet switch out of the running frame
+        self.other_done = False
+
+        def other_tasklet():
+            self.other_done = True
+
+        def f():
+            scheduler.run()
+            return 666
+
+        scheduler.tasklet(other_tasklet)()
+        result = _testscheduler.test_PyEval_EvalFrameEx(f.__code__, f.__globals__)
+        self.assertTrue(self.other_done)
+        self.assertEqual(result, 666)
+
+    def test_throw(self):
+        def f():
+            raise RuntimeError("must not be called")
+
+        try:
+            exc = ZeroDivisionError("test")
+            _testscheduler.test_PyEval_EvalFrameEx(f.__code__, f.__globals__, (), throw=exc)
+        except ZeroDivisionError:
+            e, tb = sys.exc_info()[1:]
+            self.assertIs(e, exc)
+            self.assertEqual(traceback.extract_tb(tb)[-1][2], f.__name__)
+        else:
+            self.fail("expected exception")
+
+    @unittest.skipUnless(withThreads, "test requires threading")
+    def test_no_main_tasklet(self):
+        def f(self, lock):
+            self.thread_done = True
+            lock.release()
+
+        def g(func, *args, **kw):
+            return func(*args, **kw)
+
+        lock = _thread.allocate_lock()
+
+        # first a dry run to check the threading logic
+        lock.acquire()
+        self.thread_done = False
+        _thread.start_new_thread(g, (_testscheduler.test_PyEval_EvalFrameEx, f.__code__, f.__globals__, (self, lock)))
+        lock.acquire()
+        self.assertTrue(self.thread_done)
+        # return  # uncomment to skip the real test
+        # and now the real smoke test: now PyEval_EvalFrameEx gets called without a main tasklet
+        self.thread_done = False
+        _thread.start_new_thread(_testscheduler.test_PyEval_EvalFrameEx, (f.__code__, f.__globals__, (self, lock)))
+        lock.acquire()
+        self.assertTrue(self.thread_done)
+
+    @unittest.skipUnless(withThreads, "test requires threading")
+    @require_one_thread  # we fiddle with sys.stderr
+    def test_throw_no_main_tasklet(self):
+        def f():
+            raise RuntimeError("must not be called")
+
+        exc = ZeroDivisionError("test")
+        saved_sys_stderr = sys.stderr
+        sys.stderr = iobuffer = io.StringIO()
+        try:
+            _thread.start_new_thread(_testscheduler.test_PyEval_EvalFrameEx, (f.__code__, f.__globals__, ()), dict(throw=exc))
+            time.sleep(0.1)
+        finally:
+            sys.stderr = saved_sys_stderr
+        msg = str(iobuffer.getvalue())
+        self.assertNotIn("Pending error while entering Stackless subsystem", msg)
+        self.assertIn(str(exc), msg)
+        #print(msg)
+
+OBJ1 = object()
+OBJ2 = object()
+
+
+class Test_SoftSwitchableExtensionFunctions(SchedulerTestCase):
+    # Tests for PyStackless_CallFunction()
+    def _test_func(self, func):
+
+        is_soft = scheduler.enable_softswitch(None)
+        self.tasklet_result = None
+
+        def task(action, retval):
+            r = func(action, retval)
+            self.tasklet_result = r
+
+        t = scheduler.tasklet(task)(2, OBJ1)
+        t.remove()
+        t.run()
+        self.assertTrue(t.alive)
+        self.assertFalse(t.scheduled)
+        self.assertEqual(t.restorable, is_soft)
+        self.assertIs(t.tempval, OBJ1)
+        # is_soft = False
+        if is_soft:
+            p1 = pickle.dumps(t)
+        t.tempval = OBJ2
+        t.insert()
+        scheduler.run()
+        self.assertTrue(t.alive)
+        self.assertFalse(t.scheduled)
+        self.assertIs(t.tempval, OBJ2)
+        if is_soft:
+            p2 = pickle.dumps(t)
+
+        t.insert()
+        scheduler.run()
+        self.assertEqual(self.tasklet_result, 2)
+        self.assertFalse(t.alive)
+
+        # the same for action == 1, schedule, but don't remove
+        self.tasklet_result = None
+        t = scheduler.tasklet(task)(1, OBJ1)
+        scheduler.run()
+        self.assertEqual(self.tasklet_result, 2)
+        self.assertFalse(t.alive)
+
+        # the same for action == 0, don't schedule
+        self.tasklet_result = None
+        t = scheduler.tasklet(task)(0, OBJ1)
+        scheduler.run()
+        self.assertEqual(self.tasklet_result, 2)
+        self.assertFalse(t.alive)
+
+        if not is_soft:
+            return
+
+        # the same for p2
+        self.tasklet_result = None
+        t = pickle.loads(p2)
+        self.assertTrue(t.alive)
+        t.insert()
+        scheduler.run()
+        self.assertEqual(self.tasklet_result, 2)
+        self.assertFalse(t.alive)
+
+        # the same for p1. It is expected to raise
+        self.tasklet_result = None
+        t = pickle.loads(p1)
+        self.assertTrue(t.alive)
+        t.insert()
+        self.assertRaisesRegex(RuntimeError, 'execute_soft_switchable_func', scheduler.run)
+        self.assertEqual(self.tasklet_result, None)
+        self.assertFalse(t.alive)
+
+    def test_softswitchablemethod(self):
+        f = _testscheduler.SoftSwitchableDemo().demo
+        self._test_func(f)
+
+    def test_softswitchablefunc(self):
+        f = _testscheduler.softswitchablefunc
+        self._test_func(f)
+
+    def callback_ok(self):
+        if scheduler.enable_softswitch(None):
+            self.assertEqual(scheduler.current.nesting_level, 0)
+        else:
+            self.assertGreaterEqual(scheduler.current.nesting_level, 1)
+        return self
+
+    def test_softswitchablefunc_callback_ok(self):
+        def task():
+            self.assertIs(self, _testscheduler.softswitchablefunc(100, self.callback_ok))
+
+        t = scheduler.tasklet(task)()
+        scheduler.run()
+        self.assertFalse(t.alive)
+
+    def callback_fail(self):
+        if scheduler.enable_softswitch(None):
+            self.assertEqual(scheduler.current.nesting_level, 0)
+        else:
+            self.assertGreaterEqual(scheduler.current.nesting_level, 1)
+        1 / 0
+
+    def test_softswitchablefunc_callback_fail(self):
+        def task():
+            with self.assertRaisesRegex(RuntimeError, "demo_soft_switchable callback failed") as cm:
+                _testscheduler.softswitchablefunc(100, self.callback_fail)
+            self.assertIsInstance(cm.exception.__context__, ZeroDivisionError)
+
+        t = scheduler.tasklet(task)()
+        scheduler.run()
+        self.assertFalse(t.alive)
+
+
+class TestDemoExtensions(unittest.TestCase):
+    def setUp(self):
+        super(TestDemoExtensions, self).setUp()
+        demo_dir = os.path.normpath(os.path.join(os.path.abspath(__file__),
+                                                 os.pardir, os.pardir, "demo",
+                                                 self.id().rpartition('.')[2].partition('_')[2]))
+        if not os.path.isdir(demo_dir):
+            self.skipTest('Not a directory: ' + demo_dir)
+        self.demo_dir = demo_dir
+        self.verbose = True
+
+    def _test_soft_switchable_extension(self):
+        with temp_cwd(self.id()) as tmpdir:
+            args = [sys.executable]
+            args.extend(args_from_interpreter_flags())
+            args.extend(["setup.py", "build", "-b", tmpdir, "install_lib", "-d", tmpdir, "--no-compile"])
+            try:
+                output = subprocess.check_output(args, stdin=subprocess.DEVNULL, stderr=subprocess.STDOUT, cwd=self.demo_dir)
+            except subprocess.CalledProcessError as e:
+                if e.stdout:
+                    sys.stdout.buffer.write(e.stdout)
+                if e.stderr:
+                    sys.stderr.buffer.write(e.stderr)
+                raise
+            if self.verbose:
+                sys.stdout.buffer.write(output)
+            py = glob.glob("*.py")
+            self.assertEqual(len(py), 1)
+            py = py[0]
+
+            args = [sys.executable]
+            args.extend(args_from_interpreter_flags())
+            args.extend([py, '-v'])
+            try:
+                output = subprocess.check_output(args, stdin=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+            except subprocess.CalledProcessError as e:
+                if e.stdout:
+                    sys.stdout.buffer.write(e.stdout)
+                if e.stderr:
+                    sys.stderr.buffer.write(e.stderr)
+                raise
+            if self.verbose:
+                sys.stdout.buffer.write(output)
+
+
+class Test_pep523_frame_hook(SchedulerTestCase):
+    def setUp(self):
+        super().setUp()
+        self.is_done = False
+
+    def tearDown(self):
+        super().tearDown()
+        _testscheduler.test_install_PEP523_eval_frame_hook(reset=True)
+        self.is_done = None
+
+    def record_done(self, fail=False):
+        self.is_done = sys._getframe()
+        if fail:
+            4711 / 0
+        return id(self)
+
+    def filter_audit_frames(self, l):
+        # the test runner installs an audit callback. We have no control
+        # over this callback, but we can observe its frames.
+        return list(i for i in l if "audit" not in i[0].f_code.co_name)
+
+    def test_hook_delegates_to__PyEval_EvalFrameDefault(self):
+        # test, that the hook function delegates to _PyEval_EvalFrameDefault
+        args = []
+        r1 = _testscheduler.test_install_PEP523_eval_frame_hook(store_args=args.append)
+        try:
+            r2 = self.record_done()
+        finally:
+            r3 = _testscheduler.test_install_PEP523_eval_frame_hook(reset=True)
+
+        self.assertIs(r1, ...)
+        self.assertIsInstance(self.is_done, types.FrameType)
+        self.assertEqual(r2, id(self))
+        self.assertEqual(r3, r2)
+        args = self.filter_audit_frames(args)
+        self.assertListEqual(args, [(self.is_done, 0)])
+
+    def test_hook_delegates_to__PyEval_EvalFrameDefault_exc(self):
+        # test, that the hook function delegates to _PyEval_EvalFrameDefault
+        args = []
+        r1 = _testscheduler.test_install_PEP523_eval_frame_hook(store_args=args.append)
+        try:
+            try:
+                self.record_done(fail=True)
+            finally:
+                r2 = _testscheduler.test_install_PEP523_eval_frame_hook(reset=True)
+        except ZeroDivisionError as e:
+            self.assertEqual(str(e), "division by zero")
+        else:
+            self.fail("Expected exception")
+
+        self.assertIs(r1, ...)
+        self.assertIsInstance(self.is_done, types.FrameType)
+        self.assertEqual(r2, NotImplemented)
+        args = self.filter_audit_frames(args)
+        self.assertListEqual(args, [(self.is_done, 0)])
+
+    def test_hook_raises_exception(self):
+        # test, that the hook function delegates to _PyEval_EvalFrameDefault
+        args = []
+        _testscheduler.test_install_PEP523_eval_frame_hook(store_args=args.append,
+                                                           throw=ZeroDivisionError("0/0"))
+        try:
+            try:
+                self.record_done()
+            finally:
+                r = _testscheduler.test_install_PEP523_eval_frame_hook(reset=True)
+        except ZeroDivisionError as e:
+            self.assertEqual(str(e), "0/0")
+        else:
+            self.fail("Expected exception")
+
+        self.assertIs(self.is_done, False)
+        self.assertEqual(r, ...)
+        self.assertEqual(len(args), 1)
+        self.assertIsInstance(args[0][0], types.FrameType)
+        self.assertEqual(args[0][1], 0)
+
+
+if __name__ == "__main__":
+    if not sys.argv[1:]:
+        sys.argv.append('-v')
+    unittest.main()

@@ -130,8 +130,24 @@ static PyObject*
 	return reinterpret_cast<PyObject*>(g_scheduler);
 }
 
+static PyObject*
+	set_channel_callback( PyObject* self, PyObject* args )
+{
+	PyErr_SetString( PyExc_RuntimeError, "set_channel_callback Not yet implemented" ); //TODO
+	return NULL;
+}
+
+static PyObject*
+	get_channel_callback( PyObject* self, PyObject* args )
+{
+	PyErr_SetString( PyExc_RuntimeError, "get_channel_callback Not yet implemented" ); //TODO
+	return NULL;
+}
+
 static PyMethodDef SchedulerMethods[] = {
 	{ "getscheduler", get_scheduler, METH_VARARGS, "Get the main scheduler object" },
+	{ "set_channel_callback", set_channel_callback, METH_NOARGS, "Install a global channel callback" },
+	{ "get_channel_callback", get_channel_callback, METH_NOARGS, "Get the current global channel callback" },
 	 { NULL, NULL, 0, NULL } /* Sentinel */
 };
 

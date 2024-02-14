@@ -59,6 +59,7 @@ add_subdirectory(tests/cpp)
 
 # Provide an install target iff this is the top level project only
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+    enable_testing()
     # Install rule to ensure that our runtime and linker files are in the expected, platform-specific folders
     install(
         TARGETS scheduler
@@ -83,4 +84,23 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
      FILES_MATCHING
      PATTERN "*.py"
 )
+
+    OPTION(RUN_PYTHON_TESTS ON)
+
+    if(${RUN_PYTHON_TESTS})
+        get_filename_component(PYTHON_TEST_EXE_DIR ${PYTHON_EXECUTABLE} DIRECTORY)
+
+        if(WIN32)
+            SET(PYTHONPATH_ENV "${CMAKE_SOURCE_DIR}/python/\;$<TARGET_FILE_DIR:scheduler>\;${BRANCH_ROOT_DIR}/carbon/common/stdlib/\;${PYTHON_TEST_EXE_DIR}")
+        elseif(APPLE)
+            SET(PYTHONPATH_ENV "${CMAKE_SOURCE_DIR}/python/:$<TARGET_FILE_DIR:scheduler>:${BRANCH_ROOT_DIR}/carbon/common/stdlib/:${PYTHON_TEST_EXE_DIR}")
+        endif()
+
+        add_test(NAME SCHEDULER_PYTHON_TESTS
+            COMMAND ${PYTHON_EXECUTABLE} -m unittest discover -s scheduler/tests
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/python/
+        )
+
+        set_property(TEST SCHEDULER_PYTHON_TESTS PROPERTY ENVIRONMENT "PYTHONPATH=${PYTHONPATH_ENV}")
+    endif()
 endif()
