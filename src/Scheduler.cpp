@@ -4,12 +4,14 @@
 #define SCHEDULER_MODULE
 #include "Scheduler.h"
 
+
+#include "greenlet.h"
+
 //Types
 #include "PyScheduler_python.cpp"
 #include "PyTasklet_python.cpp"
 #include "PyChannel_python.cpp"
 
-static PySchedulerObject* g_scheduler = nullptr;
 /*
 C Interface
 
@@ -104,7 +106,7 @@ extern "C"
     
     static PyScheduler_GetCurrent_RETURN PyScheduler_GetCurrent PyScheduler_GetCurrent_PROTO
 	{
-		return reinterpret_cast<PyObject*>(g_scheduler->get_current());
+		return PySchedulerObject::get_current();
 	}
 
     // Note: flags used in game are PY_WATCHDOG_SOFT | PY_WATCHDOG_IGNORE_NESTING | PY_WATCHDOG_TOTALTIMEOUT
@@ -125,7 +127,7 @@ extern "C"
 static PyObject*
 	get_scheduler( PyObject* self, PyObject* args )
 {
-	return reinterpret_cast<PyObject*>(g_scheduler);
+	return reinterpret_cast<PyObject*>( PySchedulerObject::s_singleton );
 }
 
 static PyMethodDef SchedulerMethods[] = {
@@ -165,8 +167,6 @@ PyInit__scheduler(void)
     if (m == NULL)
         return NULL;
 
-
-
 	Py_INCREF( &TaskletType );
 	if( PyModule_AddObject( m, "Tasklet", (PyObject*)&TaskletType ) < 0 )
 	{
@@ -202,9 +202,13 @@ PyInit__scheduler(void)
         return NULL;
     }
 
-	//Create the main scheduler object
-	g_scheduler =  PyObject_New( PySchedulerObject, &SchedulerType );
-	Scheduler_init( g_scheduler, nullptr, nullptr );
+    // Import Greenlet
+	PyObject* scheduler_module = PyImport_ImportModule( "greenlet" );
+
+    if( !scheduler_module )
+	{
+		PySys_WriteStdout( "Failed to import greenlet module\n" );
+	}
 
 	//C_API
 	/* Initialize the C API pointer array */

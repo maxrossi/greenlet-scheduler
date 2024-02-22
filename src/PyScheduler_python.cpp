@@ -1,18 +1,33 @@
 #include "PyScheduler.h"
 
+#include "PyTasklet.h"
 
 static int
 	Scheduler_init( PySchedulerObject* self, PyObject* args, PyObject* kwds )
 {
-	self->m_current = reinterpret_cast<PyTaskletObject*>(Py_None);
+	PyObject* temp;
+
+    self->m_tasklets = new std::queue<PyObject*>();
+
+	Py_IncRef( &self->ob_base );
+
+	self->s_singleton = self;
 
 	return 0;
 }
 
-static PyObject*
-	Scheduler_current_get( PySchedulerObject* self, void* closure )
+static void
+	Scheduler_dealloc( PySchedulerObject* self )
 {
-	return Py_NewRef(reinterpret_cast<PyObject*>(self->m_current));
+	delete self->m_tasklets;
+
+	Py_TYPE( self )->tp_free( (PyObject*)self );
+}
+
+static PyObject*
+	Scheduler_current_get( PySchedulerObject* self, void* closure ) //Old remove
+{
+	return nullptr;
 }
 
 static PyObject*
@@ -46,8 +61,7 @@ static PyObject*
 static PyObject*
 	Scheduler_getruncount( PySchedulerObject* self, PyObject* Py_UNUSED( ignored ) )
 {
-	PyErr_SetString( PyExc_RuntimeError, "Scheduler_getruncount Not yet implemented" ); //TODO
-	return NULL;
+	return PyLong_FromLong(self->get_tasklet_count());
 }
 
 static PyObject*
@@ -67,8 +81,7 @@ static PyObject*
 static PyObject*
 	Scheduler_run( PySchedulerObject* self, PyObject* Py_UNUSED( ignored ) )
 {
-	PyErr_SetString( PyExc_RuntimeError, "Scheduler_run Not yet implemented" ); //TODO
-	return NULL;
+    return self->run();
 }
 
 static PyObject*
@@ -92,9 +105,24 @@ static PyObject*
 	return NULL;
 }
 
+static PyObject*
+	Scheduler_set_scheduler_tasklet( PySchedulerObject* self, PyObject* args, PyObject* kwds )
+{
+	PyObject* temp;
+
+	if( PyArg_ParseTuple( args, "O:set_scheduler_tasklet", &temp ) )
+	{
+		Py_INCREF( temp );
+
+		self->m_scheduler_tasklet = (PyTaskletObject*)temp;
+
+        self->m_scheduler_tasklet->set_to_current_greenlet();
+	}
+
+	return Py_None;
+}
 
 /* Methods end */
-
 
 static PyMethodDef Scheduler_methods[] = {
 	{ "getcurrent", (PyCFunction)Scheduler_getcurrent, METH_NOARGS, "Return the currently executing tasklet of this thread" },
@@ -106,6 +134,7 @@ static PyMethodDef Scheduler_methods[] = {
 	{ "set_schedule_callback", (PyCFunction)Scheduler_set_schedule_callback, METH_NOARGS, "Install a callback for scheduling" },
 	{ "get_schedule_callback", (PyCFunction)Scheduler_get_schedule_callback, METH_NOARGS, "Get the current global schedule callback" },
 	{ "get_thread_info", (PyCFunction)Scheduler_get_thread_info, METH_NOARGS, "Return a tuple containing the threads main tasklet, current tasklet and run-count" },
+	{ "set_scheduler_tasklet", (PyCFunction)Scheduler_set_scheduler_tasklet, METH_VARARGS, "TODO" },
 	{ NULL } /* Sentinel */
 };
 
@@ -117,7 +146,7 @@ static PyTypeObject SchedulerType = {
 	sizeof( PySchedulerObject ), /*tp_basicsize*/
 	0, /*tp_itemsize*/
 	/* methods */
-	0, /*tp_dealloc*/
+	(destructor)Scheduler_dealloc, /*tp_dealloc*/
 	0, /*tp_vectorcall_offset*/
 	0, /*tp_getattr*/
 	0, /*tp_setattr*/

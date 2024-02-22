@@ -18,16 +18,28 @@
 #pragma once
 
 #include "stdafx.h"
+#include <queue>
 
-class PyTaskletObject;
+struct PyTaskletObject;
 
 class PySchedulerObject
 {
+public:
 	PyObject_HEAD
 
-public:
-	PyTaskletObject* get_current();
+	static PyObject* get_current();
 
-public:
-	PyTaskletObject* m_current;
+    static void insert_tasklet( PyTaskletObject* tasklet );
+
+    static int get_tasklet_count();
+
+    static void schedule();
+
+    static PyObject* run();
+
+    std::queue<PyObject*>* m_tasklets;
+
+    PyTaskletObject* m_scheduler_tasklet;
+
+	inline static PySchedulerObject* s_singleton;
 };

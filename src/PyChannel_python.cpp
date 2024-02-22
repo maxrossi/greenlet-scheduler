@@ -4,9 +4,27 @@
 static int
 	Channel_init( PyChannelObject* self, PyObject* args, PyObject* kwds )
 {
+	self->m_transfer_arguments = nullptr;
+
 	self->m_preference = 0;
 
+    self->m_waiting_to_send = new std::queue<PyObject*>();
+
+    self->m_waiting_to_receive = new std::queue<PyObject*>();
+
 	return 0;
+}
+
+static void
+	Channel_dealloc( PyChannelObject* self )
+{
+	delete self->m_waiting_to_send;
+
+	delete self->m_waiting_to_receive;
+
+    Py_XDECREF( self->m_transfer_arguments );
+
+	Py_TYPE( self )->tp_free( (PyObject*)self );
 }
 
 static PyObject*
@@ -37,8 +55,7 @@ static int
 static PyObject*
 	Channel_balance_get( PyChannelObject* self, void* closure )
 {
-	PyErr_SetString( PyExc_RuntimeError, "Channel_balance_get Not yet implemented" ); //TODO
-	return NULL;
+	return PyLong_FromLong( self->balance() );
 }
 
 static int
@@ -64,18 +81,19 @@ static PyGetSetDef Channel_getsetters[] = {
 
 
 static PyObject*
-	Channel_send( PyChannelObject* self, PyObject* Py_UNUSED( ignored ) )
+	Channel_send( PyChannelObject* self, PyObject* args, PyObject* kwds )
 {
-	self->send();
+	self->send( args );
 
-	return NULL;
+    Py_IncRef( Py_None );
+
+	return Py_None;
 }
 
 static PyObject*
 	Channel_receive( PyChannelObject* self, PyObject* Py_UNUSED( ignored ) )
 {
-	PyErr_SetString( PyExc_RuntimeError, "Channel_receive Not yet implemented" ); //TODO
-	return NULL;
+	return self->receive();
 }
 
 static PyObject*
@@ -87,7 +105,7 @@ static PyObject*
 
 
 static PyMethodDef Channel_methods[] = {
-	{ "send", (PyCFunction)Channel_send, METH_NOARGS, "Send a value over the channel" },
+	{ "send", (PyCFunction)Channel_send, METH_VARARGS, "Send a value over the channel" },
 	{ "receive", (PyCFunction)Channel_receive, METH_NOARGS, "Receive a value over the channel" },
 	{ "send_exception", (PyCFunction)Channel_sendexception, METH_NOARGS, "Send an exception over the channel" },
 	{ NULL } /* Sentinel */
@@ -101,7 +119,7 @@ static PyTypeObject ChannelType = {
 	sizeof( PyChannelObject ), /*tp_basicsize*/
 	0, /*tp_itemsize*/
 	/* methods */
-	0, /*tp_dealloc*/
+	(destructor)Channel_dealloc, /*tp_dealloc*/
 	0, /*tp_vectorcall_offset*/
 	0, /*tp_getattr*/
 	0, /*tp_setattr*/

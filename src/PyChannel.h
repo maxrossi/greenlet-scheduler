@@ -19,13 +19,24 @@
 
 #include "stdafx.h"
 
+#include <queue>
+
 class PyChannelObject
 {
+public:
 	PyObject_HEAD
 
-public:
-	bool send();
+	bool send( PyObject* args );
 
-public:
+    int balance();
+
+    PyObject* receive();
+
 	int m_preference;
+
+    std::queue<PyObject*>* m_waiting_to_send;
+
+    std::queue<PyObject*>* m_waiting_to_receive;
+
+    PyObject* m_transfer_arguments;
 };

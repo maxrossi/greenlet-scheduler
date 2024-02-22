@@ -21,11 +21,24 @@
 
 class PyTaskletObject
 {
+public:
 	PyObject_HEAD
 
-public:
+	void set_to_current_greenlet();
+
 	bool insert();
 
-public:
-	int m_alive;
+    PyObject* switch_to();
+
+	PyGreenlet* m_greenlet;
+
+	PyObject* m_callable;
+
+	PyObject* m_arguments;
+
+	bool m_alive;
+
+    bool m_blocked;
+
+    inline static PyTaskletObject* s_current = NULL;
 };

@@ -20,7 +20,8 @@ import _scheduler
 from _scheduler import _C_API
 
 # Get main scheduler
-mainScheduler = _scheduler.getscheduler()
+mainScheduler = _scheduler.Scheduler()
+
 
 # Expose main scheduler methods and members at base level of extension
 getcurrent = mainScheduler.getcurrent
@@ -35,6 +36,11 @@ set_schedule_callback = mainScheduler.set_schedule_callback
 get_schedule_callback = mainScheduler.get_schedule_callback
 get_thread_info = mainScheduler.get_thread_info
 
-current = mainScheduler.current
-main = mainScheduler.main
+#current = mainScheduler.current
+#main = mainScheduler.main
+
+##Hacky TODO
+schedulerTasklet = tasklet(run)
+mainScheduler.set_scheduler_tasklet(schedulerTasklet)
+
     

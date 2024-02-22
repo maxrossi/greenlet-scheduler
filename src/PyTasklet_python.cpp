@@ -5,22 +5,59 @@ static PyObject* TaskletExit;
 static int
 	Tasklet_init( PyTaskletObject* self, PyObject* args, PyObject* kwds )
 {
-	self->m_alive = 0;
+    //Arguments passed in will be a callable function
+    //TODO this needs to be in the bind function
+	PyObject* temp;
+
+	if( PyArg_ParseTuple( args, "O:set_callable", &temp ) )
+	{
+		if( !PyCallable_Check( temp ) )
+		{
+			PyErr_SetString( PyExc_TypeError, "parameter must be callable" );
+			return -1;
+		}
+
+		Py_INCREF( temp ); /* Add a reference to new callback */
+		
+		self->m_callable = temp; /* Remember new callback */
+
+	}
+
+	self->m_alive = true;
+
+    self->m_blocked = false;
+
+    // This is set on call or bind TODO
+	self->m_arguments = nullptr;
+    
+    //Initialise greenlet to null
+    self->m_greenlet = nullptr;
 
 	return 0;
+}
+
+static void
+	Tasklet_dealloc( PyTaskletObject* self )
+{
+	Py_XDECREF( self->m_callable );
+
+    Py_XDECREF( self->m_arguments );
+
+    Py_XDECREF( self->m_greenlet );
+
+	Py_TYPE( self )->tp_free( (PyObject*)self );
 }
 
 static PyObject*
 	Tasklet_alive_get( PyTaskletObject* self, void* closure )
 {
-	return PyBool_FromLong( self->m_alive ); //TODO remove
+	return self->m_alive ? Py_True : Py_False; 
 }
 
 static PyObject*
 	Tasklet_blocked_get( PyTaskletObject* self, void* closure )
 {
-	PyErr_SetString( PyExc_RuntimeError, "Tasklet_blocked_get Not yet implemented" ); //TODO
-	return NULL;
+	return self->m_blocked ? Py_True : Py_False;
 }
 
 static PyObject*
@@ -113,6 +150,26 @@ static PyObject*
 	return NULL;
 }
 
+
+static PyObject*
+    Tasklet_setup( PyObject* callable, PyObject* args, PyObject* kwargs )
+{
+	PyTaskletObject* tasklet = reinterpret_cast<PyTaskletObject*>( callable );
+	PyObject* result = NULL;
+
+    Py_XINCREF( args );
+	Py_XDECREF( tasklet->m_arguments );
+	tasklet->m_arguments = args;
+
+    //Add to scheduler
+    tasklet->insert();
+
+    Py_IncRef( callable );
+
+	return callable;
+}
+
+
 static PyMethodDef Tasklet_methods[] = {
 	{ "insert", (PyCFunction)Tasklet_insert, METH_NOARGS, "Insert a tasklet at the end of the scheduler runnables queue" },
 	{ "run", (PyCFunction)Tasklet_run, METH_NOARGS, "run immediately*" },
@@ -120,7 +177,6 @@ static PyMethodDef Tasklet_methods[] = {
 	{ "raise_exception", (PyCFunction)Tasklet_raiseexception, METH_NOARGS, "Raise an exception on the given tasklet" },
 	{ "kill", (PyCFunction)Tasklet_kill, METH_NOARGS, "Terminates the tasklet and unblocks it" },
 	{ "set_context", (PyCFunction)Tasklet_setcontext, METH_NOARGS, "Set the Context object to be used while this tasklet runs" },
-
 	{ NULL } /* Sentinel */
 };
 
@@ -132,7 +188,7 @@ static PyTypeObject TaskletType = {
 	sizeof( PyTaskletObject ), /*tp_basicsize*/
 	0, /*tp_itemsize*/
 	/* methods */
-	0, /*tp_dealloc*/
+	(destructor)Tasklet_dealloc, /*tp_dealloc*/
 	0, /*tp_vectorcall_offset*/
 	0, /*tp_getattr*/
 	0, /*tp_setattr*/
@@ -142,7 +198,7 @@ static PyTypeObject TaskletType = {
 	0, /*tp_as_sequence*/
 	0, /*tp_as_mapping*/
 	0, /*tp_hash*/
-	0, /*tp_call*/
+	Tasklet_setup, /*tp_call*/
 	0, /*tp_str*/
 	0, /*tp_getattro*/
 	0, /*tp_setattro*/
