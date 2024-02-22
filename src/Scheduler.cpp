@@ -9,7 +9,7 @@
 #include "PyTasklet_python.cpp"
 #include "PyChannel_python.cpp"
 
-static PyScheduler* g_scheduler = nullptr;
+static PySchedulerObject* g_scheduler = nullptr;
 /*
 C Interface
 
@@ -18,12 +18,6 @@ C Interface
 extern "C"
 {
 	// Tasklet functions
-	static PyTasklet_Check_RETURN PyTasklet_Check PyTasklet_Check_PROTO
-	{
-		PyErr_SetString( PyExc_RuntimeError, "PyTasklet_Check Not yet implemented" ); //TODO
-		return 0;
-	}
-
 	static PyTasklet_Setup_RETURN PyTasklet_Setup PyTasklet_Setup_PROTO
 	{
 		PyErr_SetString( PyExc_RuntimeError, "PyTasklet_Setup Not yet implemented" ); //TODO
@@ -113,11 +107,45 @@ extern "C"
 		return reinterpret_cast<PyObject*>(g_scheduler->get_current());
 	}
 
+    // Note: flags used in game are PY_WATCHDOG_SOFT | PY_WATCHDOG_IGNORE_NESTING | PY_WATCHDOG_TOTALTIMEOUT
+    // We can in theory remove the flags from proto and always assume these flags, we don't need to support
+    // all combinations.
+    // Initially left in just to keep api the same during the first stubbing out.
 	static PyScheduler_RunWatchdogEx_RETURN PyScheduler_RunWatchdogEx PyScheduler_RunWatchdogEx_PROTO
 	{
 		PyErr_SetString( PyExc_RuntimeError, "PyScheduler_RunWatchdogEx Not yet implemented" ); //TODO
 		return NULL;
 	}
+
+    static PyScheduler_SetChannelCallback_RETURN PyScheduler_SetChannelCallback PyScheduler_SetChannelCallback_PROTO
+    {
+		PyErr_SetString( PyExc_RuntimeError, "PyScheduler_SetChannelCallback Not yet implemented" ); //TODO
+		return NULL;
+    }
+
+    static PyScheduler_GetChannelCallback_RETURN PyScheduler_GetChannelCallback PyScheduler_GetChannelCallback_PROTO
+	{
+		PyErr_SetString( PyExc_RuntimeError, "PyScheduler_GetChannelCallback Not yet implemented" ); //TODO
+		return NULL;
+	}
+
+    static PyScheduler_SetScheduleCallback_RETURN PyScheduler_SetScheduleCallback PyScheduler_SetScheduleCallback_PROTO
+    {
+		PyErr_SetString( PyExc_RuntimeError, "PyScheduler_SetScheduleCallback Not yet implemented" ); //TODO
+		return NULL;
+    }
+
+    static PyScheduler_SetScheduleFastCallback_RETURN PyScheduler_SetScheduleFastCallback PyScheduler_SetScheduleFastCallback_PROTO
+	{
+		PyErr_SetString( PyExc_RuntimeError, "PyScheduler_SetScheduleFastCallback Not yet implemented" ); //TODO
+		return;
+	}
+
+    static PyScheduler_CallMethod_Main_RETURN PyScheduler_CallMethod_Main PyScheduler_CallMethod_Main_PROTO
+    {
+		PyErr_SetString( PyExc_RuntimeError, "PyScheduler_CallMethod_Main Not yet implemented" ); //TODO
+		return NULL;
+    }
 
 }	// extern C
 
@@ -144,11 +172,19 @@ static PyObject*
 	return NULL;
 }
 
+static PyObject*
+	set_scheduler_callback( PyObject* self, PyObject* args )
+{
+	PyErr_SetString( PyExc_RuntimeError, "set_scheduler_callback Not yet implemented" ); //TODO
+	return NULL;
+}
+
 static PyMethodDef SchedulerMethods[] = {
 	{ "getscheduler", get_scheduler, METH_VARARGS, "Get the main scheduler object" },
-	{ "set_channel_callback", set_channel_callback, METH_NOARGS, "Install a global channel callback" },
-	{ "get_channel_callback", get_channel_callback, METH_NOARGS, "Get the current global channel callback" },
-	 { NULL, NULL, 0, NULL } /* Sentinel */
+	{ "set_channel_callback", set_channel_callback, METH_VARARGS, "Install a global channel callback" },
+	{ "get_channel_callback", get_channel_callback, METH_VARARGS, "Get the current global channel callback" },
+	{ "set_scheduler_callback", set_scheduler_callback, METH_VARARGS, "Get the current global channel callback" },
+	{ NULL, NULL, 0, NULL } /* Sentinel */
 };
 
 
@@ -221,13 +257,19 @@ PyInit__scheduler(void)
     }
 
 	//Create the main scheduler object
-	g_scheduler =  PyObject_New( PyScheduler, &SchedulerType );
+	g_scheduler =  PyObject_New( PySchedulerObject, &SchedulerType );
 	Scheduler_init( g_scheduler, nullptr, nullptr );
 
 	//C_API
 	/* Initialize the C API pointer array */
+    // Types
+	PyScheduler_API[PyTasklet_Type_NUM] = (void*)&TaskletType;
+	PyScheduler_API[PyChannel_Type_NUM] = (void*)&ChannelType;
+
+    // Exceptions
+	PyScheduler_API[PyExc_TaskletExit_NUM] = (void*)&TaskletExit;
+
     // Tasklet Functions
-	PyScheduler_API[PyTasklet_Check_NUM] = (void*)PyTasklet_Check;
 	PyScheduler_API[PyTasklet_Setup_NUM] = (void*)PyTasklet_Setup;
 	PyScheduler_API[PyTasklet_Insert_NUM] = (void*)PyTasklet_Insert;
 	PyScheduler_API[PyTasklet_GetBlockTrap_NUM] = (void*)PyTasklet_GetBlockTrap;
@@ -248,6 +290,8 @@ PyInit__scheduler(void)
 	PyScheduler_API[PyScheduler_GetRunCount_NUM] = (void*)PyScheduler_GetRunCount;
 	PyScheduler_API[PyScheduler_GetCurrent_NUM] = (void*)PyScheduler_GetCurrent;
 	PyScheduler_API[PyScheduler_RunWatchdogEx_NUM] = (void*)PyScheduler_RunWatchdogEx;
+	PyScheduler_API[PyScheduler_SetChannelCallback_NUM] = (void*)PyScheduler_SetChannelCallback;
+	PyScheduler_API[PyScheduler_SetScheduleCallback_NUM] = (void*)PyScheduler_SetScheduleCallback;
 
 	/* Create a Capsule containing the API pointer array's address */
 	c_api_object = PyCapsule_New( (void*)PyScheduler_API, "scheduler._C_API", NULL );

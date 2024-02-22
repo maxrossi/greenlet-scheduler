@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(scheduler)
+project(Scheduler)
 
 
 
@@ -24,8 +24,8 @@ include(CcpPackageConfigHelpers)
 find_package(Python REQUIRED NO_CMAKE_PATH)
 
 set(SRC_FILES
+    include/Scheduler.h
     src/Scheduler.cpp
-    src/Scheduler.h
     src/PyTasklet_python.cpp
     src/PyTasklet.cpp
     src/PyTasklet.h
@@ -38,20 +38,22 @@ set(SRC_FILES
     src/stdafx.cpp
 )
 
-set(PUBLIC_HEADER_FILES src/Scheduler.h)
-ccp_add_library(scheduler SHARED ${SRC_FILES})
+set(PUBLIC_HEADER_FILES include/Scheduler.h)
+ccp_add_library(Scheduler SHARED ${SRC_FILES})
 
-target_link_libraries(scheduler PRIVATE Python)
+target_include_directories(Scheduler PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
 
-get_target_property(_SOURCES scheduler SOURCES)
+target_link_libraries(Scheduler PRIVATE Python)
+
+get_target_property(_SOURCES Scheduler SOURCES)
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}"
         PREFIX "Sources"
         FILES ${_SOURCES}
 )
 
-target_precompile_headers(scheduler PRIVATE src/stdafx.h)
+target_precompile_headers(Scheduler PRIVATE src/stdafx.h)
 
-set_target_properties(scheduler PROPERTIES OUTPUT_NAME "_scheduler")
+set_target_properties(Scheduler PROPERTIES OUTPUT_NAME "_scheduler")
 
 
 # Build test
@@ -62,8 +64,8 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     enable_testing()
     # Install rule to ensure that our runtime and linker files are in the expected, platform-specific folders
     install(
-        TARGETS scheduler
-        EXPORT schedulerTargets
+        TARGETS Scheduler
+        EXPORT SchedulerTargets
         CONFIGURATIONS ${CMAKE_CONFIGURATION_TYPES}
         LIBRARY DESTINATION lib/${CCP_PLATFORM}/${CCP_ARCHITECTURE}/${CCP_TOOLSET}/
         ARCHIVE DESTINATION lib/${CCP_PLATFORM}/${CCP_ARCHITECTURE}/${CCP_TOOLSET}/
@@ -73,11 +75,11 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     install(FILES ${PUBLIC_HEADER_FILES} DESTINATION include)
 
     configure_ccp_vendor_config_file(
-        TARGET scheduler
-        DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/schedulerConfig.cmake"
+        TARGET Scheduler
+        DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/SchedulerConfig.cmake"
         DEPENDENCIES ""
     )
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/schedulerConfig.cmake DESTINATION .)
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/SchedulerConfig.cmake DESTINATION .)
 
      # Install python package
      install(DIRECTORY python/ DESTINATION python

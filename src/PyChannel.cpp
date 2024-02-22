@@ -1,6 +1,6 @@
 #include "PyChannel.h"
 
-bool PyChannel::send()
+bool PyChannelObject::send()
 {
 
 	PyErr_SetString( PyExc_RuntimeError, "Not yet implemented" );

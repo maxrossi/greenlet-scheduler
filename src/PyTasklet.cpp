@@ -1,6 +1,6 @@
 #include "PyTasklet.h"
 
-bool PyTasklet::insert()
+bool PyTaskletObject::insert()
 {
 
 	PyErr_SetString( PyExc_RuntimeError, "Not yet implemented" );
