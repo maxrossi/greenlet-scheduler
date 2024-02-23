@@ -119,6 +119,36 @@ extern "C"
 		return NULL;
 	}
 
+    static PyScheduler_SetChannelCallback_RETURN PyScheduler_SetChannelCallback PyScheduler_SetChannelCallback_PROTO
+    {
+		PyErr_SetString( PyExc_RuntimeError, "PyScheduler_SetChannelCallback Not yet implemented" ); //TODO
+		return NULL;
+    }
+
+    static PyScheduler_GetChannelCallback_RETURN PyScheduler_GetChannelCallback PyScheduler_GetChannelCallback_PROTO
+	{
+		PyErr_SetString( PyExc_RuntimeError, "PyScheduler_GetChannelCallback Not yet implemented" ); //TODO
+		return NULL;
+	}
+
+    static PyScheduler_SetScheduleCallback_RETURN PyScheduler_SetScheduleCallback PyScheduler_SetScheduleCallback_PROTO
+    {
+		PyErr_SetString( PyExc_RuntimeError, "PyScheduler_SetScheduleCallback Not yet implemented" ); //TODO
+		return NULL;
+    }
+
+    static PyScheduler_SetScheduleFastCallback_RETURN PyScheduler_SetScheduleFastCallback PyScheduler_SetScheduleFastCallback_PROTO
+	{
+		PyErr_SetString( PyExc_RuntimeError, "PyScheduler_SetScheduleFastCallback Not yet implemented" ); //TODO
+		return;
+	}
+
+    static PyScheduler_CallMethod_Main_RETURN PyScheduler_CallMethod_Main PyScheduler_CallMethod_Main_PROTO
+    {
+		PyErr_SetString( PyExc_RuntimeError, "PyScheduler_CallMethod_Main Not yet implemented" ); //TODO
+		return NULL;
+    }
+
 }	// extern C
 
 // End C API
@@ -130,9 +160,33 @@ static PyObject*
 	return reinterpret_cast<PyObject*>( PySchedulerObject::s_singleton );
 }
 
+static PyObject*
+	set_channel_callback( PyObject* self, PyObject* args )
+{
+	PyErr_SetString( PyExc_RuntimeError, "set_channel_callback Not yet implemented" ); //TODO
+	return NULL;
+}
+
+static PyObject*
+	get_channel_callback( PyObject* self, PyObject* args )
+{
+	PyErr_SetString( PyExc_RuntimeError, "get_channel_callback Not yet implemented" ); //TODO
+	return NULL;
+}
+
+static PyObject*
+	set_scheduler_callback( PyObject* self, PyObject* args )
+{
+	PyErr_SetString( PyExc_RuntimeError, "set_scheduler_callback Not yet implemented" ); //TODO
+	return NULL;
+}
+
 static PyMethodDef SchedulerMethods[] = {
 	{ "getscheduler", get_scheduler, METH_VARARGS, "Get the main scheduler object" },
-	 { NULL, NULL, 0, NULL } /* Sentinel */
+	{ "set_channel_callback", set_channel_callback, METH_VARARGS, "Install a global channel callback" },
+	{ "get_channel_callback", get_channel_callback, METH_VARARGS, "Get the current global channel callback" },
+	{ "set_scheduler_callback", set_scheduler_callback, METH_VARARGS, "Get the current global channel callback" },
+	{ NULL, NULL, 0, NULL } /* Sentinel */
 };
 
 
@@ -214,6 +268,7 @@ PyInit__scheduler(void)
 	/* Initialize the C API pointer array */
     // Types
 	PyScheduler_API[PyTasklet_Type_NUM] = (void*)&TaskletType;
+	PyScheduler_API[PyChannel_Type_NUM] = (void*)&ChannelType;
 
     // Exceptions
 	PyScheduler_API[PyExc_TaskletExit_NUM] = (void*)&TaskletExit;
@@ -239,6 +294,8 @@ PyInit__scheduler(void)
 	PyScheduler_API[PyScheduler_GetRunCount_NUM] = (void*)PyScheduler_GetRunCount;
 	PyScheduler_API[PyScheduler_GetCurrent_NUM] = (void*)PyScheduler_GetCurrent;
 	PyScheduler_API[PyScheduler_RunWatchdogEx_NUM] = (void*)PyScheduler_RunWatchdogEx;
+	PyScheduler_API[PyScheduler_SetChannelCallback_NUM] = (void*)PyScheduler_SetChannelCallback;
+	PyScheduler_API[PyScheduler_SetScheduleCallback_NUM] = (void*)PyScheduler_SetScheduleCallback;
 
 	/* Create a Capsule containing the API pointer array's address */
 	c_api_object = PyCapsule_New( (void*)PyScheduler_API, "scheduler._C_API", NULL );

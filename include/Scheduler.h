@@ -37,81 +37,105 @@ class PyChannelObject;
 
 #define PyTasklet_Check( op ) ( op && PyObject_TypeCheck( op, &PyTasklet_Type ) )
 
+typedef int( schedule_hook_func )( PyTaskletObject* from, PyTaskletObject* to );
+
 // Types
 #define PyTasklet_Type_NUM 0
+#define PyChannel_Type_NUM 1
 
 // Exceptions
-#define PyExc_TaskletExit_NUM 1
+#define PyExc_TaskletExit_NUM 2
 
 // Tasklet Functions
-#define PyTasklet_Setup_NUM 2
+#define PyTasklet_Setup_NUM 3
 #define PyTasklet_Setup_RETURN int
 #define PyTasklet_Setup_PROTO ( PyTaskletObject*, PyObject* args, PyObject* kwds )
 
-#define PyTasklet_Insert_NUM 3
+#define PyTasklet_Insert_NUM 4
 #define PyTasklet_Insert_RETURN int
 #define PyTasklet_Insert_PROTO ( PyTaskletObject* )
 
-#define PyTasklet_GetBlockTrap_NUM 4
+#define PyTasklet_GetBlockTrap_NUM 5
 #define PyTasklet_GetBlockTrap_RETURN int
 #define PyTasklet_GetBlockTrap_PROTO ( PyTaskletObject* )
 
-#define PyTasklet_SetBlockTrap_NUM 5
+#define PyTasklet_SetBlockTrap_NUM 6
 #define PyTasklet_SetBlockTrap_RETURN void
 #define PyTasklet_SetBlockTrap_PROTO ( PyTaskletObject*, int )
 
-#define PyTasklet_IsMain_NUM 6
+#define PyTasklet_IsMain_NUM 7
 #define PyTasklet_IsMain_RETURN int
 #define PyTasklet_IsMain_PROTO ( PyTaskletObject* )
 
 // Channel Functions
-#define PyChannel_New_NUM 7
+#define PyChannel_New_NUM 8
 #define PyChannel_New_RETURN PyChannelObject*
 #define PyChannel_New_PROTO ( PyTypeObject* )
 
-#define PyChannel_Send_NUM 8
+#define PyChannel_Send_NUM 9
 #define PyChannel_Send_RETURN int
 #define PyChannel_Send_PROTO ( PyChannelObject*, PyObject* )
 
-#define PyChannel_Receive_NUM 9
+#define PyChannel_Receive_NUM 10
 #define PyChannel_Receive_RETURN PyObject*
 #define PyChannel_Receive_PROTO ( PyChannelObject* )
 
-#define PyChannel_SendException_NUM 10
+#define PyChannel_SendException_NUM 11
 #define PyChannel_SendException_RETURN int
 #define PyChannel_SendException_PROTO ( PyChannelObject*, PyObject*, PyObject* )
 
-#define PyChannel_GetQueue_NUM 11
+#define PyChannel_GetQueue_NUM 12
 #define PyChannel_GetQueue_RETURN PyObject*
 #define PyChannel_GetQueue_PROTO ( PyChannelObject* )
 
-#define PyChannel_SetPreference_NUM 12
+#define PyChannel_SetPreference_NUM 13
 #define PyChannel_SetPreference_RETURN void
 #define PyChannel_SetPreference_PROTO ( PyChannelObject*, int )
 
-#define PyChannel_GetBalance_NUM 13
+#define PyChannel_GetBalance_NUM 14
 #define PyChannel_GetBalance_RETURN int
 #define PyChannel_GetBalance_PROTO ( PyChannelObject* )
 
 // Scheduler Functions
-#define PyScheduler_Schedule_NUM 14
+#define PyScheduler_Schedule_NUM 15
 #define PyScheduler_Schedule_RETURN PyObject*
 #define PyScheduler_Schedule_PROTO ( PyObject*, int )
 
-#define PyScheduler_GetRunCount_NUM 15
+#define PyScheduler_GetRunCount_NUM 16
 #define PyScheduler_GetRunCount_RETURN int
 #define PyScheduler_GetRunCount_PROTO ( )
 
-#define PyScheduler_GetCurrent_NUM 16
+#define PyScheduler_GetCurrent_NUM 17
 #define PyScheduler_GetCurrent_RETURN PyObject*
 #define PyScheduler_GetCurrent_PROTO ( )
 
-#define PyScheduler_RunWatchdogEx_NUM 17
+#define PyScheduler_RunWatchdogEx_NUM 18
 #define PyScheduler_RunWatchdogEx_RETURN PyObject*
 #define PyScheduler_RunWatchdogEx_PROTO ( long,int )
 
+#define PyScheduler_SetChannelCallback_NUM 19
+#define PyScheduler_SetChannelCallback_RETURN PyObject*
+#define PyScheduler_SetChannelCallback_PROTO ( PyObject*, PyObject* )
+
+#define PyScheduler_GetChannelCallback_NUM 20
+#define PyScheduler_GetChannelCallback_RETURN PyObject*
+#define PyScheduler_GetChannelCallback_PROTO ( PyObject*, PyObject* )
+
+#define PyScheduler_SetScheduleCallback_NUM 21
+#define PyScheduler_SetScheduleCallback_RETURN PyObject*
+#define PyScheduler_SetScheduleCallback_PROTO ( PyObject*, PyObject* )
+
+#define PyScheduler_SetScheduleFastCallback_NUM 22
+#define PyScheduler_SetScheduleFastCallback_RETURN void
+#define PyScheduler_SetScheduleFastCallback_PROTO ( schedule_hook_func func )
+
+#define PyScheduler_CallMethod_Main_NUM 23
+#define PyScheduler_CallMethod_Main_RETURN PyObject*
+#define PyScheduler_CallMethod_Main_PROTO ( PyObject *o, char *name, char *format, ... )
+
+
 /* Total number of C API pointers */
-#define PyScheduler_API_pointers 18
+#define PyScheduler_API_pointers 24
 
 
 #ifdef SCHEDULER_MODULE
@@ -153,6 +177,15 @@ class PyChannelObject;
 
     static PyScheduler_RunWatchdogEx_RETURN PyScheduler_RunWatchdogEx PyScheduler_RunWatchdogEx_PROTO;
 
+    static PyScheduler_SetChannelCallback_RETURN PyScheduler_SetChannelCallback PyScheduler_SetChannelCallback_PROTO;
+
+    static PyScheduler_GetChannelCallback_RETURN PyScheduler_GetChannelCallback PyScheduler_GetChannelCallback_PROTO;
+
+    static PyScheduler_SetScheduleCallback_RETURN PyScheduler_SetScheduleCallback PyScheduler_SetScheduleCallback_PROTO;
+
+    static PyScheduler_SetScheduleFastCallback_RETURN PyScheduler_SetScheduleFastCallback PyScheduler_SetScheduleFastCallback_PROTO;
+
+    static PyScheduler_CallMethod_Main_RETURN PyScheduler_CallMethod_Main PyScheduler_CallMethod_Main_PROTO;
 
 #else
 
@@ -163,6 +196,9 @@ static void** PyScheduler_API;
 // Types
 #define PyTasklet_Type \
 	( *(PyTypeObject*)PyScheduler_API[PyTasklet_Type_NUM] )
+
+#define PyChannel_Type \
+	( *(PyTypeObject*)PyScheduler_API[PyChannel_Type_NUM] )
 
 // Exceptions
 #define PyExc_TaskletExit \
@@ -219,6 +255,17 @@ static void** PyScheduler_API;
 #define PyScheduler_RunWatchdogEx \
 	( *(PyScheduler_RunWatchdogEx_RETURN( * ) PyScheduler_RunWatchdogEx_PROTO)PyScheduler_API[PyScheduler_RunWatchdogEx_NUM] )
 
+#define PyScheduler_SetChannelCallback \
+	( *(PyScheduler_SetChannelCallback_RETURN( * ) PyScheduler_SetChannelCallback_PROTO)PyScheduler_API[PyScheduler_SetChannelCallback_NUM] )
+
+#define PyScheduler_GetChannelCallback \
+	( *(PyScheduler_GetChannelCallback_RETURN( * ) PyScheduler_GetChannelCallback_PROTO)PyScheduler_API[PyScheduler_GetChannelCallback_NUM] )
+
+#define PyScheduler_SetScheduleCallback \
+	( *(PyScheduler_SetScheduleCallback_RETURN( * ) PyScheduler_SetScheduleCallback_PROTO)PyScheduler_API[PyScheduler_SetScheduleCallback_NUM] )
+
+#define PyScheduler_CallMethod_Main \
+	( *(PyScheduler_CallMethod_Main_RETURN( * ) PyScheduler_CallMethod_Main_PROTO)PyScheduler_API[PyScheduler_CallMethod_Main_NUM] )
 
 /* Return -1 on error, 0 on success.
  * PyCapsule_Import will set an exception if there's an error.
