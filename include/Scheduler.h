@@ -264,6 +264,9 @@ static void** PyScheduler_API;
 #define PyScheduler_SetScheduleCallback \
 	( *(PyScheduler_SetScheduleCallback_RETURN( * ) PyScheduler_SetScheduleCallback_PROTO)PyScheduler_API[PyScheduler_SetScheduleCallback_NUM] )
 
+#define PyScheduler_SetScheduleFastCallback \
+	( *(PyScheduler_SetScheduleFastCallback_RETURN( * ) PyScheduler_SetScheduleFastCallback_PROTO)PyScheduler_API[PyScheduler_SetScheduleFastCallback_NUM] )
+
 #define PyScheduler_CallMethod_Main \
 	( *(PyScheduler_CallMethod_Main_RETURN( * ) PyScheduler_CallMethod_Main_PROTO)PyScheduler_API[PyScheduler_CallMethod_Main_NUM] )
 
