@@ -2,10 +2,13 @@
 
 __all__ = [
     '_C_API',
+    'current'
     'getcurrent',
+    'main'
     'getmain',
     'tasklet',
     'channel',
+    'current',
     'getruncount',
     'schedule',
     'schedule_remove',
@@ -15,6 +18,8 @@ __all__ = [
     'get_thread_info',
     'set_channel_callback',
     'get_channel_callback',
+    'switch_trap',
+    'enable_softswitch',
 ]
 
 import _scheduler
@@ -39,12 +44,20 @@ get_schedule_callback = mainScheduler.get_schedule_callback
 get_thread_info = mainScheduler.get_thread_info
 set_channel_callback = _scheduler.set_channel_callback
 get_channel_callback = _scheduler.get_channel_callback
+switch_trap = mainScheduler.switch_trap
+enable_softswitch = _scheduler.enable_softswitch
 
-#current = mainScheduler.current
-#main = mainScheduler.main
+# Set initial values
+main = tasklet(run)
+current = main
+mainScheduler.set_scheduler_tasklet(main)
 
-##Hacky TODO
-schedulerTasklet = tasklet(run)
-mainScheduler.set_scheduler_tasklet(schedulerTasklet)
+# This is done two give the ability to access current tasklet through scheduler.current
+# It would be better to deprecate this functionality and prefer getcurrent
+# The callback functionality could then be removed
+def UpdateCurrentCallback(newCurrent):
+    current = newCurrent
+mainScheduler.set_current_tasklet_changed_callback(UpdateCurrentCallback)
+
 
     

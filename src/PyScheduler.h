@@ -27,7 +27,9 @@ class PySchedulerObject
 public:
 	PyObject_HEAD
 
-	static PyObject* get_current();
+	static void set_current_tasklet( PyTaskletObject* tasklet );
+
+	static PyObject* get_current_tasklet();
 
     static void insert_tasklet( PyTaskletObject* tasklet );
 
@@ -35,11 +37,19 @@ public:
 
     static void schedule();
 
-    static PyObject* run();
+    static PyObject* run(PyTaskletObject* start_tasklet = nullptr);
 
-    std::queue<PyObject*>* m_tasklets;
+    static PyObject* get_main_tasklet();
 
     PyTaskletObject* m_scheduler_tasklet;
+
+    PyTaskletObject* m_current_tasklet; //Weak ref
+
+    int m_switch_trap_level;
+
+    PyTaskletObject* m_previous_tasklet;   //Weak ref
+
+    PyObject* m_current_tasklet_changed_callback;
 
 	inline static PySchedulerObject* s_singleton;
 };

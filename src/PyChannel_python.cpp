@@ -18,6 +18,8 @@ static int
 static void
 	Channel_dealloc( PyChannelObject* self )
 {
+    //TODO need to clean up tasklets that are stored in waiting_to_send and waiting_to_receive lists
+
 	delete self->m_waiting_to_send;
 
 	delete self->m_waiting_to_receive;
@@ -83,7 +85,15 @@ static PyGetSetDef Channel_getsetters[] = {
 static PyObject*
 	Channel_send( PyChannelObject* self, PyObject* args, PyObject* kwds )
 {
-	self->send( args );
+	PyObject* value;
+
+	if( PyArg_ParseTuple( args, "O:send_value", &value ) )
+	{
+		if( !self->send( value ) )
+		{
+			return NULL;
+		}
+	}
 
     Py_IncRef( Py_None );
 
@@ -97,7 +107,7 @@ static PyObject*
 }
 
 static PyObject*
-	Channel_sendexception( PyChannelObject* self, PyObject* Py_UNUSED( ignored ) )
+	Channel_sendexception( PyChannelObject* self, PyObject* args, PyObject* kwds )
 {
 	PyErr_SetString( PyExc_RuntimeError, "Channel_sendexception Not yet implemented" ); //TODO
 	return NULL;
@@ -107,7 +117,7 @@ static PyObject*
 static PyMethodDef Channel_methods[] = {
 	{ "send", (PyCFunction)Channel_send, METH_VARARGS, "Send a value over the channel" },
 	{ "receive", (PyCFunction)Channel_receive, METH_NOARGS, "Receive a value over the channel" },
-	{ "send_exception", (PyCFunction)Channel_sendexception, METH_NOARGS, "Send an exception over the channel" },
+	{ "send_exception", (PyCFunction)Channel_sendexception, METH_VARARGS, "Send an exception over the channel" },
 	{ NULL } /* Sentinel */
 };
 
@@ -134,7 +144,7 @@ static PyTypeObject ChannelType = {
 	0, /*tp_getattro*/
 	0, /*tp_setattro*/
 	0, /*tp_as_buffer*/
-	Py_TPFLAGS_DEFAULT, /*tp_flags*/
+	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /*tp_flags*/
 	PyDoc_STR( "Channel objects" ), /*tp_doc*/
 	0, /*tp_traverse*/
 	0, /*tp_clear*/

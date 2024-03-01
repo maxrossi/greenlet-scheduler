@@ -30,15 +30,29 @@ public:
 
     PyObject* switch_to();
 
+    PyObject* run();
+
+    void kill();
+
 	PyGreenlet* m_greenlet;
 
 	PyObject* m_callable;
 
 	PyObject* m_arguments;
 
+    bool m_is_main;
+
+    bool m_scheduled;
+
 	bool m_alive;
+
+    PyObject* m_channel_blocked_on;
 
     bool m_blocked;
 
-    inline static PyTaskletObject* s_current = NULL;
+    bool m_blocktrap;
+
+    PyObject* m_previous;
+
+    PyObject* m_next;
 };

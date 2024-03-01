@@ -25,6 +25,7 @@ static int
 
 	self->m_alive = true;
 
+    self->m_channel_blocked_on = Py_None;
     self->m_blocked = false;
 
     // This is set on call or bind TODO
@@ -32,6 +33,17 @@ static int
     
     //Initialise greenlet to null
     self->m_greenlet = nullptr;
+
+    self->m_is_main = false;
+
+    //Initialise blocktrap to false
+    self->m_blocktrap = false;
+
+    //Initialise next tasklet pointer to zero
+	self->m_next = Py_None;
+	self->m_previous = Py_None;
+
+    self->m_scheduled = false;
 
 	return 0;
 }
@@ -63,15 +75,27 @@ static PyObject*
 static PyObject*
 	Tasklet_scheduled_get( PyTaskletObject* self, void* closure )
 {
-	PyErr_SetString( PyExc_RuntimeError, "Tasklet_scheduled_get Not yet implemented" ); //TODO
-	return NULL;
+	return self->m_scheduled ? Py_True : Py_False;
 }
 
 static PyObject*
 	Tasklet_blocktrap_get( PyTaskletObject* self, void* closure )
 {
-	PyErr_SetString( PyExc_RuntimeError, "Tasklet_blocktrap_get Not yet implemented" ); //TODO
-	return NULL;
+	return self->m_blocktrap ? Py_True : Py_False;
+}
+
+static int
+	Tasklet_blocktrap_set( PyTaskletObject* self, PyObject* value, void* closure )
+{
+	if(!PyBool_Check(value))
+	{
+		PyErr_SetString( PyExc_RuntimeError, "Blocktrap expects a boolean" ); //TODO
+		return -1;
+    }
+
+    self->m_blocktrap = PyObject_IsTrue( value );
+
+	return 0;
 }
 
 static PyObject*
@@ -95,14 +119,51 @@ static PyObject*
 	return NULL;
 }
 
+
+static PyObject*
+	Tasklet_next_get( PyTaskletObject* self, void* closure )
+{
+	PyObject* next = nullptr;
+
+	next = self->m_next;
+
+    if( !next )
+	{
+		PyErr_SetString( PyExc_RuntimeError, "Next tasklet in erroneous state." ); //TODO
+    }
+
+    Py_IncRef( next );
+	
+	return next;
+}
+
+static PyObject*
+	Tasklet_previous_get( PyTaskletObject* self, void* closure )
+{
+	PyObject* previous = nullptr;
+
+	previous = self->m_previous;
+
+	if( !previous )
+	{
+		PyErr_SetString( PyExc_RuntimeError, "Previous tasklet in erroneous state." ); //TODO
+	}
+
+	Py_IncRef( previous );
+
+	return previous;
+}
+
 static PyGetSetDef Tasklet_getsetters[] = {
 	{ "alive", (getter)Tasklet_alive_get, NULL, "True while a tasklet is still running", NULL },
 	{ "blocked", (getter)Tasklet_blocked_get, NULL, "True when a tasklet is blocked on a channel", NULL },
 	{ "scheduled", (getter)Tasklet_scheduled_get, NULL, "True when the tasklet is either in the runnables list or blocked on a channel", NULL },
-	{ "block_trap", (getter)Tasklet_blocktrap_get, NULL, "True while this tasklet is within a n atomic block", NULL },
+	{ "block_trap", (getter)Tasklet_blocktrap_get, (setter)Tasklet_blocktrap_set, "True while this tasklet is within a n atomic block", NULL },
 	{ "is_current", (getter)Tasklet_iscurrent_get, NULL, "True if the tasklet is the current tasklet", NULL },
 	{ "is_main", (getter)Tasklet_ismain_get, NULL, "True if the tasklet is the main tasklet", NULL },
 	{ "thread_id", (getter)Tasklet_threadid_get, NULL, "Id of the thread the tasklet belongs to", NULL },
+	{ "next", (getter)Tasklet_next_get, NULL, "Get next tasklet in scheduler", NULL },
+	{ "prev", (getter)Tasklet_previous_get, NULL, "Get next tasklet in scheduler", NULL },
 	{ NULL } /* Sentinel */
 };
 
@@ -118,8 +179,7 @@ static PyObject*
 static PyObject*
 	Tasklet_run( PyTaskletObject* self, void* closure )
 {
-	PyErr_SetString( PyExc_RuntimeError, "Tasklet_run Not yet implemented" ); //TODO
-	return NULL;
+	return self->run();
 }
 
 static PyObject*
@@ -139,8 +199,9 @@ static PyObject*
 static PyObject*
 	Tasklet_kill( PyTaskletObject* self, void* closure )
 {
-	PyErr_SetString( PyExc_RuntimeError, "Tasklet_kill Not yet implemented" ); //TODO
-	return NULL;
+	self->kill();
+
+	return Py_None;
 }
 
 static PyObject*

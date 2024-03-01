@@ -106,7 +106,7 @@ extern "C"
     
     static PyScheduler_GetCurrent_RETURN PyScheduler_GetCurrent PyScheduler_GetCurrent_PROTO
 	{
-		return PySchedulerObject::get_current();
+		return PySchedulerObject::get_current_tasklet();
 	}
 
     // Note: flags used in game are PY_WATCHDOG_SOFT | PY_WATCHDOG_IGNORE_NESTING | PY_WATCHDOG_TOTALTIMEOUT
@@ -181,11 +181,30 @@ static PyObject*
 	return NULL;
 }
 
+static PyObject*
+	enable_soft_switch( PyObject* self, PyObject* args )
+{
+	PyObject* soft_switch_value;
+
+    if( PyArg_ParseTuple( args, "O:set_callable", &soft_switch_value ) )
+	{
+		if( soft_switch_value != Py_None )
+		{
+			PyErr_SetString( PyExc_RuntimeError, "enable_soft_switch is only implemented for legacy reasons, the value cannot be changed." ); //TODO
+			return NULL;
+        }
+	}
+
+	return Py_False;
+}
+
 static PyMethodDef SchedulerMethods[] = {
 	{ "getscheduler", get_scheduler, METH_VARARGS, "Get the main scheduler object" },
 	{ "set_channel_callback", set_channel_callback, METH_VARARGS, "Install a global channel callback" },
 	{ "get_channel_callback", get_channel_callback, METH_VARARGS, "Get the current global channel callback" },
 	{ "set_scheduler_callback", set_scheduler_callback, METH_VARARGS, "Get the current global channel callback" },
+	{ "enable_softswitch", enable_soft_switch, METH_VARARGS, "Legacy support" },
+	
 	{ NULL, NULL, 0, NULL } /* Sentinel */
 };
 

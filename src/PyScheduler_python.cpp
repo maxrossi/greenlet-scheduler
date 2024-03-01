@@ -7,11 +7,15 @@ static int
 {
 	PyObject* temp;
 
-    self->m_tasklets = new std::queue<PyObject*>();
-
 	Py_IncRef( &self->ob_base );
 
 	self->s_singleton = self;
+
+    self->m_switch_trap_level = 0;
+
+    self->m_previous_tasklet = nullptr;
+
+    self->m_current_tasklet_changed_callback = nullptr;
 
 	return 0;
 }
@@ -19,49 +23,32 @@ static int
 static void
 	Scheduler_dealloc( PySchedulerObject* self )
 {
-	delete self->m_tasklets;
+    Py_XDECREF( self->m_current_tasklet_changed_callback );
 
 	Py_TYPE( self )->tp_free( (PyObject*)self );
 }
-
-static PyObject*
-	Scheduler_current_get( PySchedulerObject* self, void* closure ) //Old remove
-{
-	return nullptr;
-}
-
-static PyObject*
-	Scheduler_main_get( PySchedulerObject* self, void* closure )
-{
-	PySys_WriteStdout( "Scheduler_main_get Not yet implemented \n" );  //TODO
-	return Py_None;
-}
-
-static PyGetSetDef Scheduler_getsetters[] = {
-	{ "current", (getter)Scheduler_current_get, NULL, "The currently executing tasklet of this thread", NULL },
-	{ "main", (getter)Scheduler_main_get, NULL, "The main tasklet of this thread", NULL },
-	{ NULL } /* Sentinel */
-};
-
 
 /* Methods */
 static PyObject*
 	Scheduler_getcurrent( PySchedulerObject* self, PyObject* Py_UNUSED( ignored ) )
 {
-	return reinterpret_cast<PyObject*>(self->get_current());
+	Py_INCREF( self->m_current_tasklet );
+
+	return reinterpret_cast<PyObject*>( self->m_current_tasklet );
 }
 
 static PyObject*
 	Scheduler_getmain( PySchedulerObject* self, PyObject* Py_UNUSED( ignored ) )
 {
-	PyErr_SetString( PyExc_RuntimeError, "Scheduler_getmain Not yet implemented" ); //TODO
-	return NULL;
+	Py_INCREF( self->m_scheduler_tasklet );
+
+	return reinterpret_cast<PyObject*>(self->m_scheduler_tasklet);
 }
 
 static PyObject*
 	Scheduler_getruncount( PySchedulerObject* self, PyObject* Py_UNUSED( ignored ) )
 {
-	return PyLong_FromLong(self->get_tasklet_count());
+	return PyLong_FromLong(self->get_tasklet_count()+1);  // +1 is the main tasklet
 }
 
 static PyObject*
@@ -99,10 +86,23 @@ static PyObject*
 }
 
 static PyObject*
-	Scheduler_get_thread_info( PySchedulerObject* self, PyObject* Py_UNUSED( ignored ) )
+	Scheduler_get_thread_info( PySchedulerObject* self, PyObject* args, PyObject* kwds )
 {
-	PyErr_SetString( PyExc_RuntimeError, "Scheduler_get_thread_info Not yet implemented" ); //TODO
-	return NULL;
+    //TODO: extend functionality to include thread id
+
+	PyObject* thread_info_tuple = PyTuple_New( 3 );
+
+    Py_INCREF( self->m_scheduler_tasklet );
+
+    PyTuple_SetItem( thread_info_tuple, 0, reinterpret_cast<PyObject*>(self->m_scheduler_tasklet) );
+
+    Py_INCREF( self->m_current_tasklet );
+
+    PyTuple_SetItem( thread_info_tuple, 1, reinterpret_cast<PyObject*>( self->m_current_tasklet ) );
+
+    PyTuple_SetItem( thread_info_tuple, 2, PyLong_FromLong(self->get_tasklet_count() + 1) );
+
+	return thread_info_tuple;
 }
 
 static PyObject*
@@ -114,12 +114,57 @@ static PyObject*
 	{
 		Py_INCREF( temp );
 
-		self->m_scheduler_tasklet = (PyTaskletObject*)temp;
+        PyTaskletObject* tasklet = (PyTaskletObject*)temp;
+
+        tasklet->m_is_main = true;
+
+		self->m_scheduler_tasklet = tasklet;
+
+        self->m_current_tasklet = tasklet;
+
+        self->m_previous_tasklet = tasklet;
 
         self->m_scheduler_tasklet->set_to_current_greenlet();
 	}
 
 	return Py_None;
+}
+
+static PyObject*
+	Scheduler_set_current_tasklet_changed_callback( PySchedulerObject* self, PyObject* args, PyObject* kwds )
+{
+	PyObject* temp;
+
+	if( PyArg_ParseTuple( args, "O:set_current_tasklet_changed_callback", &temp ) )
+	{
+		if( !PyCallable_Check( temp ) )
+		{
+			PyErr_SetString( PyExc_TypeError, "parameter must be callable" );
+			return NULL;
+		}
+
+		Py_INCREF( temp );
+
+        self->m_current_tasklet_changed_callback = temp;
+	}
+
+	return Py_None;
+}
+
+static PyObject*
+	Scheduler_switch_trap( PySchedulerObject* self, PyObject* args, PyObject* kwds )
+{
+	//TODO: channels need to track this and raise runtime error if appropriet
+	int delta;
+
+	if( !PyArg_ParseTuple( args, "i:delta", &delta ) )
+	{
+		PyErr_SetString( PyExc_RuntimeError, "Scheduler_switch_trap requires a delta argument." ); //TODO
+	}
+
+    self->m_switch_trap_level += delta;
+
+    return PyLong_FromLong(self->m_switch_trap_level);
 }
 
 /* Methods end */
@@ -133,9 +178,11 @@ static PyMethodDef Scheduler_methods[] = {
 	{ "run", (PyCFunction)Scheduler_run, METH_NOARGS, "Run scheduler" },
 	{ "set_schedule_callback", (PyCFunction)Scheduler_set_schedule_callback, METH_NOARGS, "Install a callback for scheduling" },
 	{ "get_schedule_callback", (PyCFunction)Scheduler_get_schedule_callback, METH_NOARGS, "Get the current global schedule callback" },
-	{ "get_thread_info", (PyCFunction)Scheduler_get_thread_info, METH_NOARGS, "Return a tuple containing the threads main tasklet, current tasklet and run-count" },
+	{ "get_thread_info", (PyCFunction)Scheduler_get_thread_info, METH_VARARGS, "Return a tuple containing the threads main tasklet, current tasklet and run-count" },
 	{ "set_scheduler_tasklet", (PyCFunction)Scheduler_set_scheduler_tasklet, METH_VARARGS, "TODO" },
-	{ NULL } /* Sentinel */
+	{ "set_current_tasklet_changed_callback", (PyCFunction)Scheduler_set_current_tasklet_changed_callback, METH_VARARGS, "TODO" },
+	{ "switch_trap", (PyCFunction)Scheduler_switch_trap, METH_VARARGS, "When the switch trap level is non-zero, any tasklet switching, e.g. due channel action or explicit, will result in a RuntimeError being raised." },
+    { NULL } /* Sentinel */
 };
 
 
@@ -171,7 +218,7 @@ static PyTypeObject SchedulerType = {
 	0, /*tp_iternext*/
 	Scheduler_methods, /*tp_methods*/
 	0, /*tp_members*/
-	Scheduler_getsetters, /*tp_getset*/
+	0, /*tp_getset*/
 	0,
 	/* see PyInit_xx */ /*tp_base*/
 	0, /*tp_dict*/

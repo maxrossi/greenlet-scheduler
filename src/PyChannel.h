@@ -32,6 +32,8 @@ public:
 
     PyObject* receive();
 
+    void remove_tasklet_from_blocked( PyObject* tasklet );
+
 	int m_preference;
 
     std::queue<PyObject*>* m_waiting_to_send;
