@@ -45,6 +45,12 @@ static int
 
     self->m_scheduled = false;
 
+    self->m_transfer_arguments = nullptr;
+
+	self->m_thread_id = PyThread_get_thread_ident();
+
+    self->m_transfer_in_progress = true;
+
 	return 0;
 }
 
@@ -56,6 +62,8 @@ static void
     Py_XDECREF( self->m_arguments );
 
     Py_XDECREF( self->m_greenlet );
+
+    Py_XDECREF( self->m_transfer_arguments );
 
 	Py_TYPE( self )->tp_free( (PyObject*)self );
 }
@@ -115,8 +123,7 @@ static PyObject*
 static PyObject*
 	Tasklet_threadid_get( PyTaskletObject* self, void* closure )
 {
-	PyErr_SetString( PyExc_RuntimeError, "Tasklet_threadid_get Not yet implemented" ); //TODO
-	return NULL;
+	return PyLong_FromLong( self->m_thread_id );
 }
 
 

@@ -20,12 +20,12 @@ void PyTaskletObject::set_to_current_greenlet()
 
 bool PyTaskletObject::insert()
 {
-	
+
     Py_XDECREF( m_greenlet );
 
     m_greenlet = PyGreenlet_New( m_callable, nullptr );
   
-    PySchedulerObject::insert_tasklet( this );
+    Scheduler::insert_tasklet( this );
 
 	return false;
 
@@ -33,6 +33,13 @@ bool PyTaskletObject::insert()
 
 PyObject* PyTaskletObject::switch_to( )
 {
+	if( _PyGreenlet_API == NULL )   //TODO remove
+	{
+		PySys_WriteStdout( "Failed to import greenlet capsule\n" );
+		PyErr_Print();
+	}
+
+    PyObject* ret = Py_None;
 
 	if( m_arguments )
 	{
@@ -43,22 +50,34 @@ PyObject* PyTaskletObject::switch_to( )
 		}
 
 	}
-	
-    PySchedulerObject::set_current_tasklet( this );
 
-    PyObject* ret = PyGreenlet_Switch( m_greenlet, m_arguments, nullptr );
-
-    if( !m_blocked )    //TODO This is unexpected to me
+    if( PyThread_get_thread_ident() != m_thread_id)
 	{
-		m_alive = false;
-	}
 
-    m_scheduled = false;
+		Scheduler::insert_tasklet( this );
 
-    m_next = Py_None;
+        Scheduler::schedule();
+
+    }
+	else
+	{
+        // Tasklet is on the same thread so can be switched to now
+		Scheduler::set_current_tasklet( this );
+
+		m_next = Py_None;
+
+        m_scheduled = false;    // TODO is a running tasklet scheduled in stackless?
+
+		ret = PyGreenlet_Switch( m_greenlet, m_arguments, nullptr );
+
+        if( !m_blocked && !m_transfer_in_progress ) //TODO this is a bit odd
+		{
+			m_alive = false;
+		}
+	
+    }
 
 	return ret;
-    
 }
 
 PyObject* PyTaskletObject::run()
@@ -80,7 +99,7 @@ PyObject* PyTaskletObject::run()
 	// Run scheduler starting from this tasklet (If it is already in the scheduled)
 	if(m_scheduled)
 	{
-		PySchedulerObject::run( this );
+		Scheduler::run( this );
     }
 	else
 	{
@@ -120,4 +139,29 @@ void PyTaskletObject::kill()
 
     // End reference
 	Py_DECREF( this );
+}
+
+PyObject* PyTaskletObject::get_transfer_arguments()
+{
+    //Ownership is relinquished
+	PyObject* ret = m_transfer_arguments;
+
+	m_transfer_arguments = nullptr;
+
+	return ret;
+}
+
+void PyTaskletObject::set_transfer_arguments( PyObject* args )
+{
+    //This needs to block until transfer arguments have definately been consumed so it doesn't clobber if used across threads
+    //Want to keep the lock functionality inside channels, this requires thought.
+	if(m_transfer_arguments != nullptr)
+	{
+        //TODO need to find a command to force switch thread context imediately
+		PySys_WriteStdout( "TODO %d\n", PyThread_get_thread_ident() );
+    }
+
+	Py_IncRef( args );
+
+	m_transfer_arguments = args;
 }

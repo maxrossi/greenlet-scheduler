@@ -3,12 +3,11 @@
 
 #define SCHEDULER_MODULE
 #include "Scheduler.h"
+#include <greenlet.h>
 
-
-#include "greenlet.h"
+#include "PyScheduler.h"
 
 //Types
-#include "PyScheduler_python.cpp"
 #include "PyTasklet_python.cpp"
 #include "PyChannel_python.cpp"
 
@@ -106,7 +105,7 @@ extern "C"
     
     static PyScheduler_GetCurrent_RETURN PyScheduler_GetCurrent PyScheduler_GetCurrent_PROTO
 	{
-		return PySchedulerObject::get_current_tasklet();
+		return Scheduler::get_current_tasklet();
 	}
 
     // Note: flags used in game are PY_WATCHDOG_SOFT | PY_WATCHDOG_IGNORE_NESTING | PY_WATCHDOG_TOTALTIMEOUT
@@ -152,14 +151,6 @@ extern "C"
 }	// extern C
 
 // End C API
-
-
-static PyObject*
-	get_scheduler( PyObject* self, PyObject* args )
-{
-	return reinterpret_cast<PyObject*>( PySchedulerObject::s_singleton );
-}
-
 static PyObject*
 	set_channel_callback( PyObject* self, PyObject* args )
 {
@@ -198,13 +189,195 @@ static PyObject*
 	return Py_False;
 }
 
+// TEMP
+static PyObject*
+	Scheduler_getcurrent( PyObject* self, PyObject* Py_UNUSED( ignored ) )
+{
+	Scheduler* current_scheduler = Scheduler::get_scheduler();
+
+	Py_INCREF( current_scheduler->m_current_tasklet );
+
+	return reinterpret_cast<PyObject*>( current_scheduler->m_current_tasklet );
+}
+
+static PyObject*
+	Scheduler_getmain( PyObject* self, PyObject* Py_UNUSED( ignored ) )
+{
+	Scheduler* current_scheduler = Scheduler::get_scheduler();
+
+	Py_INCREF( current_scheduler->m_scheduler_tasklet );
+
+	return reinterpret_cast<PyObject*>( current_scheduler->m_scheduler_tasklet );
+}
+
+static PyObject*
+	Scheduler_getruncount( PyObject* self, PyObject* Py_UNUSED( ignored ) )
+{
+	Scheduler* current_scheduler = Scheduler::get_scheduler();
+
+	return PyLong_FromLong( current_scheduler->get_tasklet_count() + 1 ); // +1 is the main tasklet
+}
+
+static PyObject*
+	Scheduler_schedule( PyObject* self, PyObject* Py_UNUSED( ignored ) )
+{
+	Scheduler* current_scheduler = Scheduler::get_scheduler();
+
+	PyErr_SetString( PyExc_RuntimeError, "Scheduler_schedule Not yet implemented" ); //TODO
+	return NULL;
+}
+
+static PyObject*
+	Scheduler_scheduleremove( PyObject* self, PyObject* Py_UNUSED( ignored ) )
+{
+	Scheduler* current_scheduler = Scheduler::get_scheduler();
+
+	PyErr_SetString( PyExc_RuntimeError, "Scheduler_scheduleremove Not yet implemented" ); //TODO
+	return NULL;
+}
+
+static PyObject*
+	Scheduler_run( PyObject* self, PyObject* Py_UNUSED( ignored ) )
+{
+	Scheduler* current_scheduler = Scheduler::get_scheduler();  //TODO not needed it's a static function
+
+    PyObject* ret = current_scheduler->run();
+
+    // TODO the schedulers are never deleted, they will need to be deleted on thread joining back
+    // Need to get a hook into this or something
+
+
+	return ret;
+}
+
+static PyObject*
+	Scheduler_set_schedule_callback( PyObject* self, PyObject* Py_UNUSED( ignored ) )
+{
+	Scheduler* current_scheduler = Scheduler::get_scheduler();
+
+	PyErr_SetString( PyExc_RuntimeError, "Scheduler_set_schedule_callback Not yet implemented" ); //TODO
+	return NULL;
+}
+
+static PyObject*
+	Scheduler_get_schedule_callback( PyObject* self, PyObject* Py_UNUSED( ignored ) )
+{
+	Scheduler* current_scheduler = Scheduler::get_scheduler();
+
+	PyErr_SetString( PyExc_RuntimeError, "Scheduler_get_schedule_callback Not yet implemented" ); //TODO
+	return NULL;
+}
+
+static PyObject*
+	Scheduler_get_thread_info( PyObject* self, PyObject* args, PyObject* kwds )
+{
+	Scheduler* current_scheduler = Scheduler::get_scheduler();
+
+	PyObject* thread_info_tuple = PyTuple_New( 3 );
+
+	Py_INCREF( current_scheduler->m_scheduler_tasklet );
+
+	PyTuple_SetItem( thread_info_tuple, 0, reinterpret_cast<PyObject*>( current_scheduler->m_scheduler_tasklet ) );
+
+	Py_INCREF( current_scheduler->m_current_tasklet );
+
+	PyTuple_SetItem( thread_info_tuple, 1, reinterpret_cast<PyObject*>( current_scheduler->m_current_tasklet ) );
+
+	PyTuple_SetItem( thread_info_tuple, 2, PyLong_FromLong( current_scheduler->get_tasklet_count() + 1 ) );
+
+	return thread_info_tuple;
+}
+
+
+//TODO below doesn't work anymore, was rubbish anyway, needs to work per thread
+static PyObject*
+	Scheduler_set_current_tasklet_changed_callback( PyObject* self, PyObject* args, PyObject* kwds )
+{
+	Scheduler* current_scheduler = Scheduler::get_scheduler();
+
+	PyObject* temp;
+
+	if( PyArg_ParseTuple( args, "O:set_current_tasklet_changed_callback", &temp ) )
+	{
+		if( !PyCallable_Check( temp ) )
+		{
+			PyErr_SetString( PyExc_TypeError, "parameter must be callable" );
+			return NULL;
+		}
+
+		Py_INCREF( temp );
+
+		current_scheduler->m_current_tasklet_changed_callback = temp;
+	}
+
+	return Py_None;
+}
+
+static PyObject*
+	Scheduler_switch_trap( PyObject* self, PyObject* args, PyObject* kwds )
+{
+	Scheduler* current_scheduler = Scheduler::get_scheduler();
+
+	//TODO: channels need to track this and raise runtime error if appropriet
+	int delta;
+
+	if( !PyArg_ParseTuple( args, "i:delta", &delta ) )
+	{
+		PyErr_SetString( PyExc_RuntimeError, "Scheduler_switch_trap requires a delta argument." ); //TODO
+	}
+
+	current_scheduler->m_switch_trap_level += delta;
+
+	return PyLong_FromLong( current_scheduler->m_switch_trap_level );
+}
+
+static PyObject*
+	Scheduler_new_scheduler_tasklet( PyObject* self, PyObject* Py_UNUSED( ignored ) )
+{
+	//Make a tasklet for scheduler
+
+	PyObject* dict = PyModule_GetDict( self );
+
+	PyObject* tasklet_type = PyDict_GetItemString( dict, "Tasklet" ); //Weak Linkage TODO
+
+	PyObject* scheduler_callable = PyDict_GetItemString( dict, "run" ); //Weak Linkage TODO
+
+	PyObject* args = PyTuple_New( 1 );
+
+	PyTuple_SetItem( args, 0, scheduler_callable );
+
+	PyObject* scheduler_tasklet = PyObject_CallObject( tasklet_type, args );
+
+	Py_DecRef( args );
+
+	// Setup the schedulers tasklet
+	PyTaskletObject* tasklet = (PyTaskletObject*)scheduler_tasklet;
+
+	tasklet->m_is_main = true;
+
+    return scheduler_tasklet;
+
+}
+
 static PyMethodDef SchedulerMethods[] = {
-	{ "getscheduler", get_scheduler, METH_VARARGS, "Get the main scheduler object" },
 	{ "set_channel_callback", set_channel_callback, METH_VARARGS, "Install a global channel callback" },
 	{ "get_channel_callback", get_channel_callback, METH_VARARGS, "Get the current global channel callback" },
 	{ "set_scheduler_callback", set_scheduler_callback, METH_VARARGS, "Get the current global channel callback" },
 	{ "enable_softswitch", enable_soft_switch, METH_VARARGS, "Legacy support" },
-	
+
+    { "getcurrent", (PyCFunction)Scheduler_getcurrent, METH_NOARGS, "Return the currently executing tasklet of this thread" },
+	{ "getmain", (PyCFunction)Scheduler_getmain, METH_NOARGS, "Return the main tasklet of this thread" },
+	{ "getruncount", (PyCFunction)Scheduler_getruncount, METH_NOARGS, "Return the number of currently runnable tasklets" },
+	{ "schedule", (PyCFunction)Scheduler_schedule, METH_NOARGS, "Yield execution of the currently running tasklet" },
+	{ "schedule_remove", (PyCFunction)Scheduler_scheduleremove, METH_NOARGS, "Yield execution of the currently running tasklet and remove" },
+	{ "run", (PyCFunction)Scheduler_run, METH_NOARGS, "Run scheduler" },
+	{ "set_schedule_callback", (PyCFunction)Scheduler_set_schedule_callback, METH_NOARGS, "Install a callback for scheduling" },
+	{ "get_schedule_callback", (PyCFunction)Scheduler_get_schedule_callback, METH_NOARGS, "Get the current global schedule callback" },
+	{ "get_thread_info", (PyCFunction)Scheduler_get_thread_info, METH_VARARGS, "Return a tuple containing the threads main tasklet, current tasklet and run-count" },
+	{ "set_current_tasklet_changed_callback", (PyCFunction)Scheduler_set_current_tasklet_changed_callback, METH_VARARGS, "TODO" },
+	{ "switch_trap", (PyCFunction)Scheduler_switch_trap, METH_VARARGS, "When the switch trap level is non-zero, any tasklet switching, e.g. due channel action or explicit, will result in a RuntimeError being raised." },
+	{ "newSchedulerTasklet", (PyCFunction)Scheduler_new_scheduler_tasklet, METH_NOARGS, "Create a tasklet that is setup as a main tasklet for use as a schedulers tasklet" },
+
 	{ NULL, NULL, 0, NULL } /* Sentinel */
 };
 
@@ -233,9 +406,6 @@ PyInit__scheduler(void)
 	if( PyType_Ready( &ChannelType ) < 0 )
 		return NULL;
 
-	if( PyType_Ready( &SchedulerType ) < 0 )
-		return NULL;
-
     m = PyModule_Create( &schedulermodule );
     if (m == NULL)
         return NULL;
@@ -251,15 +421,8 @@ PyInit__scheduler(void)
 	Py_INCREF( &ChannelType );
 	if( PyModule_AddObject( m, "Channel", (PyObject*)&ChannelType ) < 0 )
 	{
+		Py_DECREF( &TaskletType );
 		Py_DECREF( &ChannelType );
-		Py_DECREF( m );
-		return NULL;
-	}
-
-	Py_INCREF( &SchedulerType );
-	if( PyModule_AddObject( m, "Scheduler", (PyObject*)&SchedulerType ) < 0 )
-	{
-		Py_DECREF( &SchedulerType );
 		Py_DECREF( m );
 		return NULL;
 	}
@@ -269,6 +432,8 @@ PyInit__scheduler(void)
 	Py_XINCREF( TaskletExit );
 	if( PyModule_AddObject( m, "error", TaskletExit ) < 0 )
 	{
+		Py_DECREF( &TaskletType );
+		Py_DECREF( &ChannelType );
 		Py_XDECREF( TaskletExit );
 		Py_CLEAR( TaskletExit );
         Py_DECREF(m);
@@ -276,11 +441,17 @@ PyInit__scheduler(void)
     }
 
     // Import Greenlet
-	PyObject* scheduler_module = PyImport_ImportModule( "greenlet" );
+	PyObject* greenlet_module = PyImport_ImportModule( "greenlet" );
 
-    if( !scheduler_module )
+    if( !greenlet_module )
 	{
 		PySys_WriteStdout( "Failed to import greenlet module\n" );
+		Py_DECREF( &TaskletType );
+		Py_DECREF( &ChannelType );
+		Py_XDECREF( TaskletExit );
+		Py_CLEAR( TaskletExit );
+		Py_DECREF( m );
+		return NULL;
 	}
 
 	//C_API
@@ -321,10 +492,23 @@ PyInit__scheduler(void)
 
 	if( PyModule_AddObject( m, "_C_API", c_api_object ) < 0 )
 	{
+		Py_DECREF( &TaskletType );
+		Py_DECREF( &ChannelType );
+		Py_XDECREF( TaskletExit );
+		Py_CLEAR( TaskletExit );
 		Py_XDECREF( c_api_object );
 		Py_DECREF( m );
 		return NULL;
 	}
+
+    //Create a main scheduler TODO So far never dies, need to kill it in module free function or deal with this differently
+    //TODO Needs thought
+	PyObject* dict = PyModule_GetDict( m );
+	PyObject* create_scheduler_tasklet_callable = PyDict_GetItemString( dict, "newSchedulerTasklet" ); //Weak Linkage TODO
+    Scheduler::s_create_scheduler_tasklet_callable = create_scheduler_tasklet_callable; //TODO never cleaned up
+	
+    //Create a main scheduler (I think this will go soon)
+    //Scheduler::s_singleton = new Scheduler();
 
     return m;
 }

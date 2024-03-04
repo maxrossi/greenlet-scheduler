@@ -33,7 +33,6 @@ set(SRC_FILES
     src/PyChannel_python.cpp
     src/PyChannel.cpp
     src/PyChannel.h
-    src/PyScheduler_python.cpp
     src/PyScheduler.cpp
     src/PyScheduler.h
     src/stdafx.cpp

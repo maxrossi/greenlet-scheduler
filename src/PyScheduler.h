@@ -18,14 +18,18 @@
 #pragma once
 
 #include "stdafx.h"
-#include <queue>
+#include <map>
 
 struct PyTaskletObject;
 
-class PySchedulerObject
+class Scheduler
 {
 public:
-	PyObject_HEAD
+	Scheduler();
+
+	~Scheduler();
+
+    static Scheduler* get_scheduler(long thread_id=-1);
 
 	static void set_current_tasklet( PyTaskletObject* tasklet );
 
@@ -41,6 +45,8 @@ public:
 
     static PyObject* get_main_tasklet();
 
+    long m_thread_id;
+
     PyTaskletObject* m_scheduler_tasklet;
 
     PyTaskletObject* m_current_tasklet; //Weak ref
@@ -51,5 +57,8 @@ public:
 
     PyObject* m_current_tasklet_changed_callback;
 
-	inline static PySchedulerObject* s_singleton;
+    inline static std::map<long, Scheduler*> s_schedulers;    //Each thread has its own scheduler
+	//inline static Scheduler* s_singleton;
+
+    inline static PyObject* s_create_scheduler_tasklet_callable;    // A reference to easily create scheduler tasklets
 };

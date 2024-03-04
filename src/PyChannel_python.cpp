@@ -4,13 +4,13 @@
 static int
 	Channel_init( PyChannelObject* self, PyObject* args, PyObject* kwds )
 {
-	self->m_transfer_arguments = nullptr;
-
 	self->m_preference = 0;
 
     self->m_waiting_to_send = new std::queue<PyObject*>();
 
     self->m_waiting_to_receive = new std::queue<PyObject*>();
+
+    self->m_lock = PyThread_allocate_lock();
 
 	return 0;
 }
@@ -24,7 +24,8 @@ static void
 
 	delete self->m_waiting_to_receive;
 
-    Py_XDECREF( self->m_transfer_arguments );
+    //TODO do I need to deallocate the lock?
+
 
 	Py_TYPE( self )->tp_free( (PyObject*)self );
 }

@@ -34,6 +34,10 @@ public:
 
     void kill();
 
+    PyObject* get_transfer_arguments();
+
+    void set_transfer_arguments( PyObject* args );
+
 	PyGreenlet* m_greenlet;
 
 	PyObject* m_callable;
@@ -41,6 +45,8 @@ public:
 	PyObject* m_arguments;
 
     bool m_is_main;
+
+    bool m_transfer_in_progress;;
 
     bool m_scheduled;
 
@@ -55,4 +61,8 @@ public:
     PyObject* m_previous;
 
     PyObject* m_next;
+
+    unsigned long m_thread_id;
+
+    PyObject* m_transfer_arguments;
 };

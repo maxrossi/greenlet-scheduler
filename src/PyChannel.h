@@ -40,5 +40,6 @@ public:
 
     std::queue<PyObject*>* m_waiting_to_receive;
 
-    PyObject* m_transfer_arguments;
+    PyThread_type_lock m_lock;
+
 };
