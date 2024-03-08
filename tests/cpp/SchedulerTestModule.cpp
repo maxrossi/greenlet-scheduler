@@ -5,11 +5,26 @@
 #include "SchedulerTestModule.h"
 #include <Scheduler.h>
 
+/**
+ * PyCapsule_Import will set an exception if there's an error.
+ *
+ * @return SchedulerCAPI * or nullptr on error
+ */
+SchedulerCAPI* SchedulerAPI()
+{
+	static SchedulerCAPI* api;
+	if( api == nullptr )
+	{
+		api = reinterpret_cast<SchedulerCAPI*>( PyCapsule_Import( "scheduler._C_API", 0 ) );
+	}
+	return api;
+}
+
 static PyObject*
 	test_PyScheduler_GetCurrent( PyObject* self, PyObject* args )
 {
    
-	PyScheduler_GetCurrent();
+	SchedulerAPI()->PyScheduler_GetCurrent();
 
 	return Py_None;
 }
@@ -18,7 +33,7 @@ static PyObject*
 	test_PyScheduler_Schedule( PyObject* self, PyObject* args )
 {
     //TODO
-	PyScheduler_Schedule(nullptr,0);
+	SchedulerAPI()->PyScheduler_Schedule( nullptr, 0 );
 
 	return Py_None;
 }
@@ -29,7 +44,6 @@ static PyMethodDef SchedulerTestMethods[] = {
 	 { NULL, NULL, 0, NULL } /* Sentinel */
 };
 
-
 static struct PyModuleDef schedulertestmodule = {
     PyModuleDef_HEAD_INIT,
     "Scheduler Test",   /* name of module */
@@ -38,7 +52,6 @@ static struct PyModuleDef schedulertestmodule = {
                  or -1 if the module keeps state in global variables. */
     SchedulerTestMethods
 };
-
 
 PyMODINIT_FUNC
 PyInit__schedulertest(void)
@@ -59,14 +72,14 @@ PyInit__schedulertest(void)
 
 	PySys_WriteStdout( "Importing capsule \n" );
 
-	int ret = import_scheduler();
+	
+    auto api = SchedulerAPI();
 
-	if( ret != 0 )
+    if( api == nullptr )
 	{
 		PySys_WriteStdout( "Failed to import scheduler capsule\n" );
 		PyErr_Print();
 	}
-
 
     return m;
 }
