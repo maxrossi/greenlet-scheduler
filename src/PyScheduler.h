@@ -20,7 +20,7 @@
 #include "stdafx.h"
 #include <map>
 
-struct PyTaskletObject;
+class PyTaskletObject;
 
 class Scheduler
 {

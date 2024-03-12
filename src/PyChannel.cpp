@@ -116,7 +116,7 @@ PyObject* PyChannelObject::receive()
 		{
 			PyErr_SetString( PyExc_RuntimeError, "Channel cannot block on main tasklet with block_trap set true" );
 			PyThread_release_lock( m_lock );
-			return false;
+			return nullptr;
 		}
 
 		reinterpret_cast<PyTaskletObject*>(current)->m_blocked = true;
