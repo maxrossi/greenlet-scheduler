@@ -45,6 +45,10 @@ public:
 
     static PyObject* get_main_tasklet();
 
+    static void set_scheduler_callback( PyObject* callback );
+
+    void run_scheduler_callback( PyObject* prev, PyObject* next );
+
     long m_thread_id;
 
     PyTaskletObject* m_scheduler_tasklet;
@@ -57,8 +61,11 @@ public:
 
     PyObject* m_current_tasklet_changed_callback;
 
+	PyObject* m_scheduler_callback;
+
     inline static std::map<long, Scheduler*> s_schedulers;    //Each thread has its own scheduler
-	//inline static Scheduler* s_singleton;
 
     inline static PyObject* s_create_scheduler_tasklet_callable;    // A reference to easily create scheduler tasklets
+
+    
 };

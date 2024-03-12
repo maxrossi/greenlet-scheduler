@@ -6,7 +6,7 @@
 Scheduler::Scheduler()
 {
     // Create a tasklet for the scheduler
-	m_scheduler_tasklet = reinterpret_cast<PyTaskletObject*>(PyObject_CallObject( s_create_scheduler_tasklet_callable, nullptr ));  //TODO never released
+	m_scheduler_tasklet = reinterpret_cast<PyTaskletObject*>(PyObject_CallObject( s_create_scheduler_tasklet_callable, nullptr ));  //TODO never released, use initialisers
 
 	m_current_tasklet = m_scheduler_tasklet;
 
@@ -15,11 +15,15 @@ Scheduler::Scheduler()
     m_thread_id = PyThread_get_thread_ident(); //TODO not really needed, just used for inspection
 
 	m_scheduler_tasklet->set_to_current_greenlet();
+
+    m_scheduler_callback = Py_None;
 }
 
 Scheduler::~Scheduler()
 {
 	Py_DECREF( m_scheduler_tasklet );
+
+    Py_XDECREF( m_scheduler_callback );
 }
 
 Scheduler* Scheduler::get_scheduler( long thread_id /* = -1*/ )
@@ -134,6 +138,8 @@ PyObject* Scheduler::run( PyTaskletObject* start_tasklet /* = nullptr */ )
 
         next_tasklet = reinterpret_cast<PyTaskletObject*>( current_tasklet )->m_next;
 
+        current_scheduler->run_scheduler_callback( current_tasklet, next_tasklet );
+
 		if(!reinterpret_cast<PyTaskletObject*>( current_tasklet )->switch_to())
 		{
 			return nullptr;
@@ -169,4 +175,37 @@ PyObject* Scheduler::get_main_tasklet()
 	Scheduler* current_scheduler = get_scheduler();
 
 	return reinterpret_cast<PyObject*>( current_scheduler->m_scheduler_tasklet );
+}
+
+void Scheduler::set_scheduler_callback(PyObject* callback)
+{
+    //TODO so far this is specific to the thread it was called on
+    //Check what stackless does, docs are not clear on this
+    //Looks global but imo makes more logical sense as local to thread
+
+	Scheduler* current_scheduler = get_scheduler();
+
+    Py_IncRef( callback );
+
+    current_scheduler->m_scheduler_callback = callback;
+}
+
+void Scheduler::run_scheduler_callback(PyObject* prev, PyObject* next)
+{
+	if(m_scheduler_callback != Py_None)
+	{
+		PyObject* args = PyTuple_New( 2 ); // TODO don't create this each time
+
+        Py_IncRef( prev );
+
+		Py_IncRef( next );
+
+        PyTuple_SetItem( args, 0, prev );
+
+        PyTuple_SetItem( args, 1, next );
+
+		PyObject_Call( m_scheduler_callback, args, nullptr );
+
+        Py_DecRef( args );
+    }
 }

@@ -4,22 +4,20 @@
 
 #include "PyScheduler.h"
 
-
-
-bool PyChannelObject::send( PyObject* args  )
+bool PyChannelObject::send( PyObject* args, bool exception /* = false */)
 {
     PyThread_acquire_lock( m_lock, 1 );
 
-    PyObject* current2 = Scheduler::get_current_tasklet();  //TODO naming !!
+    PyObject* current = Scheduler::get_current_tasklet();  //TODO naming clean up
 
-    reinterpret_cast<PyTaskletObject*>( current2 )->m_transfer_in_progress = true;
+    run_channel_callback( reinterpret_cast<PyObject*>(this), current, true, m_waiting_to_receive->size() == 0 );  //TODO will_block logic here will change with addition of preference
+
+    reinterpret_cast<PyTaskletObject*>( current )->m_transfer_in_progress = true;
 
 	if( m_waiting_to_receive->size() == 0 )
 	{
 		
 		// Block as there is no tasklet sending
-		PyObject* current = Scheduler::get_current_tasklet();
-
         if( !current )
 		{
 			PyErr_SetString( PyExc_RuntimeError, "No current tasklet set" );
@@ -51,7 +49,7 @@ bool PyChannelObject::send( PyObject* args  )
         PyThread_release_lock( m_lock );
 
          // Continue scheduler
-		Scheduler::schedule();
+		Scheduler::schedule();          
 
         PyThread_acquire_lock( m_lock, 1 );
 
@@ -64,7 +62,7 @@ bool PyChannelObject::send( PyObject* args  )
 	receiving_tasklet->m_blocked = false;
 	
     // Store for retrieval from receiving tasklet
-	receiving_tasklet->set_transfer_arguments( args );
+	receiving_tasklet->set_transfer_arguments( args, exception );
 
     //Add this tasklet to the end of the scheduler
 	Scheduler::insert_tasklet( reinterpret_cast<PyTaskletObject*>( Scheduler::get_current_tasklet() ) );
@@ -72,11 +70,11 @@ bool PyChannelObject::send( PyObject* args  )
     PyThread_release_lock( m_lock );
 
     //Switch to the receiving tasklet
-    receiving_tasklet->switch_to( );
+    receiving_tasklet->switch_to( );    
 
     Py_DECREF( receiving_tasklet );
 
-	reinterpret_cast<PyTaskletObject*>( current2 )->m_transfer_in_progress = false;
+	reinterpret_cast<PyTaskletObject*>( current )->m_transfer_in_progress = false;
 
 	return true;
 
@@ -91,6 +89,7 @@ PyObject* PyChannelObject::receive()
 	// Block as there is no tasklet sending
 	PyObject* current = Scheduler::get_current_tasklet();
     
+    run_channel_callback( reinterpret_cast<PyObject*>( this ), current, false, m_waiting_to_send->size() == 0 );    //TODO will_block logic here will change with addition of preference
 
     if( current == nullptr )
 	{
@@ -138,10 +137,34 @@ PyObject* PyChannelObject::receive()
 
         PyThread_release_lock( m_lock );
 
-		sending_tasklet->switch_to();
+		sending_tasklet->switch_to(); // <--- HAWK We are here
 
         Py_DECREF( sending_tasklet );
 	}
+
+    //Process the exception
+	if( reinterpret_cast<PyTaskletObject*>( current )->m_transfer_is_exception)
+	{
+		PyObject* arguments = reinterpret_cast<PyTaskletObject*>( current )->get_transfer_arguments();
+	
+        if(!PyTuple_Check(arguments))
+		{
+			PyErr_SetString( PyExc_RuntimeError, "This should be checked during send TODO remove this check when it is" ); //TODO
+        }
+		
+        PyObject* exception_type = PyTuple_GetItem( arguments, 0 );
+
+        PyObject* exception_values = PyTuple_GetSlice( arguments, 1, PyTuple_Size( arguments ) );
+
+		PyErr_SetObject( exception_type, exception_values );
+
+        Py_DecRef( arguments );
+
+        reinterpret_cast<PyTaskletObject*>( current )->m_transfer_in_progress = false;  //TODO having two of these sucks
+
+        return nullptr;
+
+    }
 
     reinterpret_cast<PyTaskletObject*>( current )->m_transfer_in_progress = false;
 
@@ -157,4 +180,28 @@ void PyChannelObject::remove_tasklet_from_blocked( PyObject* tasklet )
 {
     // TODO Needs thought so it isn't slow
     
+}
+
+void PyChannelObject::run_channel_callback( PyObject* channel, PyObject* tasklet, bool sending, bool will_block )
+{
+	if( s_channel_callback != Py_None )
+	{
+		PyObject* args = PyTuple_New( 4 ); // TODO don't create this each time
+
+		Py_IncRef( channel );
+
+		Py_IncRef( tasklet );
+
+		PyTuple_SetItem( args, 0, channel );
+
+		PyTuple_SetItem( args, 1, tasklet );
+
+        PyTuple_SetItem( args, 2, sending ? Py_True : Py_False );
+
+        PyTuple_SetItem( args, 3, will_block ? Py_True : Py_False );
+
+		PyObject_Call( s_channel_callback, args, nullptr );
+
+		Py_DecRef( args );
+	}
 }

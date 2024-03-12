@@ -24,8 +24,7 @@ static void
 
 	delete self->m_waiting_to_receive;
 
-    //TODO do I need to deallocate the lock?
-
+    //TODO do I need to deallocate the lock? Perhaps just a decref
 
 	Py_TYPE( self )->tp_free( (PyObject*)self );
 }
@@ -61,13 +60,6 @@ static PyObject*
 	return PyLong_FromLong( self->balance() );
 }
 
-static int
-	Channel_balance_set( PyChannelObject* self, PyObject* value, void* closure ) //TODO just test
-{
-	PyErr_SetString( PyExc_RuntimeError, "Channel_balance_set Not yet implemented" ); //TODO
-	return -1;
-}
-
 static PyObject*
 	Channel_queue_get( PyChannelObject* self, void* closure )
 {
@@ -77,11 +69,10 @@ static PyObject*
 
 static PyGetSetDef Channel_getsetters[] = {
 	{ "preference", (getter)Channel_preference_get, (setter)Channel_preference_set, "allows for customisation of how the channel actions", NULL },
-	{ "balance", (getter)Channel_balance_get, (setter)Channel_balance_set, "number of tasklets waiting to send (>0) or receive (<0)", NULL },
+	{ "balance", (getter)Channel_balance_get, NULL, "number of tasklets waiting to send (>0) or receive (<0)", NULL },
 	{ "queue", (getter)Channel_queue_get, NULL, "the first tasklet in the chain of tasklets that are blocked on the channel", NULL },
 	{ NULL } /* Sentinel */
 };
-
 
 static PyObject*
 	Channel_send( PyChannelObject* self, PyObject* args, PyObject* kwds )
@@ -110,10 +101,15 @@ static PyObject*
 static PyObject*
 	Channel_sendexception( PyChannelObject* self, PyObject* args, PyObject* kwds )
 {
-	PyErr_SetString( PyExc_RuntimeError, "Channel_sendexception Not yet implemented" ); //TODO
-	return NULL;
-}
+	if(!self->send(args, true))
+	{
+		return NULL;
+    }
 
+    Py_IncRef( Py_None );   //TODO is this necessary?
+
+	return Py_None;
+}
 
 static PyMethodDef Channel_methods[] = {
 	{ "send", (PyCFunction)Channel_send, METH_VARARGS, "Send a value over the channel" },
@@ -121,7 +117,6 @@ static PyMethodDef Channel_methods[] = {
 	{ "send_exception", (PyCFunction)Channel_sendexception, METH_VARARGS, "Send an exception over the channel" },
 	{ NULL } /* Sentinel */
 };
-
 
 static PyTypeObject ChannelType = {
 	/* The ob_type field must be initialized in the module init function

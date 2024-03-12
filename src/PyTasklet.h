@@ -36,7 +36,7 @@ public:
 
     PyObject* get_transfer_arguments();
 
-    void set_transfer_arguments( PyObject* args );
+    void set_transfer_arguments( PyObject* args, bool is_exception );
 
 	PyGreenlet* m_greenlet;
 
@@ -65,4 +65,6 @@ public:
     unsigned long m_thread_id;
 
     PyObject* m_transfer_arguments;
+
+    bool m_transfer_is_exception;
 };

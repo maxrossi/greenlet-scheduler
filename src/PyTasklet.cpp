@@ -151,7 +151,7 @@ PyObject* PyTaskletObject::get_transfer_arguments()
 	return ret;
 }
 
-void PyTaskletObject::set_transfer_arguments( PyObject* args )
+void PyTaskletObject::set_transfer_arguments( PyObject* args, bool is_exception )
 {
     //This needs to block until transfer arguments have definately been consumed so it doesn't clobber if used across threads
     //Want to keep the lock functionality inside channels, this requires thought.
@@ -164,4 +164,6 @@ void PyTaskletObject::set_transfer_arguments( PyObject* args )
 	Py_IncRef( args );
 
 	m_transfer_arguments = args;
+
+    m_transfer_is_exception = is_exception;
 }

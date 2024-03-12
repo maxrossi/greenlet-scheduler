@@ -1,5 +1,7 @@
 #include "PyTasklet.h"
 
+#include "PyScheduler.h"
+
 static PyObject* TaskletExit;
 
 static int
@@ -51,6 +53,8 @@ static int
 
     self->m_transfer_in_progress = true;
 
+    self->m_transfer_is_exception = false;
+
 	return 0;
 }
 
@@ -97,7 +101,7 @@ static int
 {
 	if(!PyBool_Check(value))
 	{
-		PyErr_SetString( PyExc_RuntimeError, "Blocktrap expects a boolean" ); //TODO
+		PyErr_SetString( PyExc_RuntimeError, "Blocktrap expects a boolean" );
 		return -1;
     }
 
@@ -109,15 +113,15 @@ static int
 static PyObject*
 	Tasklet_iscurrent_get( PyTaskletObject* self, void* closure )
 {
-	PyErr_SetString( PyExc_RuntimeError, "Tasklet_iscurrent_get Not yet implemented" ); //TODO
-	return NULL;
+	PyObject* current_tasklet = Scheduler::get_current_tasklet();
+
+	return reinterpret_cast<PyObject*>( self ) == current_tasklet ? Py_True : Py_False;
 }
 
 static PyObject*
 	Tasklet_ismain_get( PyTaskletObject* self, void* closure )
 {
-	PyErr_SetString( PyExc_RuntimeError, "Tasklet_ismain_get Not yet implemented" ); //TODO
-	return NULL;
+	return self->m_is_main ? Py_True : Py_False;
 }
 
 static PyObject*
@@ -125,7 +129,6 @@ static PyObject*
 {
 	return PyLong_FromLong( self->m_thread_id );
 }
-
 
 static PyObject*
 	Tasklet_next_get( PyTaskletObject* self, void* closure )
@@ -173,7 +176,6 @@ static PyGetSetDef Tasklet_getsetters[] = {
 	{ "prev", (getter)Tasklet_previous_get, NULL, "Get next tasklet in scheduler", NULL },
 	{ NULL } /* Sentinel */
 };
-
 
 static PyObject*
 	Tasklet_insert( PyTaskletObject* self, PyObject* Py_UNUSED( ignored ) )

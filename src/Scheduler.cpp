@@ -152,22 +152,37 @@ extern "C"
 static PyObject*
 	set_channel_callback( PyObject* self, PyObject* args )
 {
-	PyErr_SetString( PyExc_RuntimeError, "set_channel_callback Not yet implemented" ); //TODO
-	return NULL;
+    //TODO what if a callback is supplied which requires the wrong number of arguments?
+	PyObject* temp;
+
+	if( PyArg_ParseTuple( args, "O:set_channel_callback", &temp ) )
+	{
+		if( !PyCallable_Check( temp ) )
+		{
+			PyErr_SetString( PyExc_TypeError, "parameter must be callable" );
+			return nullptr;
+		}
+
+		Py_INCREF( temp );
+
+		PyObject* previous_callback = PyChannelObject::s_channel_callback;
+
+		PyChannelObject::s_channel_callback = temp;
+
+		return previous_callback;
+	}
+
+	return nullptr;
 }
 
 static PyObject*
 	get_channel_callback( PyObject* self, PyObject* args )
 {
-	PyErr_SetString( PyExc_RuntimeError, "get_channel_callback Not yet implemented" ); //TODO
-	return NULL;
-}
+	PyObject* callable = PyChannelObject::s_channel_callback;
 
-static PyObject*
-	set_scheduler_callback( PyObject* self, PyObject* args )
-{
-	PyErr_SetString( PyExc_RuntimeError, "set_scheduler_callback Not yet implemented" ); //TODO
-	return NULL;
+	Py_IncRef( callable );
+
+	return callable;
 }
 
 static PyObject*
@@ -179,7 +194,8 @@ static PyObject*
 	{
 		if( soft_switch_value != Py_None )
 		{
-			PyErr_SetString( PyExc_RuntimeError, "enable_soft_switch is only implemented for legacy reasons, the value cannot be changed." ); //TODO
+			PyErr_SetString( PyExc_RuntimeError, "enable_soft_switch is only implemented for legacy reasons, the value cannot be changed." );
+
 			return NULL;
         }
 	}
@@ -249,12 +265,31 @@ static PyObject*
 }
 
 static PyObject*
-	Scheduler_set_schedule_callback( PyObject* self, PyObject* Py_UNUSED( ignored ) )
+	Scheduler_set_schedule_callback( PyObject* self, PyObject* args, PyObject* kwds )
 {
-	Scheduler* current_scheduler = Scheduler::get_scheduler();
+	//TODO what if a callback is supplied which requires the wrong number of arguments?
+    PyObject* temp;
 
-	PyErr_SetString( PyExc_RuntimeError, "Scheduler_set_schedule_callback Not yet implemented" ); //TODO
-	return NULL;
+	if( PyArg_ParseTuple( args, "O:set_schedule_callback", &temp ) )
+	{
+		if( !PyCallable_Check( temp ) )
+		{
+			PyErr_SetString( PyExc_TypeError, "parameter must be callable" );
+			return NULL;    //TODO convert all to nullptr - left so I remember
+		}
+
+        Scheduler* current_scheduler = Scheduler::get_scheduler();
+
+		Py_INCREF( temp );
+
+        PyObject* previous_callback = current_scheduler->m_scheduler_callback;
+
+        current_scheduler->m_scheduler_callback = temp;
+
+		return previous_callback;
+	}
+
+	return nullptr;
 }
 
 static PyObject*
@@ -262,8 +297,12 @@ static PyObject*
 {
 	Scheduler* current_scheduler = Scheduler::get_scheduler();
 
-	PyErr_SetString( PyExc_RuntimeError, "Scheduler_get_schedule_callback Not yet implemented" ); //TODO
-	return NULL;
+    PyObject* callable = current_scheduler->m_scheduler_callback;
+
+	Py_IncRef( callable );
+
+    return callable;
+    
 }
 
 static PyObject*
@@ -285,7 +324,6 @@ static PyObject*
 
 	return thread_info_tuple;
 }
-
 
 //TODO below doesn't work anymore, was rubbish anyway, needs to work per thread
 static PyObject*
@@ -357,19 +395,24 @@ static PyObject*
 
 }
 
+void module_destructor( void* )
+{
+    // Cleanup
+
+	Py_XDECREF( Scheduler::s_create_scheduler_tasklet_callable );
+}
+
 static PyMethodDef SchedulerMethods[] = {
 	{ "set_channel_callback", set_channel_callback, METH_VARARGS, "Install a global channel callback" },
 	{ "get_channel_callback", get_channel_callback, METH_VARARGS, "Get the current global channel callback" },
-	{ "set_scheduler_callback", set_scheduler_callback, METH_VARARGS, "Get the current global channel callback" },
 	{ "enable_softswitch", enable_soft_switch, METH_VARARGS, "Legacy support" },
-
     { "getcurrent", (PyCFunction)Scheduler_getcurrent, METH_NOARGS, "Return the currently executing tasklet of this thread" },
 	{ "getmain", (PyCFunction)Scheduler_getmain, METH_NOARGS, "Return the main tasklet of this thread" },
 	{ "getruncount", (PyCFunction)Scheduler_getruncount, METH_NOARGS, "Return the number of currently runnable tasklets" },
 	{ "schedule", (PyCFunction)Scheduler_schedule, METH_NOARGS, "Yield execution of the currently running tasklet" },
 	{ "schedule_remove", (PyCFunction)Scheduler_scheduleremove, METH_NOARGS, "Yield execution of the currently running tasklet and remove" },
 	{ "run", (PyCFunction)Scheduler_run, METH_NOARGS, "Run scheduler" },
-	{ "set_schedule_callback", (PyCFunction)Scheduler_set_schedule_callback, METH_NOARGS, "Install a callback for scheduling" },
+	{ "set_schedule_callback", (PyCFunction)Scheduler_set_schedule_callback, METH_VARARGS, "Install a callback for scheduling" },
 	{ "get_schedule_callback", (PyCFunction)Scheduler_get_schedule_callback, METH_NOARGS, "Get the current global schedule callback" },
 	{ "get_thread_info", (PyCFunction)Scheduler_get_thread_info, METH_VARARGS, "Return a tuple containing the threads main tasklet, current tasklet and run-count" },
 	{ "set_current_tasklet_changed_callback", (PyCFunction)Scheduler_set_current_tasklet_changed_callback, METH_VARARGS, "TODO" },
@@ -386,7 +429,11 @@ static struct PyModuleDef schedulermodule = {
     NULL, /* module documentation, may be NULL */
     -1,       /* size of per-interpreter state of the module,
                  or -1 if the module keeps state in global variables. */
-    SchedulerMethods
+    SchedulerMethods,
+    NULL,
+    NULL,
+    NULL,
+	module_destructor
 };
 
 PyMODINIT_FUNC
@@ -501,14 +548,13 @@ PyInit__scheduler(void)
 		return NULL;
 	}
 
-    //Create a main scheduler TODO So far never dies, need to kill it in module free function or deal with this differently
-    //TODO Needs thought
+    //Create a main scheduler
 	PyObject* dict = PyModule_GetDict( m );
 	PyObject* create_scheduler_tasklet_callable = PyDict_GetItemString( dict, "newSchedulerTasklet" ); //Weak Linkage TODO
-    Scheduler::s_create_scheduler_tasklet_callable = create_scheduler_tasklet_callable; //TODO never cleaned up
+    Scheduler::s_create_scheduler_tasklet_callable = create_scheduler_tasklet_callable;
 	
-    //Create a main scheduler (I think this will go soon)
-    //Scheduler::s_singleton = new Scheduler();
+    //Setup initial channel callback static
+	PyChannelObject::s_channel_callback = Py_None;
 
     return m;
 }

@@ -231,3 +231,22 @@ class TestChannels(unittest.TestCase):
 
         scheduler_run(slave_func)
         thread.join()
+
+    def testSendException(self):
+
+        # Function to send the exception
+        def f(testChannel):
+            testChannel.send_exception(ValueError, 1, 2, 3)
+
+        # Get the tasklet blocked on the channel.
+        channel = scheduler.channel()
+        tasklet = scheduler.tasklet(f)(channel)
+        tasklet.run()
+        self.assertRaises(ValueError, channel.receive)
+        tasklet = scheduler.tasklet(f)(channel)
+        tasklet.run()
+        try:
+            channel.receive()
+        except ValueError as e:
+            self.assertEqual(e.args, (1, 2, 3))
+
