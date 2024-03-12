@@ -24,6 +24,10 @@ include(CcpPackageConfigHelpers)
 find_package(Python REQUIRED NO_CMAKE_PATH)
 find_package(Greenlet REQUIRED NO_CMAKE_PATH)
 
+get_target_property(GREENLET_INCLUDE_DIRECTORY
+        Greenlet
+        INTERFACE_INCLUDE_DIRECTORIES)
+
 set(SRC_FILES
     include/Scheduler.h
     src/Scheduler.cpp
@@ -43,7 +47,12 @@ ccp_add_library(Scheduler SHARED ${SRC_FILES})
 
 target_include_directories(Scheduler PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
 
-target_link_libraries(Scheduler PRIVATE Python Greenlet)
+target_link_libraries(Scheduler PRIVATE Python)
+
+target_include_directories(Scheduler
+        PRIVATE
+        ${GREENLET_INCLUDE_DIRECTORY}
+        )
 
 get_target_property(_SOURCES Scheduler SOURCES)
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -85,24 +94,21 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
      install(DIRECTORY python/ DESTINATION python
      FILES_MATCHING
      PATTERN "*.py"
-)
+    )
 
-    OPTION(RUN_PYTHON_TESTS ON)
+    get_filename_component(PYTHON_TEST_EXE_DIR ${PYTHON_EXECUTABLE} DIRECTORY)
 
-    if(${RUN_PYTHON_TESTS})
-        get_filename_component(PYTHON_TEST_EXE_DIR ${PYTHON_EXECUTABLE} DIRECTORY)
-
-        if(WIN32)
-            SET(PYTHONPATH_ENV "${CMAKE_SOURCE_DIR}/python/\;$<TARGET_FILE_DIR:Scheduler>\;${BRANCH_ROOT_DIR}/carbon/common/stdlib/\;${PYTHON_TEST_EXE_DIR}")
-        elseif(APPLE)
-            SET(PYTHONPATH_ENV "${CMAKE_SOURCE_DIR}/python/:$<TARGET_FILE_DIR:Scheduler>:${BRANCH_ROOT_DIR}/carbon/common/stdlib/:${PYTHON_TEST_EXE_DIR}")
-        endif()
-
-        add_test(NAME SCHEDULER_PYTHON_TESTS
-            COMMAND ${PYTHON_EXECUTABLE} -m unittest discover -s scheduler/tests
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/python/
-        )
-
-        set_property(TEST SCHEDULER_PYTHON_TESTS PROPERTY ENVIRONMENT "PYTHONPATH=${PYTHONPATH_ENV}")
+    if(WIN32)
+        SET(PYTHONPATH_ENV "${CMAKE_SOURCE_DIR}/python/\;$<TARGET_FILE_DIR:Scheduler>\;${BRANCH_ROOT_DIR}/carbon/common/stdlib/\;${PYTHON_TEST_EXE_DIR}")
+    elseif(APPLE)
+        SET(PYTHONPATH_ENV "${CMAKE_SOURCE_DIR}/python/:$<TARGET_FILE_DIR:Scheduler>:${BRANCH_ROOT_DIR}/carbon/common/stdlib/:${PYTHON_TEST_EXE_DIR}")
     endif()
+
+    add_test(NAME SCHEDULER_PYTHON_TESTS
+        COMMAND ${PYTHON_EXECUTABLE} -m unittest discover -s scheduler/tests
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/python/
+    )
+
+    set_property(TEST SCHEDULER_PYTHON_TESTS PROPERTY ENVIRONMENT "PYTHONPATH=${PYTHONPATH_ENV}")
+
 endif()
