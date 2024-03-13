@@ -19,10 +19,14 @@
 
 #include "stdafx.h"
 
+class PyChannelObject;
+
 class PyTaskletObject
 {
 public:
 	PyObject_HEAD
+
+	PyTaskletObject();
 
 	void set_to_current_greenlet();
 
@@ -38,6 +42,12 @@ public:
 
     void set_transfer_arguments( PyObject* args, bool is_exception );
 
+    void block( PyChannelObject* channel );
+
+    void unblock();
+
+    bool is_blocked();
+
 	PyGreenlet* m_greenlet;
 
 	PyObject* m_callable;
@@ -52,9 +62,7 @@ public:
 
 	bool m_alive;
 
-    PyObject* m_channel_blocked_on;
-
-    bool m_blocked;
+    
 
     bool m_blocktrap;
 
@@ -67,4 +75,10 @@ public:
     PyObject* m_transfer_arguments;
 
     bool m_transfer_is_exception;
+
+private:
+
+    PyObject* m_channel_blocked_on;
+
+	bool m_blocked;
 };

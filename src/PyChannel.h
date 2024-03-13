@@ -19,12 +19,12 @@
 
 #include "stdafx.h"
 
-#include <queue>
-
 class PyChannelObject
 {
 public:
 	PyObject_HEAD
+	
+	PyChannelObject();
 
 	bool send( PyObject* args, bool exception=false );
 
@@ -36,11 +36,25 @@ public:
 
     void run_channel_callback( PyObject* channel, PyObject* tasklet, bool sending, bool will_block );
 
+    void add_tasklet_to_waiting_to_send(PyObject* tasklet);
+
+    void add_tasklet_to_waiting_to_receive( PyObject* tasklet );
+
+    PyObject* pop_next_tasklet_blocked_on_send();
+
+    PyObject* pop_next_tasklet_blocked_on_receive();
+
+    int m_balance;
+
 	int m_preference;
 
-    std::queue<PyObject*>* m_waiting_to_send;
+    PyObject* m_first_tasklet_waiting_to_send;
 
-    std::queue<PyObject*>* m_waiting_to_receive;
+    PyObject* m_first_tasklet_waiting_to_receive;
+
+    PyObject* m_previous_blocked_send_tasklet;
+
+    PyObject* m_previous_blocked_receive_tasklet;
 
     PyThread_type_lock m_lock;
 

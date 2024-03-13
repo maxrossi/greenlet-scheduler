@@ -4,17 +4,23 @@
 
 #include "PyScheduler.h"
 
+PyChannelObject::PyChannelObject():
+	m_balance(0)
+{
+
+}
+
 bool PyChannelObject::send( PyObject* args, bool exception /* = false */)
 {
     PyThread_acquire_lock( m_lock, 1 );
 
     PyObject* current = Scheduler::get_current_tasklet();  //TODO naming clean up
 
-    run_channel_callback( reinterpret_cast<PyObject*>(this), current, true, m_waiting_to_receive->size() == 0 );  //TODO will_block logic here will change with addition of preference
+    run_channel_callback( reinterpret_cast<PyObject*>(this), current, true, m_first_tasklet_waiting_to_receive == Py_None );  //TODO will_block logic here will change with addition of preference
 
     reinterpret_cast<PyTaskletObject*>( current )->m_transfer_in_progress = true;
 
-	if( m_waiting_to_receive->size() == 0 )
+	if( m_first_tasklet_waiting_to_receive == Py_None )
 	{
 		
 		// Block as there is no tasklet sending
@@ -43,8 +49,10 @@ bool PyChannelObject::send( PyObject* args, bool exception /* = false */)
 
 		// Block as there is no tasklet receiving
 		Py_IncRef( current );
-		m_waiting_to_send->push( current );
-		reinterpret_cast<PyTaskletObject*>( current )->m_blocked = true;
+
+        add_tasklet_to_waiting_to_send( current );
+
+		reinterpret_cast<PyTaskletObject*>( current )->block( this );
 
         PyThread_release_lock( m_lock );
 
@@ -55,11 +63,9 @@ bool PyChannelObject::send( PyObject* args, bool exception /* = false */)
 
 	}
 
-    PyTaskletObject* receiving_tasklet = (PyTaskletObject*)m_waiting_to_receive->front();
+    PyTaskletObject* receiving_tasklet = reinterpret_cast<PyTaskletObject*>( pop_next_tasklet_blocked_on_receive() );
 
-	m_waiting_to_receive->pop();
-
-	receiving_tasklet->m_blocked = false;
+    receiving_tasklet->unblock();
 	
     // Store for retrieval from receiving tasklet
 	receiving_tasklet->set_transfer_arguments( args, exception );
@@ -89,7 +95,7 @@ PyObject* PyChannelObject::receive()
 	// Block as there is no tasklet sending
 	PyObject* current = Scheduler::get_current_tasklet();
     
-    run_channel_callback( reinterpret_cast<PyObject*>( this ), current, false, m_waiting_to_send->size() == 0 );    //TODO will_block logic here will change with addition of preference
+    run_channel_callback( reinterpret_cast<PyObject*>( this ), current, false, m_first_tasklet_waiting_to_send == Py_None );    //TODO will_block logic here will change with addition of preference
 
     if( current == nullptr )
 	{
@@ -99,9 +105,9 @@ PyObject* PyChannelObject::receive()
 
 	Py_IncRef( current );
 
-	m_waiting_to_receive->push( current );
+    add_tasklet_to_waiting_to_receive( current );
 
-    if(m_waiting_to_send->size() == 0)
+    if( m_first_tasklet_waiting_to_send == Py_None )
 	{
 		//If current tasklet is main tasklet then throw runtime error
 		if( current == Scheduler::get_main_tasklet() )
@@ -119,7 +125,7 @@ PyObject* PyChannelObject::receive()
 			return nullptr;
 		}
 
-		reinterpret_cast<PyTaskletObject*>(current)->m_blocked = true;
+		reinterpret_cast<PyTaskletObject*>(current)->block(this);
 
         PyThread_release_lock( m_lock );
 
@@ -130,14 +136,13 @@ PyObject* PyChannelObject::receive()
 	else
 	{
 		//Get first
-		PyTaskletObject* sending_tasklet = (PyTaskletObject*)m_waiting_to_send->front();
-        
-		m_waiting_to_send->pop();
-		sending_tasklet->m_blocked = false;
+		PyTaskletObject* sending_tasklet = reinterpret_cast<PyTaskletObject*>( pop_next_tasklet_blocked_on_send() );
+
+		sending_tasklet->unblock();
 
         PyThread_release_lock( m_lock );
 
-		sending_tasklet->switch_to(); // <--- HAWK We are here
+		sending_tasklet->switch_to();
 
         Py_DECREF( sending_tasklet );
 	}
@@ -173,12 +178,37 @@ PyObject* PyChannelObject::receive()
 
 int PyChannelObject::balance()
 {
-    return m_waiting_to_send->size() - m_waiting_to_receive->size();
+	return m_balance;
 }
 
 void PyChannelObject::remove_tasklet_from_blocked( PyObject* tasklet )
 {
-    // TODO Needs thought so it isn't slow
+	PyObject* previous = reinterpret_cast<PyTaskletObject*>( tasklet )->m_previous;
+
+    PyObject* next = reinterpret_cast<PyTaskletObject*>( tasklet )->m_next;
+
+    if(previous == Py_None)
+	{
+		if(m_balance > 0)
+		{
+		    // Send
+			m_first_tasklet_waiting_to_send = Py_None;
+        }
+		else
+		{
+		    //Receive
+			m_first_tasklet_waiting_to_receive = Py_None;
+        }
+    }
+	else
+	{
+		reinterpret_cast<PyTaskletObject*>( previous )->m_next = next;
+	}
+
+    if(next != Py_None)
+	{
+		reinterpret_cast<PyTaskletObject*>( next )->m_previous = previous;
+    }
     
 }
 
@@ -204,4 +234,62 @@ void PyChannelObject::run_channel_callback( PyObject* channel, PyObject* tasklet
 
 		Py_DecRef( args );
 	}
+}
+
+void PyChannelObject::add_tasklet_to_waiting_to_send( PyObject* tasklet )
+{
+	if(m_first_tasklet_waiting_to_send == Py_None)
+	{
+		m_first_tasklet_waiting_to_send = tasklet;
+    }
+	else
+	{
+		reinterpret_cast<PyTaskletObject*>( m_previous_blocked_send_tasklet )->m_next = tasklet;
+
+		reinterpret_cast<PyTaskletObject*>( tasklet )->m_previous = m_previous_blocked_send_tasklet;
+    }
+
+    m_previous_blocked_send_tasklet = tasklet;
+
+    m_balance++;
+}
+
+void PyChannelObject::add_tasklet_to_waiting_to_receive( PyObject* tasklet )
+{
+	if( m_first_tasklet_waiting_to_receive == Py_None )
+	{
+		m_first_tasklet_waiting_to_receive = tasklet;
+	}
+	else
+	{
+		reinterpret_cast<PyTaskletObject*>( m_previous_blocked_receive_tasklet )->m_next = tasklet;
+
+		reinterpret_cast<PyTaskletObject*>( tasklet )->m_previous = m_previous_blocked_receive_tasklet;
+	}
+
+	m_previous_blocked_receive_tasklet = tasklet;
+
+	m_balance--;
+}
+
+PyObject* PyChannelObject::pop_next_tasklet_blocked_on_send()
+{
+	PyObject* next = m_first_tasklet_waiting_to_send;
+
+    m_first_tasklet_waiting_to_send = reinterpret_cast<PyTaskletObject*>( next )->m_next;
+
+    m_balance--;
+
+    return next;
+}
+
+PyObject* PyChannelObject::pop_next_tasklet_blocked_on_receive()
+{
+	PyObject* next = m_first_tasklet_waiting_to_receive;
+
+	m_first_tasklet_waiting_to_receive = reinterpret_cast<PyTaskletObject*>( next )->m_next;
+
+    m_balance++;
+
+	return next;
 }

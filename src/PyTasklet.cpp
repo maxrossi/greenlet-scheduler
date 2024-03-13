@@ -2,6 +2,15 @@
 
 #include "PyScheduler.h"
 
+#include "PyChannel.h"
+
+PyTaskletObject::PyTaskletObject():
+	m_channel_blocked_on(Py_None),
+	m_blocked(false)
+{
+
+}
+
 void PyTaskletObject::set_to_current_greenlet()
 {
 	// Import Greenlet C-API
@@ -119,10 +128,7 @@ void PyTaskletObject::kill()
 
     if(m_blocked)
 	{
-	    // TODO - Remove from channel
-
-
-        m_channel_blocked_on = Py_None;
+		reinterpret_cast<PyChannelObject*>( m_channel_blocked_on )->remove_tasklet_from_blocked( reinterpret_cast<PyObject*>(this) );
     }
 
     // Unblock the rest of the chain
@@ -166,4 +172,23 @@ void PyTaskletObject::set_transfer_arguments( PyObject* args, bool is_exception 
 	m_transfer_arguments = args;
 
     m_transfer_is_exception = is_exception;
+}
+
+bool PyTaskletObject::is_blocked()
+{
+	return m_blocked;
+}
+
+void PyTaskletObject::block( PyChannelObject* channel )
+{
+	m_blocked = true;
+
+    m_channel_blocked_on = reinterpret_cast<PyObject*>(channel);
+}
+
+void PyTaskletObject::unblock()
+{
+	m_blocked = false;
+
+	m_channel_blocked_on = Py_None;
 }

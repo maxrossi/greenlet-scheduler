@@ -6,9 +6,13 @@ static int
 {
 	self->m_preference = 0;
 
-    self->m_waiting_to_send = new std::queue<PyObject*>();
+    self->m_first_tasklet_waiting_to_send = Py_None;
 
-    self->m_waiting_to_receive = new std::queue<PyObject*>();
+    self->m_first_tasklet_waiting_to_receive = Py_None;
+
+    self->m_previous_blocked_send_tasklet = Py_None;
+
+    self->m_previous_blocked_receive_tasklet = Py_None;
 
     self->m_lock = PyThread_allocate_lock();
 
@@ -20,11 +24,8 @@ static void
 {
     //TODO need to clean up tasklets that are stored in waiting_to_send and waiting_to_receive lists
 
-	delete self->m_waiting_to_send;
-
-	delete self->m_waiting_to_receive;
-
-    //TODO do I need to deallocate the lock? Perhaps just a decref
+    
+	Py_DECREF( self->m_lock );
 
 	Py_TYPE( self )->tp_free( (PyObject*)self );
 }

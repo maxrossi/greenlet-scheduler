@@ -27,9 +27,6 @@ static int
 
 	self->m_alive = true;
 
-    self->m_channel_blocked_on = Py_None;
-    self->m_blocked = false;
-
     // This is set on call or bind TODO
 	self->m_arguments = nullptr;
     
@@ -81,7 +78,7 @@ static PyObject*
 static PyObject*
 	Tasklet_blocked_get( PyTaskletObject* self, void* closure )
 {
-	return self->m_blocked ? Py_True : Py_False;
+	return self->is_blocked() ? Py_True : Py_False;
 }
 
 static PyObject*
