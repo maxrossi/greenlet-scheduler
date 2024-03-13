@@ -26,15 +26,27 @@ public:
 	
 	PyChannelObject();
 
-	bool send( PyObject* args, bool exception=false );
+    ~PyChannelObject();
 
-    int balance();
+	bool send( PyObject* args, bool exception=false );
 
     PyObject* receive();
 
+    int balance() const;
+
     void remove_tasklet_from_blocked( PyObject* tasklet );
 
-    void run_channel_callback( PyObject* channel, PyObject* tasklet, bool sending, bool will_block );
+    static PyObject* channel_callback();
+
+    static void set_channel_callback(PyObject* callback);
+
+    int preference() const;
+
+    void set_preference( int value );
+
+private:
+
+    void run_channel_callback( PyObject* channel, PyObject* tasklet, bool sending, bool will_block ) const;
 
     void add_tasklet_to_waiting_to_send(PyObject* tasklet);
 

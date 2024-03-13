@@ -26,7 +26,9 @@ class PyTaskletObject
 public:
 	PyObject_HEAD
 
-	PyTaskletObject();
+	PyTaskletObject( PyObject* callable );
+
+    ~PyTaskletObject();
 
 	void set_to_current_greenlet();
 
@@ -46,7 +48,43 @@ public:
 
     void unblock();
 
-    bool is_blocked();
+    bool is_blocked() const;
+
+    bool alive() const;
+
+    bool scheduled() const;
+
+    void set_scheduled( bool value );
+
+    bool blocktrap() const;
+
+    void set_blocktrap( bool value );
+
+    bool is_main() const;
+
+    void set_is_main( bool value );
+
+    unsigned long thread_id() const;
+
+    PyObject* next() const;
+
+    void set_next( PyObject* next );
+
+    PyObject* previous() const;
+
+    void set_previous( PyObject* previous );
+
+    PyObject* arguments() const;
+
+    void set_arguments(PyObject* arguments);
+
+    bool transfer_in_progress() const;
+
+    void set_transfer_in_progress( bool value );
+
+    bool transfer_is_exception() const;
+
+private:
 
 	PyGreenlet* m_greenlet;
 
@@ -62,8 +100,6 @@ public:
 
 	bool m_alive;
 
-    
-
     bool m_blocktrap;
 
     PyObject* m_previous;
@@ -75,8 +111,6 @@ public:
     PyObject* m_transfer_arguments;
 
     bool m_transfer_is_exception;
-
-private:
 
     PyObject* m_channel_blocked_on;
 

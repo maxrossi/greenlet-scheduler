@@ -2,6 +2,8 @@
 
 #include "PyScheduler.h"
 
+#include <new>
+
 static PyObject* TaskletExit;
 
 static int
@@ -19,52 +21,22 @@ static int
 			return -1;
 		}
 
-		Py_INCREF( temp ); /* Add a reference to new callback */
+		Py_INCREF( temp );
 		
-		self->m_callable = temp; /* Remember new callback */
+        // Call constructor
+		new( self ) PyTaskletObject( temp );
 
+        return 0;
 	}
 
-	self->m_alive = true;
-
-    // This is set on call or bind TODO
-	self->m_arguments = nullptr;
-    
-    //Initialise greenlet to null
-    self->m_greenlet = nullptr;
-
-    self->m_is_main = false;
-
-    //Initialise blocktrap to false
-    self->m_blocktrap = false;
-
-    //Initialise next tasklet pointer to zero
-	self->m_next = Py_None;
-	self->m_previous = Py_None;
-
-    self->m_scheduled = false;
-
-    self->m_transfer_arguments = nullptr;
-
-	self->m_thread_id = PyThread_get_thread_ident();
-
-    self->m_transfer_in_progress = true;
-
-    self->m_transfer_is_exception = false;
-
-	return 0;
+	return -1;
 }
 
 static void
 	Tasklet_dealloc( PyTaskletObject* self )
 {
-	Py_XDECREF( self->m_callable );
-
-    Py_XDECREF( self->m_arguments );
-
-    Py_XDECREF( self->m_greenlet );
-
-    Py_XDECREF( self->m_transfer_arguments );
+    // Call destructor
+	self->~PyTaskletObject();
 
 	Py_TYPE( self )->tp_free( (PyObject*)self );
 }
@@ -72,7 +44,7 @@ static void
 static PyObject*
 	Tasklet_alive_get( PyTaskletObject* self, void* closure )
 {
-	return self->m_alive ? Py_True : Py_False; 
+	return self->alive() ? Py_True : Py_False; 
 }
 
 static PyObject*
@@ -84,13 +56,13 @@ static PyObject*
 static PyObject*
 	Tasklet_scheduled_get( PyTaskletObject* self, void* closure )
 {
-	return self->m_scheduled ? Py_True : Py_False;
+	return self->scheduled() ? Py_True : Py_False;
 }
 
 static PyObject*
 	Tasklet_blocktrap_get( PyTaskletObject* self, void* closure )
 {
-	return self->m_blocktrap ? Py_True : Py_False;
+	return self->blocktrap() ? Py_True : Py_False;
 }
 
 static int
@@ -102,7 +74,7 @@ static int
 		return -1;
     }
 
-    self->m_blocktrap = PyObject_IsTrue( value );
+    self->set_blocktrap(PyObject_IsTrue( value ));
 
 	return 0;
 }
@@ -118,13 +90,13 @@ static PyObject*
 static PyObject*
 	Tasklet_ismain_get( PyTaskletObject* self, void* closure )
 {
-	return self->m_is_main ? Py_True : Py_False;
+	return self->is_main() ? Py_True : Py_False;
 }
 
 static PyObject*
 	Tasklet_threadid_get( PyTaskletObject* self, void* closure )
 {
-	return PyLong_FromLong( self->m_thread_id );
+	return PyLong_FromLong( self->thread_id() );
 }
 
 static PyObject*
@@ -132,7 +104,7 @@ static PyObject*
 {
 	PyObject* next = nullptr;
 
-	next = self->m_next;
+	next = self->next();
 
     if( !next )
 	{
@@ -149,7 +121,7 @@ static PyObject*
 {
 	PyObject* previous = nullptr;
 
-	previous = self->m_previous;
+	previous = self->previous();
 
 	if( !previous )
 	{
@@ -225,8 +197,8 @@ static PyObject*
 	PyObject* result = NULL;
 
     Py_XINCREF( args );
-	Py_XDECREF( tasklet->m_arguments );
-	tasklet->m_arguments = args;
+	Py_XDECREF( tasklet->arguments() );
+	tasklet->set_arguments(args);
 
     //Add to scheduler
     tasklet->insert();

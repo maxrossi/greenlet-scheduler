@@ -4,11 +4,35 @@
 
 #include "PyChannel.h"
 
-PyTaskletObject::PyTaskletObject():
+PyTaskletObject::PyTaskletObject(PyObject* callable):
+	m_greenlet( nullptr ),
+	m_callable( callable ),
+	m_arguments( nullptr ),
+	m_is_main( false ),
+	m_transfer_in_progress( true ),//Why is this true?
+	m_scheduled( false ),
+	m_alive( true ),
+	m_blocktrap( false ),
+	m_previous( Py_None ),
+	m_next( Py_None ),
+	m_thread_id( PyThread_get_thread_ident() ),
+	m_transfer_arguments( nullptr ),
+	m_transfer_is_exception( false ),
 	m_channel_blocked_on(Py_None),
 	m_blocked(false)
 {
 
+}
+
+PyTaskletObject ::~PyTaskletObject()
+{
+	Py_XDECREF( m_callable );
+
+	Py_XDECREF( m_arguments );
+
+	Py_XDECREF( m_greenlet );
+
+	Py_XDECREF( m_transfer_arguments );
 }
 
 void PyTaskletObject::set_to_current_greenlet()
@@ -174,7 +198,7 @@ void PyTaskletObject::set_transfer_arguments( PyObject* args, bool is_exception 
     m_transfer_is_exception = is_exception;
 }
 
-bool PyTaskletObject::is_blocked()
+bool PyTaskletObject::is_blocked() const
 {
 	return m_blocked;
 }
@@ -191,4 +215,89 @@ void PyTaskletObject::unblock()
 	m_blocked = false;
 
 	m_channel_blocked_on = Py_None;
+}
+
+bool PyTaskletObject::alive() const
+{
+	return m_alive;
+}
+
+bool PyTaskletObject::scheduled() const
+{
+	return m_scheduled;
+}
+
+void PyTaskletObject::set_scheduled( bool value )
+{
+	m_scheduled = value;
+}
+
+bool PyTaskletObject::blocktrap() const
+{
+	return m_blocktrap;
+}
+
+void PyTaskletObject::set_blocktrap( bool value )
+{
+	m_blocktrap = value;
+}
+
+bool PyTaskletObject::is_main() const
+{
+	return m_is_main;
+}
+
+void PyTaskletObject::set_is_main( bool value )
+{
+	m_is_main = value;
+}
+
+unsigned long PyTaskletObject::thread_id() const
+{
+	return m_thread_id;
+}
+
+PyObject* PyTaskletObject::next() const
+{
+	return m_next;
+}
+
+void PyTaskletObject::set_next( PyObject* next )
+{
+	m_next = next;
+}
+
+PyObject* PyTaskletObject::previous() const
+{
+	return m_previous;
+}
+
+void PyTaskletObject::set_previous( PyObject* previous )
+{
+	m_previous = previous;
+}
+
+PyObject* PyTaskletObject::arguments() const
+{
+	return m_arguments;
+}
+
+void PyTaskletObject::set_arguments( PyObject* arguments )
+{
+	m_arguments = arguments;
+}
+
+bool PyTaskletObject::transfer_in_progress() const
+{
+	return m_transfer_in_progress;
+}
+
+void PyTaskletObject::set_transfer_in_progress( bool value )
+{
+	m_transfer_in_progress = value;
+}
+
+bool PyTaskletObject::transfer_is_exception() const
+{
+	return m_transfer_is_exception;
 }

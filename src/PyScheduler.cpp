@@ -70,15 +70,15 @@ void Scheduler::insert_tasklet( PyTaskletObject* tasklet )
 
     Py_INCREF( tasklet );
 
-    Scheduler* current_scheduler = get_scheduler( tasklet->m_thread_id );
+    Scheduler* current_scheduler = get_scheduler( tasklet->thread_id() );
 
-	current_scheduler->m_previous_tasklet->m_next = reinterpret_cast<PyObject*>( tasklet );
+	current_scheduler->m_previous_tasklet->set_next(reinterpret_cast<PyObject*>( tasklet ));
 
-	tasklet->m_previous = reinterpret_cast<PyObject*>( current_scheduler->m_previous_tasklet );
+	tasklet->set_previous(reinterpret_cast<PyObject*>( current_scheduler->m_previous_tasklet ));
     
 	current_scheduler->m_previous_tasklet = tasklet;
 
-    tasklet->m_scheduled = true;
+    tasklet->set_scheduled(true);
 
 }
 
@@ -90,10 +90,10 @@ int Scheduler::get_tasklet_count()
 
     PyTaskletObject* current_tasklet = reinterpret_cast<PyTaskletObject*>( Scheduler::get_main_tasklet() );
 
-	while( current_tasklet->m_next != Py_None)
+	while( current_tasklet->next() != Py_None)
 	{
 		count++;
-		current_tasklet = reinterpret_cast<PyTaskletObject*>(reinterpret_cast<PyTaskletObject*>( current_tasklet )->m_next);
+		current_tasklet = reinterpret_cast<PyTaskletObject*>(reinterpret_cast<PyTaskletObject*>( current_tasklet )->next());
     }
 
 	return count;
@@ -116,9 +116,9 @@ PyObject* Scheduler::run( PyTaskletObject* start_tasklet /* = nullptr */ )
 	{
 		next_tasklet = reinterpret_cast<PyObject*>( start_tasklet );
         
-        if(start_tasklet->m_previous != Py_None)
+        if(start_tasklet->previous() != Py_None)
 		{
-			reinterpret_cast<PyTaskletObject*>( start_tasklet->m_previous)->m_next = Py_None;
+			reinterpret_cast<PyTaskletObject*>( start_tasklet->previous())->set_next(Py_None);
         }
         
     }
@@ -126,9 +126,9 @@ PyObject* Scheduler::run( PyTaskletObject* start_tasklet /* = nullptr */ )
 	{
 		PyTaskletObject* main_tasklet = reinterpret_cast<PyTaskletObject*>( Scheduler::get_main_tasklet() );
 
-		next_tasklet = main_tasklet->m_next;
+		next_tasklet = main_tasklet->next();
 
-        main_tasklet->m_next = Py_None;
+        main_tasklet->set_next(Py_None);
     }
 
 
@@ -136,7 +136,7 @@ PyObject* Scheduler::run( PyTaskletObject* start_tasklet /* = nullptr */ )
 	{
 		PyObject* current_tasklet = next_tasklet;
 
-        next_tasklet = reinterpret_cast<PyTaskletObject*>( current_tasklet )->m_next;
+        next_tasklet = reinterpret_cast<PyTaskletObject*>( current_tasklet )->next();
 
         current_scheduler->run_scheduler_callback( current_tasklet, next_tasklet );
 
@@ -147,16 +147,16 @@ PyObject* Scheduler::run( PyTaskletObject* start_tasklet /* = nullptr */ )
 
         
         //TODO This feels hacky, this happens if the last tasklet tries to schedule itself during run
-        if( reinterpret_cast<PyTaskletObject*>( current_tasklet )->m_next != Py_None)
+        if( reinterpret_cast<PyTaskletObject*>( current_tasklet )->next() != Py_None)
 		{
-			next_tasklet = reinterpret_cast<PyTaskletObject*>( current_tasklet )->m_next;
-			reinterpret_cast<PyTaskletObject*>( current_tasklet )->m_next = Py_None;
+			next_tasklet = reinterpret_cast<PyTaskletObject*>( current_tasklet )->next();
+			reinterpret_cast<PyTaskletObject*>( current_tasklet )->set_next(Py_None);
         }
         
 
         Scheduler::set_current_tasklet( current_scheduler->m_scheduler_tasklet );
 
-        if(!reinterpret_cast<PyTaskletObject*>( current_tasklet )->m_alive)
+        if(!reinterpret_cast<PyTaskletObject*>( current_tasklet )->alive())
 		{
 			Py_XDECREF( current_tasklet );
         }

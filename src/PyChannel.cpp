@@ -5,9 +5,23 @@
 #include "PyScheduler.h"
 
 PyChannelObject::PyChannelObject():
-	m_balance(0)
+	m_balance(0),
+	m_preference(0),
+	m_first_tasklet_waiting_to_send(Py_None),
+	m_first_tasklet_waiting_to_receive(Py_None),
+	m_previous_blocked_send_tasklet(Py_None),
+	m_previous_blocked_receive_tasklet(Py_None),
+	m_lock( PyThread_allocate_lock() )
 {
 
+}
+
+PyChannelObject::~PyChannelObject()
+{
+	//TODO need to clean up tasklets that are stored in waiting_to_send and waiting_to_receive lists
+
+
+	Py_DECREF( m_lock );
 }
 
 bool PyChannelObject::send( PyObject* args, bool exception /* = false */)
@@ -18,7 +32,7 @@ bool PyChannelObject::send( PyObject* args, bool exception /* = false */)
 
     run_channel_callback( reinterpret_cast<PyObject*>(this), current, true, m_first_tasklet_waiting_to_receive == Py_None );  //TODO will_block logic here will change with addition of preference
 
-    reinterpret_cast<PyTaskletObject*>( current )->m_transfer_in_progress = true;
+    reinterpret_cast<PyTaskletObject*>( current )->set_transfer_in_progress(true);
 
 	if( m_first_tasklet_waiting_to_receive == Py_None )
 	{
@@ -40,7 +54,7 @@ bool PyChannelObject::send( PyObject* args, bool exception /* = false */)
         }
 
         //If current tasklet has block_trap set to true then throw runtime error
-		if( reinterpret_cast<PyTaskletObject*>( current )->m_blocktrap)
+		if( reinterpret_cast<PyTaskletObject*>( current )->blocktrap())
 		{
 			PyErr_SetString( PyExc_RuntimeError, "Channel cannot block on main tasklet with block_trap set true" );
 			PyThread_release_lock( m_lock );
@@ -80,7 +94,7 @@ bool PyChannelObject::send( PyObject* args, bool exception /* = false */)
 
     Py_DECREF( receiving_tasklet );
 
-	reinterpret_cast<PyTaskletObject*>( current )->m_transfer_in_progress = false;
+	reinterpret_cast<PyTaskletObject*>( current )->set_transfer_in_progress(false);
 
 	return true;
 
@@ -90,7 +104,7 @@ PyObject* PyChannelObject::receive()
 {
 	PyThread_acquire_lock( m_lock, 1 );
 
-    reinterpret_cast<PyTaskletObject*>( Scheduler::get_current_tasklet() )->m_transfer_in_progress = true;
+    reinterpret_cast<PyTaskletObject*>( Scheduler::get_current_tasklet() )->set_transfer_in_progress(true);
 
 	// Block as there is no tasklet sending
 	PyObject* current = Scheduler::get_current_tasklet();
@@ -118,7 +132,7 @@ PyObject* PyChannelObject::receive()
 		}
 
 		//If current tasklet has block_trap set to true then throw runtime error
-		if( reinterpret_cast<PyTaskletObject*>( current )->m_blocktrap )
+		if( reinterpret_cast<PyTaskletObject*>( current )->blocktrap() )
 		{
 			PyErr_SetString( PyExc_RuntimeError, "Channel cannot block on main tasklet with block_trap set true" );
 			PyThread_release_lock( m_lock );
@@ -148,7 +162,7 @@ PyObject* PyChannelObject::receive()
 	}
 
     //Process the exception
-	if( reinterpret_cast<PyTaskletObject*>( current )->m_transfer_is_exception)
+	if( reinterpret_cast<PyTaskletObject*>( current )->transfer_is_exception())
 	{
 		PyObject* arguments = reinterpret_cast<PyTaskletObject*>( current )->get_transfer_arguments();
 	
@@ -165,27 +179,27 @@ PyObject* PyChannelObject::receive()
 
         Py_DecRef( arguments );
 
-        reinterpret_cast<PyTaskletObject*>( current )->m_transfer_in_progress = false;  //TODO having two of these sucks
+        reinterpret_cast<PyTaskletObject*>( current )->set_transfer_in_progress(false);  //TODO having two of these sucks
 
         return nullptr;
 
     }
 
-    reinterpret_cast<PyTaskletObject*>( current )->m_transfer_in_progress = false;
+    reinterpret_cast<PyTaskletObject*>( current )->set_transfer_in_progress(false);
 
     return reinterpret_cast<PyTaskletObject*>(current)->get_transfer_arguments();
 }
 
-int PyChannelObject::balance()
+int PyChannelObject::balance() const
 {
 	return m_balance;
 }
 
 void PyChannelObject::remove_tasklet_from_blocked( PyObject* tasklet )
 {
-	PyObject* previous = reinterpret_cast<PyTaskletObject*>( tasklet )->m_previous;
+	PyObject* previous = reinterpret_cast<PyTaskletObject*>( tasklet )->previous();
 
-    PyObject* next = reinterpret_cast<PyTaskletObject*>( tasklet )->m_next;
+    PyObject* next = reinterpret_cast<PyTaskletObject*>( tasklet )->next();
 
     if(previous == Py_None)
 	{
@@ -202,17 +216,17 @@ void PyChannelObject::remove_tasklet_from_blocked( PyObject* tasklet )
     }
 	else
 	{
-		reinterpret_cast<PyTaskletObject*>( previous )->m_next = next;
+		reinterpret_cast<PyTaskletObject*>( previous )->set_next(next);
 	}
 
     if(next != Py_None)
 	{
-		reinterpret_cast<PyTaskletObject*>( next )->m_previous = previous;
+		reinterpret_cast<PyTaskletObject*>( next )->set_previous(previous);
     }
     
 }
 
-void PyChannelObject::run_channel_callback( PyObject* channel, PyObject* tasklet, bool sending, bool will_block )
+void PyChannelObject::run_channel_callback( PyObject* channel, PyObject* tasklet, bool sending, bool will_block ) const
 {
 	if( s_channel_callback != Py_None )
 	{
@@ -244,9 +258,9 @@ void PyChannelObject::add_tasklet_to_waiting_to_send( PyObject* tasklet )
     }
 	else
 	{
-		reinterpret_cast<PyTaskletObject*>( m_previous_blocked_send_tasklet )->m_next = tasklet;
+		reinterpret_cast<PyTaskletObject*>( m_previous_blocked_send_tasklet )->set_next(tasklet);
 
-		reinterpret_cast<PyTaskletObject*>( tasklet )->m_previous = m_previous_blocked_send_tasklet;
+		reinterpret_cast<PyTaskletObject*>( tasklet )->set_previous(m_previous_blocked_send_tasklet);
     }
 
     m_previous_blocked_send_tasklet = tasklet;
@@ -262,9 +276,9 @@ void PyChannelObject::add_tasklet_to_waiting_to_receive( PyObject* tasklet )
 	}
 	else
 	{
-		reinterpret_cast<PyTaskletObject*>( m_previous_blocked_receive_tasklet )->m_next = tasklet;
+		reinterpret_cast<PyTaskletObject*>( m_previous_blocked_receive_tasklet )->set_next(tasklet);
 
-		reinterpret_cast<PyTaskletObject*>( tasklet )->m_previous = m_previous_blocked_receive_tasklet;
+		reinterpret_cast<PyTaskletObject*>( tasklet )->set_previous(m_previous_blocked_receive_tasklet);
 	}
 
 	m_previous_blocked_receive_tasklet = tasklet;
@@ -276,7 +290,7 @@ PyObject* PyChannelObject::pop_next_tasklet_blocked_on_send()
 {
 	PyObject* next = m_first_tasklet_waiting_to_send;
 
-    m_first_tasklet_waiting_to_send = reinterpret_cast<PyTaskletObject*>( next )->m_next;
+    m_first_tasklet_waiting_to_send = reinterpret_cast<PyTaskletObject*>( next )->next();
 
     m_balance--;
 
@@ -287,9 +301,29 @@ PyObject* PyChannelObject::pop_next_tasklet_blocked_on_receive()
 {
 	PyObject* next = m_first_tasklet_waiting_to_receive;
 
-	m_first_tasklet_waiting_to_receive = reinterpret_cast<PyTaskletObject*>( next )->m_next;
+	m_first_tasklet_waiting_to_receive = reinterpret_cast<PyTaskletObject*>( next )->next();
 
     m_balance++;
 
 	return next;
+}
+
+PyObject* PyChannelObject::channel_callback()
+{
+	return s_channel_callback;
+}
+
+void PyChannelObject::set_channel_callback( PyObject* callback )
+{
+	s_channel_callback = callback;
+}
+
+int PyChannelObject::preference() const
+{
+	return m_preference;
+}
+
+void PyChannelObject::set_preference( int value )
+{
+	m_preference = value;
 }

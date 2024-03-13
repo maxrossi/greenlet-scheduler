@@ -1,20 +1,12 @@
 #include "PyChannel.h"
 
+#include <new>
 
 static int
 	Channel_init( PyChannelObject* self, PyObject* args, PyObject* kwds )
 {
-	self->m_preference = 0;
-
-    self->m_first_tasklet_waiting_to_send = Py_None;
-
-    self->m_first_tasklet_waiting_to_receive = Py_None;
-
-    self->m_previous_blocked_send_tasklet = Py_None;
-
-    self->m_previous_blocked_receive_tasklet = Py_None;
-
-    self->m_lock = PyThread_allocate_lock();
+    // Call constructor
+    new ( self ) PyChannelObject();
 
 	return 0;
 }
@@ -22,18 +14,16 @@ static int
 static void
 	Channel_dealloc( PyChannelObject* self )
 {
-    //TODO need to clean up tasklets that are stored in waiting_to_send and waiting_to_receive lists
+    // Call destructor
+	self->~PyChannelObject();
 
-    
-	Py_DECREF( self->m_lock );
-
-	Py_TYPE( self )->tp_free( (PyObject*)self );
+    Py_TYPE( self )->tp_free( (PyObject*)self );
 }
 
 static PyObject*
 	Channel_preference_get( PyChannelObject* self, void* closure )
 {
-	return PyLong_FromLong( self->m_preference );
+	return PyLong_FromLong( self->preference() );
 }
 
 static int
@@ -51,7 +41,7 @@ static int
 		return -1;
 	}
 
-	self->m_preference = PyLong_AsLong( value );
+	self->set_preference(PyLong_AsLong( value ));
 	return 0;
 }
 

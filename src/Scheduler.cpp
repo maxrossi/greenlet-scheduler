@@ -165,9 +165,9 @@ static PyObject*
 
 		Py_INCREF( temp );
 
-		PyObject* previous_callback = PyChannelObject::s_channel_callback;
+		PyObject* previous_callback = PyChannelObject::channel_callback();
 
-		PyChannelObject::s_channel_callback = temp;
+		PyChannelObject::set_channel_callback(temp);
 
 		return previous_callback;
 	}
@@ -178,7 +178,7 @@ static PyObject*
 static PyObject*
 	get_channel_callback( PyObject* self, PyObject* args )
 {
-	PyObject* callable = PyChannelObject::s_channel_callback;
+	PyObject* callable = PyChannelObject::channel_callback();
 
 	Py_IncRef( callable );
 
@@ -389,7 +389,7 @@ static PyObject*
 	// Setup the schedulers tasklet
 	PyTaskletObject* tasklet = (PyTaskletObject*)scheduler_tasklet;
 
-	tasklet->m_is_main = true;
+	tasklet->set_is_main(true);
 
     return scheduler_tasklet;
 
@@ -554,7 +554,7 @@ PyInit__scheduler(void)
     Scheduler::s_create_scheduler_tasklet_callable = create_scheduler_tasklet_callable;
 	
     //Setup initial channel callback static
-	PyChannelObject::s_channel_callback = Py_None;
+	PyChannelObject::set_channel_callback(Py_None);
 
     return m;
 }
