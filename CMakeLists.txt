@@ -105,6 +105,10 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/python/scheduler
     )
 
+    if(${PYTHON_TEST_DISCOVERY_RETVAL})
+        message(FATAL_ERROR "Error encountered during test discovery:\n=== stderr: ===\n${PYTHON_TEST_DISCOVERY_ERRORS}\n=== stdout: ===\n${PYTHON_TESTS_STR}")
+    endif()
+
     get_filename_component(PYTHON_TEST_EXE_DIR ${PYTHON_EXECUTABLE} DIRECTORY)
 
     if(WIN32)
