@@ -436,8 +436,11 @@ static struct PyModuleDef schedulermodule = {
 	module_destructor
 };
 
+#define CONCATENATE_DIRECT(s1, s2) s1##s2
+#define CONCATENATE(s1, s2) CONCATENATE_DIRECT(s1, s2)
+
 PyMODINIT_FUNC
-PyInit__scheduler(void)
+	CONCATENATE(PyInit__scheduler, CCP_BUILD_FLAVOR) (void)
 {
     PyObject *m;
 	static SchedulerCAPI api;

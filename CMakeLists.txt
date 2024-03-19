@@ -96,6 +96,15 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
      PATTERN "*.py"
     )
 
+    execute_process(COMMAND ${PYTHON_EXECUTABLE} discover.py
+            OUTPUT_VARIABLE PYTHON_TESTS_STR
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_STRIP_TRAILING_WHITESPACE
+            RESULT_VARIABLE PYTHON_TEST_DISCOVERY_RETVAL
+            ERROR_VARIABLE PYTHON_TEST_DISCOVERY_ERRORS
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/python/scheduler
+    )
+
     get_filename_component(PYTHON_TEST_EXE_DIR ${PYTHON_EXECUTABLE} DIRECTORY)
 
     if(WIN32)
@@ -104,11 +113,14 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
         SET(PYTHONPATH_ENV "${CMAKE_SOURCE_DIR}/python/:$<TARGET_FILE_DIR:Scheduler>:${BRANCH_ROOT_DIR}/carbon/common/stdlib/:${PYTHON_TEST_EXE_DIR}:${Greenlet_ROOT}/${CCP_VENDOR_BIN_PATH}:${Greenlet_ROOT}/python")
     endif()
 
-    add_test(NAME SCHEDULER_PYTHON_TESTS
-        COMMAND ${PYTHON_EXECUTABLE} -m unittest discover -s scheduler/tests
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/python/
-    )
+    separate_arguments(PYTHON_TESTS UNIX_COMMAND ${PYTHON_TESTS_STR})
 
-    set_property(TEST SCHEDULER_PYTHON_TESTS PROPERTY ENVIRONMENT "PYTHONPATH=${PYTHONPATH_ENV}")
-
+    foreach (PYTHON_TEST ${PYTHON_TESTS})
+        message(STATUS "Found test ${PYTHON_TEST}")
+        add_test(NAME ${PYTHON_TEST}
+            COMMAND ${PYTHON_EXECUTABLE} -m unittest -v ${PYTHON_TEST}
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/python/scheduler/tests
+        )
+        set_tests_properties(${PYTHON_TEST} PROPERTIES ENVIRONMENT "PYTHONPATH=${PYTHONPATH_ENV};BUILDFLAVOR=$<LOWER_CASE:$<CONFIG>>")
+    endforeach ()
 endif()

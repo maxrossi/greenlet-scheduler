@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+import os
+
 __all__ = [
     '_C_API',
     'current'
@@ -22,9 +24,25 @@ __all__ = [
     'enable_softswitch',
 ]
 
-import _scheduler
+flavor = os.environ.get("BUILDFLAVOR", "release")
 
-from _scheduler import _C_API
+if flavor == 'release':
+    import _scheduler
+    from _scheduler import _C_API
+elif flavor == 'debug':
+    print("import _scheduler_debug as _scheduler")
+    import _scheduler_debug as _scheduler
+    from _scheduler_debug import _C_API
+elif flavor == 'trinitydev':
+    import _scheduler_trinitydev as _scheduler
+    from _scheduler_trinitydev import _C_API
+elif flavor == 'internal':
+    import _scheduler_internal as _scheduler
+    from _scheduler_internal import _C_API
+else:
+    raise RuntimeError("Unknown build flavor: {}".format(flavor))
+
+
 
 # Expose main scheduler methods and members at base level of extension
 getcurrent = _scheduler.getcurrent
@@ -46,4 +64,3 @@ enable_softswitch = _scheduler.enable_softswitch
 # Attributes
 main = getmain()
 current = None # TODO so far not updated
-    
