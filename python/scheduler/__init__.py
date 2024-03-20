@@ -30,7 +30,6 @@ if flavor == 'release':
     import _scheduler
     from _scheduler import _C_API
 elif flavor == 'debug':
-    print("import _scheduler_debug as _scheduler")
     import _scheduler_debug as _scheduler
     from _scheduler_debug import _C_API
 elif flavor == 'trinitydev':
