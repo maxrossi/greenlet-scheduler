@@ -422,20 +422,6 @@ static PyMethodDef SchedulerMethods[] = {
 	{ NULL, NULL, 0, NULL } /* Sentinel */
 };
 
-
-static struct PyModuleDef schedulermodule = {
-    PyModuleDef_HEAD_INIT,
-    "carbon-scheduler",   /* name of module */
-    NULL, /* module documentation, may be NULL */
-    -1,       /* size of per-interpreter state of the module,
-                 or -1 if the module keeps state in global variables. */
-    SchedulerMethods,
-    NULL,
-    NULL,
-    NULL,
-	module_destructor
-};
-
 /**
  * <Name> and <Name>_DIRECT Pattern is used here because:
  * s1##s2 will not expand s1 & s2 symbols, however a parent macro will
@@ -448,6 +434,23 @@ static struct PyModuleDef schedulermodule = {
  */
 #define CONCATENATE_DIRECT(s1, s2) s1##s2
 #define CONCATENATE(s1, s2) CONCATENATE_DIRECT(s1, s2)
+
+#define STRING_DIRECT(s) #s
+#define STRING(s) STRING_DIRECT(s)
+#define CONCATENATE_TO_STRING(s1, s2) STRING(CONCATENATE_DIRECT(s1, s2))
+
+static struct PyModuleDef schedulermodule = {
+    PyModuleDef_HEAD_INIT,
+    CONCATENATE_TO_STRING(_scheduler, CCP_BUILD_FLAVOR),   /* name of module */
+    NULL, /* module documentation, may be NULL */
+    -1,       /* size of per-interpreter state of the module,
+                 or -1 if the module keeps state in global variables. */
+    SchedulerMethods,
+    NULL,
+    NULL,
+    NULL,
+	module_destructor
+};
 
 PyMODINIT_FUNC
 	CONCATENATE(PyInit__scheduler, CCP_BUILD_FLAVOR) (void)
@@ -485,7 +488,8 @@ PyMODINIT_FUNC
 	}
 
 	//Exceptions
-    TaskletExit = PyErr_NewException( "carbon-scheduler.TaskletExit", NULL, NULL );
+	auto exitExceptionString = CONCATENATE_TO_STRING(_scheduler, CCP_BUILD_FLAVOR) + std::string(".TaskletExit");
+    TaskletExit = PyErr_NewException( exitExceptionString.c_str(), NULL, NULL );
 	Py_XINCREF( TaskletExit );
 	if( PyModule_AddObject( m, "error", TaskletExit ) < 0 )
 	{
