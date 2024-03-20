@@ -436,6 +436,16 @@ static struct PyModuleDef schedulermodule = {
 	module_destructor
 };
 
+/**
+ * <Name> and <Name>_DIRECT Pattern is used here because:
+ * s1##s2 will not expand s1 & s2 symbols, however a parent macro will
+ * So this:
+ * CONCATENATE(s1, s2) s1##s2 will not expand either symbol s1 or s2
+ * An Extra step is needed to expand s1 and s2, hence:
+ *
+ * CONCATENATE_DIRECT(s1, s2) s1##s2 // directly concatinate s1 and s2 without resolving them
+ * CONCATENATE(s1, s2) CONCATENATE_DIRECT(s1, s2) // resolve s1 and s2 before "passing them" to CONCATENATE_DIRECT
+ */
 #define CONCATENATE_DIRECT(s1, s2) s1##s2
 #define CONCATENATE(s1, s2) CONCATENATE_DIRECT(s1, s2)
 
