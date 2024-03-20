@@ -53,8 +53,10 @@ static struct PyModuleDef schedulertestmodule = {
     SchedulerTestMethods
 };
 
-PyMODINIT_FUNC
-PyInit__schedulertest(void)
+#define CONCATENATE_DIRECT(s1, s2) s1##s2
+#define CONCATENATE(s1, s2) CONCATENATE_DIRECT(s1, s2)
+
+PyMODINIT_FUNC CONCATENATE(PyInit__schedulertest, CCP_BUILD_FLAVOR) (void)
 {
     PyObject *m;
 	m = PyModule_Create( &schedulertestmodule );
