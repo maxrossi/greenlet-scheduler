@@ -123,13 +123,6 @@ PyObject* PyChannelObject::receive()
 
     if( m_first_tasklet_waiting_to_send == Py_None )
 	{
-		//If current tasklet is main tasklet then throw runtime error
-		if( current == Scheduler::get_main_tasklet() )
-		{
-			PyErr_SetString( PyExc_RuntimeError, "Channel cannot block on main tasklet" );
-			PyThread_release_lock( m_lock );
-			return nullptr;
-		}
 
 		//If current tasklet has block_trap set to true then throw runtime error
 		if( reinterpret_cast<PyTaskletObject*>( current )->blocktrap() )
@@ -139,13 +132,27 @@ PyObject* PyChannelObject::receive()
 			return nullptr;
 		}
 
-		reinterpret_cast<PyTaskletObject*>(current)->block(this);
+		//If current tasklet is main tasklet then throw runtime error
+		if( current == Scheduler::get_main_tasklet() )
+		{
+			PyThread_release_lock( m_lock );
+			Scheduler::schedule();
+			if (!reinterpret_cast<PyTaskletObject*>(current)->get_transfer_arguments())
+			{
+				PyErr_SetString(PyExc_RuntimeError, "The main tasklet is receiving without a sender available");
+				PyThread_release_lock(m_lock);
+				return nullptr;
+			}
+		}
+		else
+		{
+			reinterpret_cast<PyTaskletObject*>(current)->block(this);
 
-        PyThread_release_lock( m_lock );
+			PyThread_release_lock( m_lock );
 
-        // Continue scheduler
-		Scheduler::schedule();
-	
+			// Continue scheduler
+			Scheduler::schedule();
+		}
     }
 	else
 	{
@@ -165,6 +172,7 @@ PyObject* PyChannelObject::receive()
 	if( reinterpret_cast<PyTaskletObject*>( current )->transfer_is_exception())
 	{
 		PyObject* arguments = reinterpret_cast<PyTaskletObject*>( current )->get_transfer_arguments();
+		reinterpret_cast<PyTaskletObject*>(current)->clear_transfer_arguments();
 	
         if(!PyTuple_Check(arguments))
 		{
@@ -187,7 +195,11 @@ PyObject* PyChannelObject::receive()
 
     reinterpret_cast<PyTaskletObject*>( current )->set_transfer_in_progress(false);
 
-    return reinterpret_cast<PyTaskletObject*>(current)->get_transfer_arguments();
+
+    auto ret = reinterpret_cast<PyTaskletObject*>(current)->get_transfer_arguments();
+	reinterpret_cast<PyTaskletObject*>(current)->clear_transfer_arguments();
+
+	return ret;
 }
 
 int PyChannelObject::balance() const

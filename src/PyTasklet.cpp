@@ -97,7 +97,10 @@ PyObject* PyTaskletObject::switch_to( )
         // Tasklet is on the same thread so can be switched to now
 		Scheduler::set_current_tasklet( this );
 
-		m_next = Py_None;
+		if( this !=  reinterpret_cast<PyTaskletObject*>( Scheduler::get_main_tasklet()) )
+		{
+			m_next = Py_None; // Don't like where this resides so far
+		}
 
         m_scheduled = false;    // TODO is a running tasklet scheduled in stackless?
 
@@ -176,9 +179,14 @@ PyObject* PyTaskletObject::get_transfer_arguments()
     //Ownership is relinquished
 	PyObject* ret = m_transfer_arguments;
 
+	return ret;
+}
+
+void PyTaskletObject::clear_transfer_arguments()
+{
+
 	m_transfer_arguments = nullptr;
 
-	return ret;
 }
 
 void PyTaskletObject::set_transfer_arguments( PyObject* args, bool is_exception )

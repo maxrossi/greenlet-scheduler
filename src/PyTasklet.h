@@ -42,6 +42,8 @@ public:
 
     PyObject* get_transfer_arguments();
 
+	void clear_transfer_arguments();
+
     void set_transfer_arguments( PyObject* args, bool is_exception );
 
     void block( PyChannelObject* channel );

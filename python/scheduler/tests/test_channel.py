@@ -198,3 +198,48 @@ class TestChannels(unittest.TestCase):
         except ValueError as e:
             self.assertEqual(e.args, (1, 2, 3))
 
+    def testBlockingReceiveOnMainTasklet(self):
+
+        sentValues = []
+
+        def sender(chan):
+            for i in range(0, 10):
+                chan.send(i)
+                sentValues.append(i)
+
+        channel = scheduler.channel()
+
+        sendingTasklet = scheduler.tasklet(sender)(channel)
+        sendingTasklet.run()
+
+        self.assertEqual(len(sentValues), 0)
+        self.assertEqual(channel.balance, 1)
+
+        for i in range(0, 10):
+            channel.receive()
+
+        self.assertEqual(channel.balance, 0)
+        self.assertEqual(sentValues, [0,1,2,3,4,5,6,7,8,9])
+
+    def testBlockingSendOnMainTasklet(self):
+
+        receivedValues = []
+
+        def sender(chan):
+            for i in range(0, 10):
+                r = chan.receive()
+                receivedValues.append(r)
+
+        channel = scheduler.channel()
+
+        sendingTasklet = scheduler.tasklet(sender)(channel)
+        sendingTasklet.run()
+
+        self.assertEqual(len(receivedValues), 0)
+        self.assertEqual(channel.balance, -1)
+
+        for i in range(0, 10):
+            channel.send(i)
+
+        self.assertEqual(channel.balance, 0)
+        self.assertEqual(receivedValues, [0,1,2,3,4,5,6,7,8,9])

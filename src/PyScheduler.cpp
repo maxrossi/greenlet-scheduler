@@ -101,9 +101,15 @@ int Scheduler::get_tasklet_count()
 
 void Scheduler::schedule()
 {
-	Scheduler* current_scheduler = get_scheduler();
-
-	current_scheduler->m_scheduler_tasklet->switch_to();
+	if (Scheduler::get_main_tasklet() == Scheduler::get_current_tasklet())
+	{
+		Scheduler::run();
+	}
+	else
+	{
+		Scheduler* current_scheduler = get_scheduler();
+		current_scheduler->m_scheduler_tasklet->switch_to();
+	}
 }
 
 PyObject* Scheduler::run( PyTaskletObject* start_tasklet /* = nullptr */ )
