@@ -68,9 +68,9 @@ public:
 
     unsigned long thread_id() const;
 
-    PyObject* next() const;
+	PyObject* next() const;
 
-    void set_next( PyObject* next );
+	void set_next( PyObject* next );
 
     PyObject* previous() const;
 

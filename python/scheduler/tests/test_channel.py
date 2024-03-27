@@ -243,3 +243,46 @@ class TestChannels(unittest.TestCase):
 
         self.assertEqual(channel.balance, 0)
         self.assertEqual(receivedValues, [0,1,2,3,4,5,6,7,8,9])
+
+    def testPreferenceSender(self):
+        completedSendTasklets = []
+
+        c = scheduler.channel()
+        c.preference = 1
+
+        def sender(chan, x):
+            chan.send(x)
+            completedSendTasklets.append(x)
+
+        for i in range(10):
+            tasklet = scheduler.tasklet(sender)(c, i)
+            tasklet.run()
+
+        for i in range(10):
+            c.receive()
+            self.assertEqual(i+1, len(completedSendTasklets))
+
+    def testPreferenceReceiver(self):
+        completedSendTasklets = []
+
+        c = scheduler.channel()
+
+        # this is the default, but setting it explicitly for the test
+        c.preference = -1
+
+        def sender(chan, x):
+            chan.send(x)
+            completedSendTasklets.append(x)
+
+        for i in range(10):
+            tasklet = scheduler.tasklet(sender)(c, i)
+            tasklet.run()
+
+        for i in range(10):
+            c.receive()
+            self.assertEqual(0, len(completedSendTasklets))
+
+        scheduler.run()
+
+        self.assertEqual(10, len(completedSendTasklets))
+

@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include "PyChannel.h"
 
 #include "PyTasklet.h"
@@ -6,11 +8,7 @@
 
 PyChannelObject::PyChannelObject():
 	m_balance(0),
-	m_preference(0),
-	m_first_tasklet_waiting_to_send(Py_None),
-	m_first_tasklet_waiting_to_receive(Py_None),
-	m_previous_blocked_send_tasklet(Py_None),
-	m_previous_blocked_receive_tasklet(Py_None),
+	m_preference(-1),
 	m_lock( PyThread_allocate_lock() )
 {
 
@@ -30,11 +28,11 @@ bool PyChannelObject::send( PyObject* args, bool exception /* = false */)
 
     PyObject* current = Scheduler::get_current_tasklet();  //TODO naming clean up
 
-    run_channel_callback( reinterpret_cast<PyObject*>(this), current, true, m_first_tasklet_waiting_to_receive == Py_None );  //TODO will_block logic here will change with addition of preference
+	run_channel_callback( reinterpret_cast<PyObject*>(this), current, true, blocked_on_receive.empty() );  //TODO will_block logic here will change with addition of preference
 
     reinterpret_cast<PyTaskletObject*>( current )->set_transfer_in_progress(true);
 
-	if( m_first_tasklet_waiting_to_receive == Py_None )
+	if( blocked_on_receive.empty() )
 	{
 		
 		// Block as there is no tasklet sending
@@ -84,13 +82,20 @@ bool PyChannelObject::send( PyObject* args, bool exception /* = false */)
     // Store for retrieval from receiving tasklet
 	receiving_tasklet->set_transfer_arguments( args, exception );
 
-    //Add this tasklet to the end of the scheduler
-	Scheduler::insert_tasklet( reinterpret_cast<PyTaskletObject*>( Scheduler::get_current_tasklet() ) );
-
     PyThread_release_lock( m_lock );
 
-    //Switch to the receiving tasklet
-    receiving_tasklet->switch_to( );    
+	if (m_preference == PREFER_RECEIVER) {
+		//Add this tasklet to the end of the scheduler
+		Scheduler::insert_tasklet( reinterpret_cast<PyTaskletObject*>( Scheduler::get_current_tasklet() ) );
+		//Switch BACK to the receiving tasklet
+		receiving_tasklet->switch_to( );
+	} else if (m_preference == PREFER_SENDER) {
+		Scheduler::insert_tasklet(receiving_tasklet);
+	} else if (m_preference == PREFER_NEITHER) {
+		Scheduler::insert_tasklet(receiving_tasklet);
+		Scheduler::insert_tasklet( reinterpret_cast<PyTaskletObject*>( Scheduler::get_current_tasklet() ) );
+		Scheduler::schedule();
+	}
 
     Py_DECREF( receiving_tasklet );
 
@@ -108,8 +113,8 @@ PyObject* PyChannelObject::receive()
 
 	// Block as there is no tasklet sending
 	PyObject* current = Scheduler::get_current_tasklet();
-    
-    run_channel_callback( reinterpret_cast<PyObject*>( this ), current, false, m_first_tasklet_waiting_to_send == Py_None );    //TODO will_block logic here will change with addition of preference
+
+	run_channel_callback( reinterpret_cast<PyObject*>( this ), current, false, blocked_on_send.empty() );    //TODO will_block logic here will change with addition of preference
 
     if( current == nullptr )
 	{
@@ -121,7 +126,7 @@ PyObject* PyChannelObject::receive()
 
     add_tasklet_to_waiting_to_receive( current );
 
-    if( m_first_tasklet_waiting_to_send == Py_None )
+    if( blocked_on_send.empty() )
 	{
 
 		//If current tasklet has block_trap set to true then throw runtime error
@@ -169,11 +174,11 @@ PyObject* PyChannelObject::receive()
 	}
 
     //Process the exception
-	if( reinterpret_cast<PyTaskletObject*>( current )->transfer_is_exception())
+	if( reinterpret_cast<PyTaskletObject*>(current)->transfer_is_exception())
 	{
-		PyObject* arguments = reinterpret_cast<PyTaskletObject*>( current )->get_transfer_arguments();
+		PyObject* arguments = reinterpret_cast<PyTaskletObject*>(current)->get_transfer_arguments();
 		reinterpret_cast<PyTaskletObject*>(current)->clear_transfer_arguments();
-	
+
         if(!PyTuple_Check(arguments))
 		{
 			PyErr_SetString( PyExc_RuntimeError, "This should be checked during send TODO remove this check when it is" ); //TODO
@@ -187,17 +192,17 @@ PyObject* PyChannelObject::receive()
 
         Py_DecRef( arguments );
 
-        reinterpret_cast<PyTaskletObject*>( current )->set_transfer_in_progress(false);  //TODO having two of these sucks
+		reinterpret_cast<PyTaskletObject*>(current)->set_transfer_in_progress(false);  //TODO having two of these sucks
 
         return nullptr;
 
     }
 
-    reinterpret_cast<PyTaskletObject*>( current )->set_transfer_in_progress(false);
+	reinterpret_cast<PyTaskletObject*>( current )->set_transfer_in_progress(false);
 
+	auto ret = reinterpret_cast<PyTaskletObject*>( current )->get_transfer_arguments();
 
-    auto ret = reinterpret_cast<PyTaskletObject*>(current)->get_transfer_arguments();
-	reinterpret_cast<PyTaskletObject*>(current)->clear_transfer_arguments();
+	reinterpret_cast<PyTaskletObject*>( current )->clear_transfer_arguments();
 
 	return ret;
 }
@@ -209,33 +214,23 @@ int PyChannelObject::balance() const
 
 void PyChannelObject::remove_tasklet_from_blocked( PyObject* tasklet )
 {
-	PyObject* previous = reinterpret_cast<PyTaskletObject*>( tasklet )->previous();
-
-    PyObject* next = reinterpret_cast<PyTaskletObject*>( tasklet )->next();
-
-    if(previous == Py_None)
+	//	TODO: This is not performant. convert this to a linkedList implementation
+	// https://en.cppreference.com/w/cpp/container/deque:
+	// - Insertion or removal of elements - linear O(n).
+	// - As opposed to std::vector, the elements of a deque are not stored contiguously
+	auto it = std::find( blocked_on_send.begin(), blocked_on_send.end(),  tasklet);
+	if (it != blocked_on_send.end())
 	{
-		if(m_balance > 0)
-		{
-		    // Send
-			m_first_tasklet_waiting_to_send = Py_None;
-        }
-		else
-		{
-		    //Receive
-			m_first_tasklet_waiting_to_receive = Py_None;
-        }
-    }
-	else
-	{
-		reinterpret_cast<PyTaskletObject*>( previous )->set_next(next);
+		blocked_on_send.erase(it);
+		return;
 	}
 
-    if(next != Py_None)
+	it = std::find( blocked_on_receive.begin(), blocked_on_receive.end(),  tasklet);
+	if (it != blocked_on_receive.end())
 	{
-		reinterpret_cast<PyTaskletObject*>( next )->set_previous(previous);
-    }
-    
+		blocked_on_receive.erase(it);
+		return;
+	}
 }
 
 void PyChannelObject::run_channel_callback( PyObject* channel, PyObject* tasklet, bool sending, bool will_block ) const
@@ -264,45 +259,22 @@ void PyChannelObject::run_channel_callback( PyObject* channel, PyObject* tasklet
 
 void PyChannelObject::add_tasklet_to_waiting_to_send( PyObject* tasklet )
 {
-	if(m_first_tasklet_waiting_to_send == Py_None)
-	{
-		m_first_tasklet_waiting_to_send = tasklet;
-    }
-	else
-	{
-		reinterpret_cast<PyTaskletObject*>( m_previous_blocked_send_tasklet )->set_next(tasklet);
-
-		reinterpret_cast<PyTaskletObject*>( tasklet )->set_previous(m_previous_blocked_send_tasklet);
-    }
-
-    m_previous_blocked_send_tasklet = tasklet;
+	blocked_on_send.push_back(tasklet);
 
     m_balance++;
 }
 
 void PyChannelObject::add_tasklet_to_waiting_to_receive( PyObject* tasklet )
 {
-	if( m_first_tasklet_waiting_to_receive == Py_None )
-	{
-		m_first_tasklet_waiting_to_receive = tasklet;
-	}
-	else
-	{
-		reinterpret_cast<PyTaskletObject*>( m_previous_blocked_receive_tasklet )->set_next(tasklet);
-
-		reinterpret_cast<PyTaskletObject*>( tasklet )->set_previous(m_previous_blocked_receive_tasklet);
-	}
-
-	m_previous_blocked_receive_tasklet = tasklet;
+	blocked_on_receive.push_back(tasklet);
 
 	m_balance--;
 }
 
 PyObject* PyChannelObject::pop_next_tasklet_blocked_on_send()
 {
-	PyObject* next = m_first_tasklet_waiting_to_send;
-
-    m_first_tasklet_waiting_to_send = reinterpret_cast<PyTaskletObject*>( next )->next();
+	auto next = blocked_on_send.front();
+	blocked_on_send.pop_front();
 
     m_balance--;
 
@@ -311,9 +283,8 @@ PyObject* PyChannelObject::pop_next_tasklet_blocked_on_send()
 
 PyObject* PyChannelObject::pop_next_tasklet_blocked_on_receive()
 {
-	PyObject* next = m_first_tasklet_waiting_to_receive;
-
-	m_first_tasklet_waiting_to_receive = reinterpret_cast<PyTaskletObject*>( next )->next();
+	auto next = blocked_on_receive.front();
+	blocked_on_receive.pop_front();
 
     m_balance++;
 
