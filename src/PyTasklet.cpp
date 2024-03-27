@@ -309,36 +309,3 @@ bool PyTaskletObject::transfer_is_exception() const
 {
 	return m_transfer_is_exception;
 }
-
-//void PyTaskletObject::set_next_waiting_to_send(PyObject* next) {
-//	m_next_waiting_send = next;
-//}
-//
-//PyObject* PyTaskletObject::next_waiting_to_send() const {
-//	return m_next_waiting_send;
-//}
-//
-//void PyTaskletObject::set_previous_waiting_to_send(PyObject* previous) {
-//	m_previous_waiting_send = previous;
-//}
-//
-//PyObject* PyTaskletObject::previous_waiting_to_send() const {
-//	return m_previous_waiting_send;
-//}
-//
-//
-//void PyTaskletObject::set_next_waiting_to_receive(PyObject* next) {
-//	m_next_waiting_receive = next;
-//}
-//
-//PyObject* PyTaskletObject::next_waiting_to_receive() const {
-//	return m_next_waiting_receive;
-//}
-//
-//void PyTaskletObject::set_previous_waiting_to_receive(PyObject* previous) {
-//	m_previous_waiting_receive = previous;
-//}
-//
-//PyObject* PyTaskletObject::previous_waiting_to_receive() const {
-//	return m_previous_waiting_receive;
-//}
