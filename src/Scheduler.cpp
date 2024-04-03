@@ -229,7 +229,7 @@ static PyObject*
 {
 	Scheduler* current_scheduler = Scheduler::get_scheduler();
 
-	return PyLong_FromLong( current_scheduler->get_tasklet_count() + 1 ); // +1 is the main tasklet
+	return PyLong_FromLong( current_scheduler->get_tasklet_count() ); 
 }
 
 static PyObject*
@@ -237,8 +237,14 @@ static PyObject*
 {
 	Scheduler* current_scheduler = Scheduler::get_scheduler();
 
-	PyErr_SetString( PyExc_RuntimeError, "Scheduler_schedule Not yet implemented" ); //TODO
-	return NULL;
+	if( current_scheduler->insert_and_schedule() )
+	{
+		return Py_None;
+	}
+	else
+	{
+		return nullptr;
+    }
 }
 
 static PyObject*
@@ -362,9 +368,11 @@ static PyObject*
 		PyErr_SetString( PyExc_RuntimeError, "Scheduler_switch_trap requires a delta argument." ); //TODO
 	}
 
+    long original_switch_trap = current_scheduler->m_switch_trap_level;
+
 	current_scheduler->m_switch_trap_level += delta;
 
-	return PyLong_FromLong( current_scheduler->m_switch_trap_level );
+	return PyLong_FromLong( original_switch_trap );
 }
 
 static PyObject*
@@ -491,7 +499,7 @@ PyMODINIT_FUNC
 	auto exitExceptionString = CONCATENATE_TO_STRING(_scheduler, CCP_BUILD_FLAVOR) + std::string(".TaskletExit");
     TaskletExit = PyErr_NewException( exitExceptionString.c_str(), NULL, NULL );
 	Py_XINCREF( TaskletExit );
-	if( PyModule_AddObject( m, "error", TaskletExit ) < 0 )
+	if( PyModule_AddObject( m, "TaskletExit", TaskletExit ) < 0 )
 	{
 		Py_DECREF( &TaskletType );
 		Py_DECREF( &ChannelType );

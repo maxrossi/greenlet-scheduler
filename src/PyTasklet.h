@@ -26,19 +26,25 @@ class PyTaskletObject
 public:
 	PyObject_HEAD
 
-	PyTaskletObject( PyObject* callable );
+	PyTaskletObject( PyObject* callable, PyObject* tasklet_exit_exception );
 
     ~PyTaskletObject();
 
 	void set_to_current_greenlet();
 
+    bool remove();
+
+    bool initialise();
+
 	bool insert();
+
+    PyObject* switch_implementation();
 
     PyObject* switch_to();
 
     PyObject* run();
 
-    void kill();
+    bool kill( bool pending = false );
 
     PyObject* get_transfer_arguments();
 
@@ -86,6 +92,32 @@ public:
 
     bool transfer_is_exception() const;
 
+    bool throw_impl( PyObject* exception, PyObject* value, PyObject* tb, bool pending );
+
+    void raise_exception( );
+
+    bool is_paused();
+
+    PyObject* get_tasklet_parent();
+
+    void set_parent( PyObject* parent );
+
+    void clear_parent();
+
+    bool tasklet_exception_raised();
+
+    void clear_tasklet_exception();
+
+private:
+
+	bool set_exception();
+
+    bool exception_state_is_valid();
+
+    void clear_exception();
+
+    
+
 private:
 
 	PyGreenlet* m_greenlet;
@@ -117,4 +149,17 @@ private:
     PyObject* m_channel_blocked_on;
 
 	bool m_blocked;
+
+    bool m_has_started;
+
+    bool m_paused;
+
+    PyObject* m_tasklet_parent; // Weak ref
+
+    //Exception
+    PyObject* m_exception_state;
+	PyObject* m_exception_arguments;
+
+    PyObject* m_tasklet_exit_exception; //Weak ref
+
 };

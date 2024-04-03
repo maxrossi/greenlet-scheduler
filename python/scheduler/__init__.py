@@ -22,6 +22,7 @@ __all__ = [
     'get_channel_callback',
     'switch_trap',
     'enable_softswitch',
+    'TaskletExit'
 ]
 
 flavor = os.environ.get("BUILDFLAVOR", "release")
@@ -59,6 +60,7 @@ set_channel_callback = _scheduler.set_channel_callback
 get_channel_callback = _scheduler.get_channel_callback
 switch_trap = _scheduler.switch_trap
 enable_softswitch = _scheduler.enable_softswitch
+TaskletExit = _scheduler.TaskletExit
 
 # Attributes
 main = getmain()

@@ -43,14 +43,6 @@ bool PyChannelObject::send( PyObject* args, bool exception /* = false */)
 			return false;
 		}
 
-        //If current tasklet is main tasklet then throw runtime error
-		if( current == Scheduler::get_main_tasklet() )
-		{
-			PyErr_SetString( PyExc_RuntimeError, "Channel cannot block on main tasklet" );
-			PyThread_release_lock( m_lock );
-			return false;
-        }
-
         //If current tasklet has block_trap set to true then throw runtime error
 		if( reinterpret_cast<PyTaskletObject*>( current )->blocktrap())
 		{
@@ -69,7 +61,18 @@ bool PyChannelObject::send( PyObject* args, bool exception /* = false */)
         PyThread_release_lock( m_lock );
 
          // Continue scheduler
-		Scheduler::schedule();          
+		if(!Scheduler::schedule())
+		{
+			reinterpret_cast<PyTaskletObject*>( current )->unblock();
+
+			reinterpret_cast<PyTaskletObject*>( current )->set_transfer_in_progress( false );
+
+			PyObject* tasklet = pop_next_tasklet_blocked_on_send();
+
+            Py_DecRef( tasklet );
+
+			return false;
+        }
 
         PyThread_acquire_lock( m_lock, 1 );
 
@@ -88,7 +91,10 @@ bool PyChannelObject::send( PyObject* args, bool exception /* = false */)
 		//Add this tasklet to the end of the scheduler
 		Scheduler::insert_tasklet( reinterpret_cast<PyTaskletObject*>( Scheduler::get_current_tasklet() ) );
 		//Switch BACK to the receiving tasklet
-		receiving_tasklet->switch_to( );
+		if (!receiving_tasklet->switch_to( ))
+    {
+        return false; 
+    }
 	} else if (m_preference == PREFER_SENDER) {
 		Scheduler::insert_tasklet(receiving_tasklet);
 	} else if (m_preference == PREFER_NEITHER) {
@@ -128,7 +134,6 @@ PyObject* PyChannelObject::receive()
 
     if( blocked_on_send.empty() )
 	{
-
 		//If current tasklet has block_trap set to true then throw runtime error
 		if( reinterpret_cast<PyTaskletObject*>( current )->blocktrap() )
 		{
@@ -141,24 +146,34 @@ PyObject* PyChannelObject::receive()
 		if( current == Scheduler::get_main_tasklet() )
 		{
 			PyThread_release_lock( m_lock );
-			Scheduler::schedule();
-			if (!reinterpret_cast<PyTaskletObject*>(current)->get_transfer_arguments())
+			Scheduler::schedule();	//TODO handle failure case
+			if( !reinterpret_cast<PyTaskletObject*>( current )->get_transfer_arguments() )
 			{
-				PyErr_SetString(PyExc_RuntimeError, "The main tasklet is receiving without a sender available");
-				PyThread_release_lock(m_lock);
+				PyErr_SetString( PyExc_RuntimeError, "The main tasklet is receiving without a sender available" );
+				PyThread_release_lock( m_lock );
 				return nullptr;
 			}
 		}
 		else
 		{
-			reinterpret_cast<PyTaskletObject*>(current)->block(this);
+			reinterpret_cast<PyTaskletObject*>( current )->block( this );
 
 			PyThread_release_lock( m_lock );
 
 			// Continue scheduler
-			Scheduler::schedule();
+			if( !Scheduler::schedule() )
+			{
+				// Will enter here is an exception has been thrown on a tasklet
+				remove_tasklet_from_blocked( current );
+
+				reinterpret_cast<PyTaskletObject*>( current )->unblock();
+
+				reinterpret_cast<PyTaskletObject*>( current )->set_transfer_in_progress( false );
+
+				return false;
+			}
 		}
-    }
+	}
 	else
 	{
 		//Get first
@@ -168,7 +183,10 @@ PyObject* PyChannelObject::receive()
 
         PyThread_release_lock( m_lock );
 
-		sending_tasklet->switch_to();
+		if(!sending_tasklet->switch_to())
+		{
+			return false;
+        }
 
         Py_DECREF( sending_tasklet );
 	}

@@ -65,12 +65,14 @@ target_precompile_headers(Scheduler PRIVATE src/stdafx.h)
 set_target_properties(Scheduler PROPERTIES OUTPUT_NAME "_scheduler")
 
 
-# Build test
-add_subdirectory(tests/cpp)
 
 # Provide an install target iff this is the top level project only
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     enable_testing()
+
+    # Build test
+    add_subdirectory(tests/cpp)
+
     # Install rule to ensure that our runtime and linker files are in the expected, platform-specific folders
     install(
         TARGETS Scheduler

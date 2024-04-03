@@ -24,7 +24,7 @@ static int
 		Py_INCREF( temp );
 		
         // Call constructor
-		new( self ) PyTaskletObject( temp );
+		new( self ) PyTaskletObject( temp, TaskletExit );
 
         return 0;
 	}
@@ -133,6 +133,12 @@ static PyObject*
 	return previous;
 }
 
+static PyObject*
+	Tasklet_paused_get( PyTaskletObject* self, void* closure )
+{
+	return self->is_paused() ? Py_True : Py_False;
+}
+
 static PyGetSetDef Tasklet_getsetters[] = {
 	{ "alive", (getter)Tasklet_alive_get, NULL, "True while a tasklet is still running", NULL },
 	{ "blocked", (getter)Tasklet_blocked_get, NULL, "True when a tasklet is blocked on a channel", NULL },
@@ -143,15 +149,20 @@ static PyGetSetDef Tasklet_getsetters[] = {
 	{ "thread_id", (getter)Tasklet_threadid_get, NULL, "Id of the thread the tasklet belongs to", NULL },
 	{ "next", (getter)Tasklet_next_get, NULL, "Get next tasklet in scheduler", NULL },
 	{ "prev", (getter)Tasklet_previous_get, NULL, "Get next tasklet in scheduler", NULL },
+	{ "paused", (getter)Tasklet_paused_get, NULL, "This attribute is True when a tasklet is alive, but not scheduled or blocked on a channel", NULL },
 	{ NULL } /* Sentinel */
 };
 
 static PyObject*
 	Tasklet_insert( PyTaskletObject* self, PyObject* Py_UNUSED( ignored ) )
 {
-	self->insert();
+	return self->insert() ? Py_True : Py_False;
+}
 
-	return NULL;
+static PyObject*
+	Tasklet_remove( PyTaskletObject* self, PyObject* Py_UNUSED( ignored ) )
+{
+	return self->remove() ? Py_True : Py_False;
 }
 
 static PyObject*
@@ -163,23 +174,66 @@ static PyObject*
 static PyObject*
 	Tasklet_switch( PyTaskletObject* self, void* closure )
 {
-	PyErr_SetString( PyExc_RuntimeError, "Tasklet_switch Not yet implemented" ); //TODO
-	return NULL;
+	return self->switch_implementation();
 }
 
 static PyObject*
-	Tasklet_raiseexception( PyTaskletObject* self, void* closure )
+	Tasklet_throw( PyTaskletObject* self, PyObject* args, PyObject* kwds )
 {
-	PyErr_SetString( PyExc_RuntimeError, "Tasklet_raiseexception Not yet implemented" ); //TODO
-	return NULL;
+	const char* kwlist[] = { "exc", "val", "tb", "pending", NULL };
+
+    PyObject* exception = Py_None;
+	PyObject* value = Py_None;
+	PyObject* tb = Py_None; // TODO not yet used but the test passes which isn't great? 
+	bool pending = false;
+
+    if( !PyArg_ParseTupleAndKeywords( args, kwds, "|OOOp", (char**)kwlist, &exception, &value, &tb, &pending ) )
+	{
+		PyErr_SetString( PyExc_RuntimeError, "Failed to parse arguments" );
+		return nullptr;
+    }
+
+    return self->throw_impl( exception, value, tb, pending ) ? Py_None : nullptr;
+
 }
 
 static PyObject*
-	Tasklet_kill( PyTaskletObject* self, void* closure )
+	Tasklet_raiseexception( PyTaskletObject* self, PyObject* args, PyObject* kwds )
 {
-	self->kill();
+	PyObject* exception = Py_None;
+	PyObject* arguments = Py_None;
 
-	return Py_None;
+    if( !PyArg_ParseTuple( args, "O:exception_class|O", &exception, &arguments ) )
+	{
+		PyErr_SetString( PyExc_RuntimeError, "Failed to parse arguments" );
+		return nullptr;
+	}
+
+	return self->throw_impl( exception, arguments, Py_None, false ) ? Py_None : nullptr;
+}
+
+static PyObject*
+	Tasklet_kill( PyTaskletObject* self, PyObject* args, PyObject* kwds )
+{
+	const char* kwlist[] = { "pending", NULL };
+
+	bool pending = false;
+
+	if( !PyArg_ParseTupleAndKeywords( args, kwds, "|p", (char**)kwlist, &pending ) )
+	{
+		PyErr_SetString( PyExc_RuntimeError, "Failed to parse arguments" );
+		return nullptr;
+    }
+
+	if(self->kill( pending ))
+	{
+		return Py_None;
+    }
+	else
+	{
+		return nullptr;
+    }
+
 }
 
 static PyObject*
@@ -200,6 +254,9 @@ static PyObject*
 	Py_XDECREF( tasklet->arguments() );
 	tasklet->set_arguments(args);
 
+    //Initialize the tasklet
+	tasklet->initialise();
+
     //Add to scheduler
     tasklet->insert();
 
@@ -211,10 +268,12 @@ static PyObject*
 
 static PyMethodDef Tasklet_methods[] = {
 	{ "insert", (PyCFunction)Tasklet_insert, METH_NOARGS, "Insert a tasklet at the end of the scheduler runnables queue" },
+	{ "remove", (PyCFunction)Tasklet_remove, METH_NOARGS, "Remove a tasklet from the runnables queue" },
 	{ "run", (PyCFunction)Tasklet_run, METH_NOARGS, "run immediately*" },
 	{ "switch", (PyCFunction)Tasklet_switch, METH_NOARGS, "run immediately, pause caller" },
-	{ "raise_exception", (PyCFunction)Tasklet_raiseexception, METH_NOARGS, "Raise an exception on the given tasklet" },
-	{ "kill", (PyCFunction)Tasklet_kill, METH_NOARGS, "Terminates the tasklet and unblocks it" },
+	{ "throw", (PyCFunction)Tasklet_throw, METH_VARARGS | METH_KEYWORDS, "Raise an exception on the given tasklet" },
+	{ "raise_exception", (PyCFunction)Tasklet_raiseexception, METH_VARARGS, "Raise an exception on the given tasklet" },
+	{ "kill", (PyCFunction)Tasklet_kill, METH_VARARGS | METH_KEYWORDS, "Terminates the tasklet and unblocks it" },
 	{ "set_context", (PyCFunction)Tasklet_setcontext, METH_NOARGS, "Set the Context object to be used while this tasklet runs" },
 	{ NULL } /* Sentinel */
 };
