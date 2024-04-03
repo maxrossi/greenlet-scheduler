@@ -35,17 +35,25 @@ public:
 
 	static PyObject* get_current_tasklet();
 
+    static void remove_tasklet( PyTaskletObject* tasklet );
+
+    static void insert_tasklet_at_beginning( PyTaskletObject* tasklet );
+
     static void insert_tasklet( PyTaskletObject* tasklet );
 
     static int get_tasklet_count();
 
-    static void schedule();
+    static bool insert_and_schedule();
 
-    static PyObject* run(PyTaskletObject* start_tasklet = nullptr);
+    static bool schedule();
+
+    static PyObject* run( PyTaskletObject* start_tasklet = nullptr );
 
     static PyObject* get_main_tasklet();
 
     static void set_scheduler_callback( PyObject* callback );
+
+    static bool is_switch_trapped();
 
     void run_scheduler_callback( PyObject* prev, PyObject* next );
 
@@ -55,7 +63,7 @@ public:
 
     PyTaskletObject* m_current_tasklet; //Weak ref
 
-    int m_switch_trap_level;
+    long m_switch_trap_level;
 
     PyTaskletObject* m_previous_tasklet;   //Weak ref
 
