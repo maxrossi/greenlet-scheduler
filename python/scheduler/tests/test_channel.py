@@ -148,9 +148,17 @@ class TestChannels(unittest.TestCase):
         self.assertEqual(count[0], 2)
 
     def testMainTaskletBlockingWithoutASender(self):
-        ''' Test that the last runnable tasklet cannot be blocked on a channel. '''
+        ''' Test that the last runnable tasklet cannot be blocked on a channel receive. '''
         c = scheduler.channel()
         self.assertRaises(RuntimeError, c.receive)
+
+    def testMainTaskletBlockingWithoutReceiver(self):
+        ''' Test that the last runnable tasklet cannot be blocked on a channel send. '''
+        c = scheduler.channel()
+        def test_send():
+            c.send(1)
+
+        self.assertRaises(RuntimeError, test_send)
 
     def testInterthreadCommunication(self):
         ''' Test that tasklets in different threads sending over channels to each other work. '''
@@ -223,16 +231,17 @@ class TestChannels(unittest.TestCase):
 
     def testBlockingSendOnMainTasklet(self):
 
+
         receivedValues = []
 
-        def sender(chan):
+        def receiver(chan):
             for i in range(0, 10):
                 r = chan.receive()
                 receivedValues.append(r)
 
         channel = scheduler.channel()
 
-        sendingTasklet = scheduler.tasklet(sender)(channel)
+        sendingTasklet = scheduler.tasklet(receiver)(channel)
         sendingTasklet.run()
 
         self.assertEqual(len(receivedValues), 0)
@@ -243,3 +252,78 @@ class TestChannels(unittest.TestCase):
 
         self.assertEqual(channel.balance, 0)
         self.assertEqual(receivedValues, [0,1,2,3,4,5,6,7,8,9])
+
+    def testPreferenceSender(self):
+        completedSendTasklets = []
+
+        c = scheduler.channel()
+        c.preference = 1
+
+        def sender(chan, x):
+            chan.send(x)
+            completedSendTasklets.append(x)
+
+        for i in range(10):
+            tasklet = scheduler.tasklet(sender)(c, i)
+            tasklet.run()
+
+        for i in range(10):
+            c.receive()
+            self.assertEqual(i+1, len(completedSendTasklets))
+
+    def testPreferenceReceiver(self):
+        completedSendTasklets = []
+
+        c = scheduler.channel()
+
+        # this is the default, but setting it explicitly for the test
+        c.preference = -1
+
+        def sender(chan, x):
+            chan.send(x)
+            completedSendTasklets.append(x)
+
+        for i in range(10):
+            tasklet = scheduler.tasklet(sender)(c, i)
+            tasklet.run()
+
+        for i in range(10):
+            c.receive()
+            self.assertEqual(0, len(completedSendTasklets))
+
+        scheduler.run()
+
+        self.assertEqual(10, len(completedSendTasklets))
+
+    def testPreferenceNeither(self):
+        completedTasklets = []
+
+        c = scheduler.channel()
+
+        c.preference = 0
+
+        def sender(chan, x):
+            chan.send("test")
+            completedTasklets.append(("sender", x))
+
+        def receiver(chan, x):
+            res = chan.receive()
+            completedTasklets.append(("receiver", x))
+            self.assertEqual(res, "test")
+
+        def justAnotherTasklet(x):
+            completedTasklets.append(x)
+
+        for i in range(10):
+            scheduler.tasklet(sender)(c, i)
+
+        for i in range(10):
+            scheduler.tasklet(receiver)(c, 1)
+
+        self.assertEqual(len(completedTasklets), 0)
+
+        scheduler.tasklet(justAnotherTasklet)("first")
+
+        scheduler.run()
+
+        self.assertEqual(len(completedTasklets), 21)
