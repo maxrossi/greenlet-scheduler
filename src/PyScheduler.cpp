@@ -159,6 +159,12 @@ bool Scheduler::schedule()
 {
 	if (Scheduler::get_main_tasklet() == Scheduler::get_current_tasklet())
 	{
+		auto current = reinterpret_cast<PyTaskletObject*>(Scheduler::get_current_tasklet());
+		if (current->is_blocked() && current->next() == Py_None)
+		{
+			PyErr_SetString(PyExc_RuntimeError, "Deadlock: the last runnable tasklet cannot be blocked.");
+			return false;
+		}
 		return Scheduler::run();
 	}
 	else
@@ -168,8 +174,13 @@ bool Scheduler::schedule()
 
 		PyTaskletObject* parent_tasklet = reinterpret_cast<PyTaskletObject*>( current_tasklet->get_tasklet_parent() );
 
-        parent_tasklet->switch_to();
+        if (parent_tasklet->switch_to() == nullptr)
+		{
+			return false;
+		}
 	}
+
+	return true;
 }
 
 PyObject* Scheduler::run( PyTaskletObject* start_tasklet /* = nullptr */ )
@@ -222,9 +233,6 @@ PyObject* Scheduler::run( PyTaskletObject* start_tasklet /* = nullptr */ )
 
             // Update current tasklet
 			Scheduler::set_current_tasklet( reinterpret_cast<PyTaskletObject*>( current_tasklet->get_tasklet_parent() ) );
-        
-            // Clear tasklet parent
-			current_tasklet->clear_parent();
         }
 		else
 		{

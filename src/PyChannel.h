@@ -17,7 +17,13 @@
 */
 #pragma once
 
+#include <deque>
+
 #include "stdafx.h"
+
+const int PREFER_SENDER = 1;
+const int PREFER_RECEIVER = -1;
+const int PREFER_NEITHER = 0;
 
 class PyChannelObject
 {
@@ -60,15 +66,10 @@ private:
 
 	int m_preference;
 
-    PyObject* m_first_tasklet_waiting_to_send;
-
-    PyObject* m_first_tasklet_waiting_to_receive;
-
-    PyObject* m_previous_blocked_send_tasklet;
-
-    PyObject* m_previous_blocked_receive_tasklet;
-
     PyThread_type_lock m_lock;
+
+	std::deque<PyObject*> blocked_on_send;
+	std::deque<PyObject*> blocked_on_receive;
 
     inline static PyObject* s_channel_callback; // This is global, not per channel
 
