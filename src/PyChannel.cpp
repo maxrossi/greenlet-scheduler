@@ -141,19 +141,6 @@ PyObject* PyChannelObject::receive()
 			PyThread_release_lock( m_lock );
 			return nullptr;
 		}
-
-		//If current tasklet is main tasklet then throw runtime error
-		if( current == Scheduler::get_main_tasklet() )
-		{
-			PyThread_release_lock( m_lock );
-			Scheduler::schedule();	//TODO handle failure case
-			if( !reinterpret_cast<PyTaskletObject*>( current )->get_transfer_arguments() )
-			{
-				PyErr_SetString( PyExc_RuntimeError, "The main tasklet is receiving without a sender available" );
-				PyThread_release_lock( m_lock );
-				return nullptr;
-			}
-		}
 		else
 		{
 			reinterpret_cast<PyTaskletObject*>( current )->block( this );

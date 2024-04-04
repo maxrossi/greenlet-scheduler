@@ -148,9 +148,17 @@ class TestChannels(unittest.TestCase):
         self.assertEqual(count[0], 2)
 
     def testMainTaskletBlockingWithoutASender(self):
-        ''' Test that the last runnable tasklet cannot be blocked on a channel. '''
+        ''' Test that the last runnable tasklet cannot be blocked on a channel receive. '''
         c = scheduler.channel()
         self.assertRaises(RuntimeError, c.receive)
+
+    def testMainTaskletBlockingWithoutReceiver(self):
+        ''' Test that the last runnable tasklet cannot be blocked on a channel send. '''
+        c = scheduler.channel()
+        def test_send():
+            c.send(1)
+
+        self.assertRaises(RuntimeError, test_send)
 
     def testInterthreadCommunication(self):
         ''' Test that tasklets in different threads sending over channels to each other work. '''
@@ -223,16 +231,17 @@ class TestChannels(unittest.TestCase):
 
     def testBlockingSendOnMainTasklet(self):
 
+
         receivedValues = []
 
-        def sender(chan):
+        def receiver(chan):
             for i in range(0, 10):
                 r = chan.receive()
                 receivedValues.append(r)
 
         channel = scheduler.channel()
 
-        sendingTasklet = scheduler.tasklet(sender)(channel)
+        sendingTasklet = scheduler.tasklet(receiver)(channel)
         sendingTasklet.run()
 
         self.assertEqual(len(receivedValues), 0)
@@ -286,3 +295,35 @@ class TestChannels(unittest.TestCase):
 
         self.assertEqual(10, len(completedSendTasklets))
 
+    def testPreferenceNeither(self):
+        completedTasklets = []
+
+        c = scheduler.channel()
+
+        c.preference = 0
+
+        def sender(chan, x):
+            chan.send("test")
+            completedTasklets.append(("sender", x))
+
+        def receiver(chan, x):
+            res = chan.receive()
+            completedTasklets.append(("receiver", x))
+            self.assertEqual(res, "test")
+
+        def justAnotherTasklet(x):
+            completedTasklets.append(x)
+
+        for i in range(10):
+            scheduler.tasklet(sender)(c, i)
+
+        for i in range(10):
+            scheduler.tasklet(receiver)(c, 1)
+
+        self.assertEqual(len(completedTasklets), 0)
+
+        scheduler.tasklet(justAnotherTasklet)("first")
+
+        scheduler.run()
+
+        self.assertEqual(len(completedTasklets), 21)
