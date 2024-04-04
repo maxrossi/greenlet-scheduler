@@ -260,6 +260,8 @@ static PyObject*
     //Add to scheduler
     tasklet->insert();
 
+    tasklet->set_alive(true);
+
     Py_IncRef( callable );
 
 	return callable;

@@ -58,6 +58,8 @@ public:
 
     bool is_blocked() const;
 
+    void set_alive( bool value );
+
     bool alive() const;
 
     bool scheduled() const;
@@ -153,6 +155,8 @@ private:
     bool m_has_started;
 
     bool m_paused;
+
+    bool m_first_run;
 
     PyObject* m_tasklet_parent; // Weak ref
 

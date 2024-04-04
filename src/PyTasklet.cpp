@@ -11,7 +11,7 @@ PyTaskletObject::PyTaskletObject( PyObject* callable, PyObject* tasklet_exit_exc
 	m_is_main( false ),
 	m_transfer_in_progress( false ),
 	m_scheduled( false ),
-	m_alive( true ),
+	m_alive( false ),
 	m_blocktrap( false ),
 	m_previous( Py_None ),
 	m_next( Py_None ),
@@ -24,7 +24,8 @@ PyTaskletObject::PyTaskletObject( PyObject* callable, PyObject* tasklet_exit_exc
 	m_exception_arguments( Py_None ),
 	m_tasklet_exit_exception(tasklet_exit_exception),
 	m_paused(false),
-	m_tasklet_parent( Py_None )
+	m_tasklet_parent( Py_None ),
+	m_first_run(true)
 {
 	
 }
@@ -100,7 +101,7 @@ PyObject* PyTaskletObject::switch_implementation()
 	// Remove the calling tasklet
 	if( !m_alive )
 	{
-		PyErr_SetString( PyExc_RuntimeError, "Cannot switch to tasklet that is not alive (dead)" );
+		PyErr_SetString( PyExc_RuntimeError, "You cannot run an unbound(dead) tasklet" );
 
 		return nullptr;
 	}
@@ -118,10 +119,19 @@ PyObject* PyTaskletObject::switch_implementation()
         // Pause the parent tasklet
 		reinterpret_cast<PyTaskletObject*>( Scheduler::get_current_tasklet() )->m_paused = true;
 
-		Scheduler::run( this );
+		if(Scheduler::run( this ))
+		{
+			// Schedule the tasklets parent as to not continue execution of the rest of this tasklet
+			Scheduler::schedule();
 
-        // Schedule the tasklets parent as to not continue execution of the rest of this tasklet
-		Scheduler::schedule();
+			return Py_None;
+        }
+		else
+		{
+			reinterpret_cast<PyTaskletObject*>( Scheduler::get_current_tasklet() )->m_paused = false;
+
+			return nullptr;
+        } 
 
 	}
 	else
@@ -159,6 +169,7 @@ PyObject* PyTaskletObject::switch_to( )
     }
 	else
 	{
+		
 
 		if( Scheduler::is_switch_trapped() )
 		{
@@ -166,12 +177,26 @@ PyObject* PyTaskletObject::switch_to( )
 			return nullptr;
         }
 
+        m_scheduled = false; // TODO is a running tasklet scheduled in stackless?
+
+        
+        
+        // If tasklet has never been run and tasklet exit has been raised
+        // Don't run tasklet
+        if(( !m_first_run )
+			&&(m_exception_state == m_tasklet_exit_exception))
+		{
+			return Py_None;
+        }
+        
+        
+
         // Tasklet is on the same thread so can be switched to now
 		Scheduler::set_current_tasklet( this );
 
-        m_scheduled = false;    // TODO is a running tasklet scheduled in stackless?
-
         m_paused = false;
+
+        m_first_run = false;
 
 		ret = PyGreenlet_Switch( m_greenlet, m_arguments, nullptr );
 
@@ -315,7 +340,7 @@ PyObject* PyTaskletObject::run()
 			// Run the scheduler starting at current_tasklet
 			Scheduler::insert_tasklet_at_beginning( this );
 
-			Scheduler::run( this );
+			return Scheduler::run( this );
 		}
 		else
 		{
@@ -332,16 +357,24 @@ PyObject* PyTaskletObject::run()
 
 bool PyTaskletObject::kill( bool pending /*=false*/ )
 {
+	/*
 	// Remove reference from previous tasklet
 	if(m_previous != Py_None)
 	{
 		reinterpret_cast<PyTaskletObject*>( m_previous )->m_next = Py_None;
     }
+    */
+
+    //Store so condition can be reinstated on failure
+    bool blocked_store = m_blocked;
+	PyChannelObject* block_channel_store = reinterpret_cast < PyChannelObject*>( m_channel_blocked_on);
 
     if(m_blocked)
 	{
-		reinterpret_cast<PyChannelObject*>( m_channel_blocked_on )->remove_tasklet_from_blocked( reinterpret_cast<PyObject*>(this) );
+        unblock();
     }
+    
+    
 
     // Raise TaskletExit error
 	Py_IncRef( m_tasklet_exit_exception );
@@ -357,13 +390,36 @@ bool PyTaskletObject::kill( bool pending /*=false*/ )
 		if( pending )
 		{
 			Scheduler::insert_tasklet( this );
+
+            return true;
 		}
 		else
 		{
-			run();
-		}
+            // Run the remaining chain
+			if(m_next != Py_None)
+			{
+				PyObject* result = run();
 
-        return true;
+				if( result == Py_None ) //TODO not keen mixing return types in this class
+				{
+					return true;
+				}
+				else
+				{
+					// Set tasklet back to original blocked state
+					if( blocked_store )
+					{
+
+						block( block_channel_store );
+					}
+
+					return false;
+				}
+			}
+			
+
+			
+		}
 	}
 }
 
@@ -415,6 +471,11 @@ void PyTaskletObject::unblock()
 	m_blocked = false;
 
 	m_channel_blocked_on = Py_None;
+}
+
+void PyTaskletObject::set_alive( bool value )
+{
+	m_alive = value;
 }
 
 bool PyTaskletObject::alive() const
@@ -525,9 +586,21 @@ bool PyTaskletObject::throw_impl( PyObject* exception, PyObject* value, PyObject
 		{
 			if(m_blocked)
 			{
-				m_blocked = false;
+				PyChannelObject* block_channel_store = reinterpret_cast<PyChannelObject*>( m_channel_blocked_on );
 
-				run();
+				unblock();
+
+				if(run())
+				{
+					return true;
+                }
+				else
+				{
+                    // On failure return to original state
+					block( block_channel_store );
+
+					return false;
+                }
 			}
 			else
 			{

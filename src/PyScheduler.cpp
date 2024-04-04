@@ -126,11 +126,11 @@ void Scheduler::remove_tasklet( PyTaskletObject* tasklet )
 
 bool Scheduler::insert_and_schedule()
 {
-    // Add Current to the end of chain of runnable tasklets
+    // Add Current to the end of chain of runnable tasklets    
 	PyObject* current_tasklet = Scheduler::get_current_tasklet();
 
     // Even if it is the main tasklet
-	Scheduler::insert_tasklet( reinterpret_cast<PyTaskletObject*>(current_tasklet) );
+	Scheduler::insert_tasklet( reinterpret_cast<PyTaskletObject*>(current_tasklet) ); // - TODO deal with mem leak caused by this
     
     return schedule();
 
@@ -199,20 +199,23 @@ PyObject* Scheduler::run( PyTaskletObject* start_tasklet /* = nullptr */ )
 
         current_scheduler->run_scheduler_callback( current_tasklet->previous(), current_tasklet->next() );
 
-        // Store the parent to the tasklet
-        // Required for nested scheduling calls
-		reinterpret_cast<PyTaskletObject*>( current_tasklet )->set_parent( Scheduler::get_current_tasklet() );
-        
-        //If this is the last tasklet then update previous_tasklet to keep it at the end of the chain
-		if( current_tasklet->next() == Py_None)
+        if( !is_switch_trapped() )
 		{
-			current_scheduler->m_previous_tasklet = reinterpret_cast<PyTaskletObject*>(current_tasklet->previous());
-		}
+            // Store the parent to the tasklet
+            // Required for nested scheduling calls
+		    reinterpret_cast<PyTaskletObject*>( current_tasklet )->set_parent( Scheduler::get_current_tasklet() );
+        
+			//If this is the last tasklet then update previous_tasklet to keep it at the end of the chain
+			if( current_tasklet->next() == Py_None )
+			{
+				current_scheduler->m_previous_tasklet = reinterpret_cast<PyTaskletObject*>( current_tasklet->previous() );
+			}
 
-		// Remove tasklet from queue
-		PyObject* previous_store = current_tasklet->previous();
-		reinterpret_cast<PyTaskletObject*>( current_tasklet->previous() )->set_next( current_tasklet->next() );
-		reinterpret_cast<PyTaskletObject*>( current_tasklet->next() )->set_previous( previous_store );
+			// Remove tasklet from queue
+			PyObject* previous_store = current_tasklet->previous();
+			reinterpret_cast<PyTaskletObject*>( current_tasklet->previous() )->set_next( current_tasklet->next() );
+			reinterpret_cast<PyTaskletObject*>( current_tasklet->next() )->set_previous( previous_store );
+		}
 
         // If switch returns no error or if the error raised is a tasklet exception raised error
 		if( current_tasklet->switch_to() || current_tasklet->tasklet_exception_raised() )
