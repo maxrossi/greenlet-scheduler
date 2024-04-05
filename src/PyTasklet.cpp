@@ -177,19 +177,26 @@ PyObject* PyTaskletObject::switch_to( )
 			return nullptr;
         }
 
-        m_scheduled = false; // TODO is a running tasklet scheduled in stackless?
+        m_scheduled = false; // TODO is a running tasklet scheduled in stackless? - I think it is, this is wrong
 
-        
-        
-        // If tasklet has never been run and tasklet exit has been raised
-        // Don't run tasklet
-        if(( !m_first_run )
-			&&(m_exception_state == m_tasklet_exit_exception))
+        // If tasklet has never been run exceptions are treated differently
+        if(( m_first_run ) && (m_exception_state != Py_None))
 		{
-			return Py_None;
+			// If tasklet exit has been raised then don't run tasklet and keep silent
+			if( m_exception_state == m_tasklet_exit_exception )
+			{
+				m_alive = false;
+
+				return Py_None;
+            }
+			else
+			{
+				set_python_exception_state_from_tasklet_exception_state();
+
+                return nullptr;
+            }
+		
         }
-        
-        
 
         // Tasklet is on the same thread so can be switched to now
 		Scheduler::set_current_tasklet( this );
@@ -213,7 +220,7 @@ PyObject* PyTaskletObject::switch_to( )
 		if( current_tasklet->m_exception_state != Py_None )
 		{
 
-            current_tasklet->set_exception();
+            current_tasklet->set_python_exception_state_from_tasklet_exception_state();
 
             return nullptr;
   
@@ -247,67 +254,35 @@ void PyTaskletObject::clear_exception()
     }
 }
 
-bool PyTaskletObject::exception_state_is_valid()
+void PyTaskletObject::set_exception_state( PyObject* exception, PyObject* arguments /* = Py_None */)
 {
-	if( PyObject_IsInstance( m_exception_state, PyExc_Exception ) )
-	{
-		// If exception state is an implementation then expect no arguments
-		return m_exception_arguments == Py_None;    
-    }
-	else
-	{
-		return PyExceptionClass_Check( m_exception_state );
-    }
+	clear_exception();
+
+    Py_IncRef( exception );
+    m_exception_state = exception;
+
+    Py_IncRef( arguments );
+	m_exception_arguments = arguments;
 }
 
-bool PyTaskletObject::set_exception()
+// Assumes valid exception state
+// Exception state validity is sanitised in PyTasklet_python.cpp
+void PyTaskletObject::set_python_exception_state_from_tasklet_exception_state()
 {
-    if(m_alive)
+	//If it is an instance of an exception
+	if( PyObject_IsInstance( m_exception_state, PyExc_Exception ) )
 	{
-	    //If it is an instance of an exception use this
-	    if( PyObject_IsInstance( m_exception_state, PyExc_Exception ) )
-	    {
-		    if( m_exception_arguments == Py_None)
-		    {
-				Py_IncRef( m_exception_state ); // TODO check but I think below steals this reference
-
-			    PyErr_SetRaisedException( m_exception_state );
-            }
-		    else
-		    {
-		        // Exception instance sent but other arguments also provided
-			    PyErr_SetString( PyExc_TypeError, "Aditional arguments sent when providing exception instance to throw, did you mean to send an exception class?" );
-            }
-	    }
-	    else
-	    {
-		    if( exception_state_is_valid() )
-			{
-				PyErr_SetObject( m_exception_state, m_exception_arguments );
-
-		    }
-		    else
-		    {
-		        // Invalid
-			    PyErr_SetString( PyExc_TypeError, "Non-valid exception provided." );
-            }
-	    }	
+        // PyErr_SetRaisedException steals reference to exception state
+        // increffed to compensate so clear_exception will still work
+		Py_IncRef( m_exception_state ); 
+		PyErr_SetRaisedException( m_exception_state );
 	}
 	else
 	{
-		//If it is a TaskletError then don't raise and error
-		if (m_exception_state == m_tasklet_exit_exception )
-		{
-			return false;
-		}
-        
-		PyErr_SetString( PyExc_RuntimeError, "Exception called on dead tasklet." );
-
-    }
+		PyErr_SetObject( m_exception_state, m_exception_arguments );
+	}	
 
 	clear_exception();
-
-    return true;
 }
 
 PyObject* PyTaskletObject::run()
@@ -357,13 +332,6 @@ PyObject* PyTaskletObject::run()
 
 bool PyTaskletObject::kill( bool pending /*=false*/ )
 {
-	/*
-	// Remove reference from previous tasklet
-	if(m_previous != Py_None)
-	{
-		reinterpret_cast<PyTaskletObject*>( m_previous )->m_next = Py_None;
-    }
-    */
 
     //Store so condition can be reinstated on failure
     bool blocked_store = m_blocked;
@@ -374,16 +342,15 @@ bool PyTaskletObject::kill( bool pending /*=false*/ )
         unblock();
     }
     
-    
-
     // Raise TaskletExit error
-	Py_IncRef( m_tasklet_exit_exception );
-	m_exception_state = m_tasklet_exit_exception;
+	set_exception_state( m_tasklet_exit_exception );
 
     if( reinterpret_cast<PyTaskletObject*>(Scheduler::get_current_tasklet()) == this )
 	{
         // Continue on this tasklet and raise error immediately
-		return !set_exception();    //Confusing syntax TODO
+		set_python_exception_state_from_tasklet_exception_state();
+
+		return false;
     }
 	else
 	{
@@ -395,29 +362,47 @@ bool PyTaskletObject::kill( bool pending /*=false*/ )
 		}
 		else
 		{
-            // Run the remaining chain
-			if(m_next != Py_None)
+			
+            // Must be alive
+			if(!m_alive)
 			{
-				PyObject* result = run();
-
-				if( result == Py_None ) //TODO not keen mixing return types in this class
+                // If exception state is tasklet exit then handle silently
+				if(m_exception_state == m_tasklet_exit_exception)
 				{
+					clear_exception();
+
 					return true;
 				}
 				else
 				{
-					// Set tasklet back to original blocked state
-					if( blocked_store )
-					{
+					// Invalid code path - Should never enter
+					clear_exception();
 
-						block( block_channel_store );
-					}
+                    PyErr_SetString( PyExc_RuntimeError, "Invalid exception called on dead tasklet." );
 
-					return false;
-				}
+                    return false;
+                }
+			    
+            }
+            
+
+			PyObject* result = run();
+
+			if( result == Py_None ) //TODO not keen mixing return types in this class
+			{
+				return true;
 			}
-			
+			else
+			{
+				// Set tasklet back to original blocked state
+				if( blocked_store )
+				{
 
+					block( block_channel_store );
+				}
+
+				return false;
+			}
 			
 		}
 	}
@@ -565,22 +550,43 @@ bool PyTaskletObject::transfer_is_exception() const
 
 bool PyTaskletObject::throw_impl( PyObject* exception, PyObject* value, PyObject* tb, bool pending )
 {
-	Py_IncRef( exception );
-	Py_IncRef( value );
 
-    m_exception_state = exception;
-	m_exception_arguments = value;
+    set_exception_state( exception, value );
 
     if( reinterpret_cast<PyTaskletObject*>( Scheduler::get_current_tasklet() ) == this )
 	{
 		// Continue on this tasklet and raise error immediately
-        return !set_exception();    //TODO Confusing syntax
+		set_python_exception_state_from_tasklet_exception_state();
+
+        return false;
 	}
 	else
 	{
 		if( pending )
 		{
-			Scheduler::insert_tasklet( this );
+			if(m_alive)
+			{
+				Scheduler::insert_tasklet( this );
+            }
+			else
+			{
+				// If exception state is tasklet exit then handle silently
+				if( m_exception_state == m_tasklet_exit_exception )
+				{
+					clear_exception();
+
+					return true;
+				}
+				else
+				{
+					clear_exception();
+
+					PyErr_SetString( PyExc_RuntimeError, "You cannot throw to a dead tasklet." );
+
+					return false;
+				}
+            }
+			
 		}
 		else
 		{
@@ -604,9 +610,38 @@ bool PyTaskletObject::throw_impl( PyObject* exception, PyObject* value, PyObject
 			}
 			else
 			{
-                // If it tasklet is not blocked then raise error immediately
-                // See test test_tasklet.TestTaskletThrowImmediate.test_new
-				return !set_exception(); //TODO Confusing syntax
+                // Must be alive
+                if(!m_alive)
+				{
+					// If exception state is tasklet exit then handle silently
+					if( m_exception_state == m_tasklet_exit_exception )
+					{
+						clear_exception();
+
+						return true;
+					}
+					else
+					{
+						clear_exception();
+
+						PyErr_SetString( PyExc_RuntimeError, "You cannot throw to a dead tasklet" );
+
+						return false;
+					}
+
+                }
+				else if( m_exception_state == m_tasklet_exit_exception )
+				{
+					return run();
+                }
+				else
+				{
+					// If it tasklet is not blocked then raise error immediately
+					// See test test_tasklet.TestTaskletThrowImmediate.test_new
+					set_python_exception_state_from_tasklet_exception_state();
+
+                    return false;
+                }
             }
 			
 		}
@@ -650,6 +685,8 @@ void PyTaskletObject::clear_tasklet_exception()
 {
 	if( PyErr_Occurred() == m_tasklet_exit_exception )
 	{
+		clear_exception();
+
 		PyErr_Clear();
 	}
 }

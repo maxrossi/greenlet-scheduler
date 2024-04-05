@@ -41,7 +41,17 @@ static int
 		return -1;
 	}
 
-	self->set_preference(PyLong_AsLong( value ));
+    long new_preference = PyLong_AsLong( value );
+
+    // Only accept valid values
+    // -1   - Prefer receive
+    // 0    - Prefer neither
+    // 1    - Prefer sender
+    if( ( new_preference > -2 ) && ( new_preference < 2 ) )
+	{
+		self->set_preference( new_preference );
+    }
+
 	return 0;
 }
 

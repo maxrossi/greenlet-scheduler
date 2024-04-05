@@ -112,13 +112,13 @@ public:
 
 private:
 
-	bool set_exception();
+    void set_exception_state( PyObject* exception, PyObject* arguments = Py_None );
 
-    bool exception_state_is_valid();
+	void set_python_exception_state_from_tasklet_exception_state();
 
     void clear_exception();
 
-    
+
 
 private:
 

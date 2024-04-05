@@ -177,6 +177,44 @@ static PyObject*
 	return self->switch_implementation();
 }
 
+static bool
+	check_exception_setup( PyObject* exception, PyObject* arguments )
+{
+	if( PyObject_IsInstance( exception, PyExc_Exception ) )
+	{
+		// If exception state is an implementation then expect no arguments
+		if( arguments != Py_None )
+		{
+			PyErr_SetString( PyExc_TypeError, "missing required argument 'exc' (pos 1)" );
+
+			return false;
+		}
+		else
+		{
+			return true;
+		}
+	}
+	else
+	{
+		if( exception == Py_None )
+		{
+			PyErr_SetString( PyExc_TypeError, "missing required argument 'exc' (pos 1)" );
+
+			return false;
+		}
+		if( !PyExceptionClass_Check( exception ) )
+		{
+			PyErr_SetString( PyExc_TypeError, "exceptions must be classes, or instances" );
+
+			return false;
+		}
+		else
+		{
+			return true;
+		}
+	}
+}
+
 static PyObject*
 	Tasklet_throw( PyTaskletObject* self, PyObject* args, PyObject* kwds )
 {
@@ -193,6 +231,12 @@ static PyObject*
 		return nullptr;
     }
 
+    // Test state validity
+	if( !check_exception_setup( exception, value ) )
+	{
+		return nullptr;
+    }
+
     return self->throw_impl( exception, value, tb, pending ) ? Py_None : nullptr;
 
 }
@@ -206,6 +250,12 @@ static PyObject*
     if( !PyArg_ParseTuple( args, "O:exception_class|O", &exception, &arguments ) )
 	{
 		PyErr_SetString( PyExc_RuntimeError, "Failed to parse arguments" );
+		return nullptr;
+	}
+
+    // Test state validity
+	if( !check_exception_setup( exception, arguments ) )
+	{
 		return nullptr;
 	}
 

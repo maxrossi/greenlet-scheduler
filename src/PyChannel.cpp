@@ -87,20 +87,45 @@ bool PyChannelObject::send( PyObject* args, bool exception /* = false */)
 
     PyThread_release_lock( m_lock );
 
-	if (m_preference == PREFER_RECEIVER) {
-		//Add this tasklet to the end of the scheduler
-		Scheduler::insert_tasklet( reinterpret_cast<PyTaskletObject*>( Scheduler::get_current_tasklet() ) );
-		//Switch BACK to the receiving tasklet
-		if (!receiving_tasklet->switch_to( ))
+	if (m_preference == PREFER_RECEIVER)
     {
-        return false; 
-    }
-	} else if (m_preference == PREFER_SENDER) {
+		//Add this tasklet to the end of the scheduler
+		PyTaskletObject* current_tasklet = reinterpret_cast<PyTaskletObject*>(Scheduler::get_current_tasklet());
+		Scheduler::insert_tasklet( current_tasklet );
+
+		//Switch BACK to the receiving tasklet
+		if (!receiving_tasklet->switch_to())
+        {
+            return false; 
+        }
+		else
+		{
+            // Update current tasklet back to the correct calling tasklet
+            // Required as the switch_to circumvents the scheduling queue
+            // Which would normally deal with this
+			Scheduler::set_current_tasklet( current_tasklet );
+		}
+		
+	} 
+    else if (m_preference == PREFER_SENDER)
+    {
 		Scheduler::insert_tasklet(receiving_tasklet);
-	} else if (m_preference == PREFER_NEITHER) {
+	} 
+    else if (m_preference == PREFER_NEITHER) 
+    {
 		Scheduler::insert_tasklet(receiving_tasklet);
+
 		Scheduler::insert_tasklet( reinterpret_cast<PyTaskletObject*>( Scheduler::get_current_tasklet() ) );
+
 		Scheduler::schedule();
+	}
+	else
+	{
+        // Invalid preference - Should never get here
+        // Preference attribute is sanitised in PyTasklet_python.cpp
+		PyErr_SetString( PyExc_RuntimeError, "Channel preference invalid." );
+		
+		return false;
 	}
 
     Py_DECREF( receiving_tasklet );
@@ -170,9 +195,18 @@ PyObject* PyChannelObject::receive()
 
         PyThread_release_lock( m_lock );
 
+        PyTaskletObject* current_tasklet = reinterpret_cast<PyTaskletObject*>( Scheduler::get_current_tasklet() );
+
 		if(!sending_tasklet->switch_to())
 		{
 			return false;
+        }
+		else
+		{
+			// Update current tasklet back to the correct calling tasklet
+			// Required as the switch_to circumvents the scheduling queue
+			// Which would normally deal with this
+			Scheduler::set_current_tasklet( current_tasklet );
         }
 
         Py_DECREF( sending_tasklet );

@@ -174,7 +174,7 @@ bool Scheduler::schedule()
 
 		PyTaskletObject* parent_tasklet = reinterpret_cast<PyTaskletObject*>( current_tasklet->get_tasklet_parent() );
 
-        if (parent_tasklet->switch_to() == nullptr)
+        if (!parent_tasklet->switch_to())
 		{
 			return false;
 		}

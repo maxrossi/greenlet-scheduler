@@ -153,7 +153,7 @@ class TestTaskletThrowBase(object):
                 self.assertTrue(isinstance(e, IndexError))
                 raise
         s = scheduler.tasklet(foo)()
-        #self.assertEqual(s.frame, None) #HAWKTODO
+        #self.assertEqual(s.frame, None) #TODO - Removed as we have no s.frame attribute
         self.assertTrue(s.alive)
         # Test that the current "unhandled exception behaviour"
         # is invoked for the not-yet-running tasklet.
