@@ -1,4 +1,4 @@
 #pragma once
 
-#include <python.h>
+#include <Python.h>
 #include <greenlet.h>
