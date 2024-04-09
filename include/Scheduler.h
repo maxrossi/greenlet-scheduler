@@ -111,12 +111,19 @@ class SchedulerCAPI
 
 #ifndef SCHEDULER_MODULE
 /**
- * No need to implement SchedulerAPI() unless it's being used outside of Scheduler itself.
+ * Only implement SchedulerAPI() as long as it's being used outside of Scheduler itself.
  * PyCapsule_Import will set an exception if there's an error.
+ *
+ * NOTE:
+ * - The "static SchedulerCAPI* api" variable is only static within each compilation unit.
+ * - That's because the "static" keyword in front of the function definition means the
+ * - function will become "internally linked".
+ * - That means each translation unit, that includes the Scheduler.h header, will
+ * - have its own separate instance of the function. We're OK with that.
  *
  * @return SchedulerCAPI * or nullptr on error
  */
-SchedulerCAPI* SchedulerAPI()
+static SchedulerCAPI* SchedulerAPI()
 {
 	static SchedulerCAPI* api;
 	if( api == nullptr )
@@ -127,4 +134,4 @@ SchedulerCAPI* SchedulerAPI()
 }
 #endif /* !defined(SCHEDULER_MODULE) */
 
-#endif /* !defined(Py_SCHEDULERMODULE_H) */
+#endif /* !defined(Py_SCHEDULER_H) */
