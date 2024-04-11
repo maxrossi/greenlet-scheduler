@@ -5,20 +5,6 @@
 #include "SchedulerTestModule.h"
 #include <Scheduler.h>
 
-/**
- * PyCapsule_Import will set an exception if there's an error.
- *
- * @return SchedulerCAPI * or nullptr on error
- */
-SchedulerCAPI* SchedulerAPI()
-{
-	static SchedulerCAPI* api;
-	if( api == nullptr )
-	{
-		api = reinterpret_cast<SchedulerCAPI*>( PyCapsule_Import( "scheduler._C_API", 0 ) );
-	}
-	return api;
-}
 
 static PyObject*
 	test_PyScheduler_GetCurrent( PyObject* self, PyObject* args )

@@ -9,7 +9,10 @@
 
 	Description:   
 
-	 Provides channels and a scheduler for Greenlet coroutines.
+ 		Provides channels and a scheduler for Greenlet coroutines.
+
+ 		SchedulerAPI() is the entrypoint for any external code (e.g. blue)
+		that wants to call into any of scheduler's Python Capsule's functions.
 
 	(c) CCP 2024
 
@@ -105,4 +108,30 @@ class SchedulerCAPI
 	PyObject** TaskletExit;
 };
 
-#endif /* !defined(Py_SCHEDULERMODULE_H) */
+
+#ifndef SCHEDULER_MODULE
+/**
+ * Only implement SchedulerAPI() as long as it's being used outside of Scheduler itself.
+ * PyCapsule_Import will set an exception if there's an error.
+ *
+ * NOTE:
+ * - The "static SchedulerCAPI* api" variable is only static within each compilation unit.
+ * - That's because the "static" keyword in front of the function definition means the
+ * - function will become "internally linked".
+ * - That means each translation unit, that includes the Scheduler.h header, will
+ * - have its own separate instance of the function. We're OK with that.
+ *
+ * @return SchedulerCAPI * or nullptr on error
+ */
+static SchedulerCAPI* SchedulerAPI()
+{
+	static SchedulerCAPI* api;
+	if( api == nullptr )
+	{
+		api = reinterpret_cast<SchedulerCAPI*>( PyCapsule_Import( "scheduler._C_API", 0 ) );
+	}
+	return api;
+}
+#endif /* !defined(SCHEDULER_MODULE) */
+
+#endif /* !defined(Py_SCHEDULER_H) */
