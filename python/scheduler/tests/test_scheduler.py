@@ -10,6 +10,158 @@ def switch_trapped():
     finally:
         scheduler.switch_trap(-1)
 
+
+
+class TestTaskletRunOrder(unittest.TestCase):
+    
+    def testTaskletRunOrder(self):
+        completedSendTasklets = [""]
+
+        def taskletCallable(x):
+            completedSendTasklets[0] += "t" + str(x)
+
+        t1 = scheduler.tasklet(taskletCallable)(1)
+        scheduler.tasklet(taskletCallable)(2)
+        scheduler.tasklet(taskletCallable)(3)
+
+        t1.run()
+
+        self.assertEqual(completedSendTasklets[0],"t1t2t3")
+
+    def testTaskletRunOrder2(self):
+        completedSendTasklets = [""]
+
+        def taskletCallable(x):
+            completedSendTasklets[0] += "t" + str(x)
+
+        t1 = scheduler.tasklet(taskletCallable)(1)
+        t2 = scheduler.tasklet(taskletCallable)(2)
+        scheduler.tasklet(taskletCallable)(3)
+
+        t2.run()
+        t1.run()
+
+        self.assertEqual(completedSendTasklets[0],"t2t3t1")
+
+class TestScheduleOrderBase(object):
+
+    def testSchedulerRunOrder(self):
+        completedSendTasklets = [""]
+
+        def taskletCallable(x):
+            completedSendTasklets[0] += "t" + str(x)
+
+        scheduler.tasklet(taskletCallable)(1)
+        scheduler.tasklet(taskletCallable)(2)
+        scheduler.tasklet(taskletCallable)(3)
+
+        scheduler.run()
+
+        self.assertEqual(completedSendTasklets[0],"t1t2t3")
+
+    def testNestedTaskletRunOrder(self):
+        completedSendTasklets = [""]
+
+        def taskletCallable(x):
+            completedSendTasklets[0] += "t" + str(x)
+
+        def createNestedTaskletRun():
+            t2 = scheduler.tasklet(taskletCallable)(2)
+            scheduler.tasklet(taskletCallable)(3)
+            scheduler.tasklet(taskletCallable)(4)
+            t2.run()
+
+        scheduler.tasklet(taskletCallable)(1)
+        scheduler.tasklet(createNestedTaskletRun)()
+        scheduler.tasklet(taskletCallable)(5)
+
+        self.run_scheduler()
+
+        self.assertEqual(completedSendTasklets[0],"t1t2t3t4t5")
+
+
+    def testNestedTaskletRunOrderWithSchedule(self):
+        completedSendTasklets = [""]
+
+        def taskletCallable(x):
+            completedSendTasklets[0] += "t" + str(x)
+
+        def schedule():
+            scheduler.schedule()
+
+        def createNestedTaskletRun():
+            t2 = scheduler.tasklet(taskletCallable)(2)
+            scheduler.tasklet(schedule)()
+            scheduler.tasklet(taskletCallable)(3)
+            t2.run()
+
+        scheduler.tasklet(taskletCallable)(1)
+        scheduler.tasklet(createNestedTaskletRun)()
+        scheduler.tasklet(taskletCallable)(4)
+
+        self.run_scheduler()
+
+        self.assertEqual(completedSendTasklets[0],"t1t2t3t4")
+
+
+    def testMultiLevelNestedTaskletRunOrderWithSchedule(self):
+        completedSendTasklets = [""]
+
+        def taskletCallable(x):
+            completedSendTasklets[0] += "t" + str(x)
+
+        def schedule():
+            scheduler.schedule()
+
+        def createNestedTaskletRun2():
+            t2 = scheduler.tasklet(taskletCallable)(3)
+            scheduler.tasklet(schedule)()
+            scheduler.tasklet(taskletCallable)(4)
+            t2.run()
+
+        def createNestedTaskletRun():
+            t2 = scheduler.tasklet(taskletCallable)(2)
+            scheduler.tasklet(schedule)()
+            scheduler.tasklet(createNestedTaskletRun2)()
+            scheduler.tasklet(taskletCallable)(5)
+            t2.run()
+
+        scheduler.tasklet(taskletCallable)(1)
+        scheduler.tasklet(createNestedTaskletRun)()
+        scheduler.tasklet(taskletCallable)(6)
+
+        self.run_scheduler()
+
+        self.assertEqual(completedSendTasklets[0],"t1t2t3t4t5t6")
+
+# Run all tasklets in queue
+class TestScheduleOrderRunAll(unittest.TestCase, TestScheduleOrderBase):
+    Watchdog = False
+
+    def setUp(self):
+        pass
+        
+    def tearDown(self):
+        pass
+
+    @classmethod
+    def run_scheduler(cls):
+        if cls.Watchdog:
+            while scheduler.getruncount() > 1:
+                scheduler.run_n_tasklets(1)
+        else:
+            scheduler.run()
+
+# Run one tasklet at a time until queue has been evaluated
+class TestScheduleOrderRunOne(TestScheduleOrderRunAll):
+    Watchdog = True
+
+    def setUp(self):
+        pass
+        
+    def tearDown(self):
+        pass
+
 class TestSchedule(unittest.TestCase):
 
     def setUp(self):
@@ -17,7 +169,7 @@ class TestSchedule(unittest.TestCase):
         
     def tearDown(self):
         pass
-    @unittest.skip('TODO BROKEN and HANGS, schedule is not quite right yet')
+
     def testSchedule(self):
         def foo(previous):
             self.events.append("foo")

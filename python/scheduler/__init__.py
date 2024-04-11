@@ -15,6 +15,7 @@ __all__ = [
     'schedule',
     'schedule_remove',
     'run',
+    'run_n_tasklets',
     'set_schedule_callback',
     'get_schedule_callback',
     'get_thread_info',
@@ -53,6 +54,7 @@ getruncount = _scheduler.getruncount
 schedule = _scheduler.schedule
 schedule_remove = _scheduler.schedule_remove
 run = _scheduler.run
+run_n_tasklets = _scheduler.run_n_tasklets
 set_schedule_callback = _scheduler.set_schedule_callback
 get_schedule_callback = _scheduler.get_schedule_callback
 get_thread_info = _scheduler.get_thread_info

@@ -110,6 +110,12 @@ public:
 
     void clear_tasklet_exception();
 
+    void set_reschedule( bool value );
+
+    bool requires_reschedule();
+
+    void set_tagged_for_removal( bool value );
+
 private:
 
     void set_exception_state( PyObject* exception, PyObject* arguments = Py_None );
@@ -117,8 +123,6 @@ private:
 	void set_python_exception_state_from_tasklet_exception_state();
 
     void clear_exception();
-
-
 
 private:
 
@@ -157,6 +161,10 @@ private:
     bool m_paused;
 
     bool m_first_run;
+
+    bool m_reschedule;
+
+    bool m_tagged_for_removal;
 
     PyObject* m_tasklet_parent; // Weak ref
 

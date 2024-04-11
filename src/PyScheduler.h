@@ -43,9 +43,11 @@ public:
 
     static int get_tasklet_count();
 
-    static bool insert_and_schedule();
+    static bool schedule(bool remove = false);
 
-    static bool schedule();
+    static bool yield();
+
+    static PyObject* run_n_tasklets( int number_of_tasklets );
 
     static PyObject* run( PyTaskletObject* start_tasklet = nullptr );
 
@@ -71,9 +73,11 @@ public:
 
 	PyObject* m_scheduler_callback;
 
+    int m_tasklet_limit;
+
+    bool m_stop_scheduler;
+
     inline static std::map<long, Scheduler*> s_schedulers;    //Each thread has its own scheduler
 
     inline static PyObject* s_create_scheduler_tasklet_callable;    // A reference to easily create scheduler tasklets
-
-    
 };

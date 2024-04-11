@@ -61,7 +61,7 @@ bool PyChannelObject::send( PyObject* args, bool exception /* = false */)
         PyThread_release_lock( m_lock );
 
          // Continue scheduler
-		if(!Scheduler::schedule())
+		if( !Scheduler::yield() )
 		{
 			reinterpret_cast<PyTaskletObject*>( current )->unblock();
 
@@ -117,7 +117,8 @@ bool PyChannelObject::send( PyObject* args, bool exception /* = false */)
 
 		Scheduler::insert_tasklet( reinterpret_cast<PyTaskletObject*>( Scheduler::get_current_tasklet() ) );
 
-		Scheduler::schedule();
+		// TODO handle failure case
+		Scheduler::yield();
 	}
 	else
 	{
@@ -173,7 +174,7 @@ PyObject* PyChannelObject::receive()
 			PyThread_release_lock( m_lock );
 
 			// Continue scheduler
-			if( !Scheduler::schedule() )
+			if( !Scheduler::yield() )
 			{
 				// Will enter here is an exception has been thrown on a tasklet
 				remove_tasklet_from_blocked( current );

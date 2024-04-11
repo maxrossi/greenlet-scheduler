@@ -21,6 +21,10 @@ Scheduler::Scheduler()
     m_scheduler_callback = Py_None;
 
     m_switch_trap_level = 0;
+
+    m_tasklet_limit = -1;
+
+    m_stop_scheduler = false;
 }
 
 Scheduler::~Scheduler()
@@ -97,7 +101,7 @@ void Scheduler::insert_tasklet( PyTaskletObject* tasklet )
 		tasklet->set_previous( reinterpret_cast<PyObject*>( current_scheduler->m_previous_tasklet ) );
 
 		// Clear out possible old next
-        tasklet->set_next( Py_None );   
+		tasklet->set_next( Py_None );
 
 		current_scheduler->m_previous_tasklet = tasklet;
 
@@ -124,15 +128,25 @@ void Scheduler::remove_tasklet( PyTaskletObject* tasklet )
     }
 }
 
-bool Scheduler::insert_and_schedule()
+bool Scheduler::schedule( bool remove /* = false */ )
 {
     // Add Current to the end of chain of runnable tasklets    
 	PyObject* current_tasklet = Scheduler::get_current_tasklet();
 
-    // Even if it is the main tasklet
-	Scheduler::insert_tasklet( reinterpret_cast<PyTaskletObject*>(current_tasklet) ); // - TODO deal with mem leak caused by this
+
+    if(remove)
+	{
+		// Set tag for removal flag, this flag will ensure tasklet remains alive after removal
+		reinterpret_cast<PyTaskletObject*>( current_tasklet )->set_tagged_for_removal( true );
+    }
+	else
+	{
+		// Set reschedule flag to inform scheduler that this tasklet must be re-inserted
+		reinterpret_cast<PyTaskletObject*>( current_tasklet )->set_reschedule( true );
+    }
     
-    return schedule();
+
+    return yield();
 
 }
 
@@ -155,7 +169,7 @@ int Scheduler::get_tasklet_count()
 
 // Returns true if tasklet is in a clean state when resumed
 // Returns false if exception has been raised on tasklet
-bool Scheduler::schedule()
+bool Scheduler::yield()
 {
 	if (Scheduler::get_main_tasklet() == Scheduler::get_current_tasklet())
 	{
@@ -183,7 +197,23 @@ bool Scheduler::schedule()
 	return true;
 }
 
-PyObject* Scheduler::run( PyTaskletObject* start_tasklet /* = nullptr */ )
+
+PyObject* Scheduler::run_n_tasklets( int number_of_tasklets )
+{
+	Scheduler* current_scheduler = get_scheduler();
+
+    current_scheduler->m_tasklet_limit = number_of_tasklets;
+
+    PyObject* ret = run();
+
+    current_scheduler->m_stop_scheduler = false;
+
+    current_scheduler->m_tasklet_limit = -1;
+
+    return ret;
+}
+
+PyObject* Scheduler::run( PyTaskletObject* start_tasklet /* = nullptr */)
 {
 	Scheduler* current_scheduler = get_scheduler();
 
@@ -210,32 +240,101 @@ PyObject* Scheduler::run( PyTaskletObject* start_tasklet /* = nullptr */ )
 
         current_scheduler->run_scheduler_callback( current_tasklet->previous(), current_tasklet->next() );
 
-        if( !is_switch_trapped() )
+        // Store the parent to the tasklet
+		// Required for nested scheduling calls
+		reinterpret_cast<PyTaskletObject*>( current_tasklet )->set_parent( Scheduler::get_current_tasklet() );
+		
+        // If set to true then tasklet will be decreffed at the end of the loop
+        bool cleanup_current_tasklet = false;
+
+        // If switch returns no error or if the error raised is a tasklet exception raised error
+		if( current_tasklet->switch_to() || current_tasklet->tasklet_exception_raised() )
 		{
-            // Store the parent to the tasklet
-            // Required for nested scheduling calls
-		    reinterpret_cast<PyTaskletObject*>( current_tasklet )->set_parent( Scheduler::get_current_tasklet() );
-        
+            
+			//Clear possible tasklet exception to capture
+			current_tasklet->clear_tasklet_exception();
+
+			// Update current tasklet
+			Scheduler::set_current_tasklet( reinterpret_cast<PyTaskletObject*>( current_tasklet->get_tasklet_parent() ) );
+
+
 			//If this is the last tasklet then update previous_tasklet to keep it at the end of the chain
 			if( current_tasklet->next() == Py_None )
 			{
 				current_scheduler->m_previous_tasklet = reinterpret_cast<PyTaskletObject*>( current_tasklet->previous() );
 			}
 
-			// Remove tasklet from queue
-			PyObject* previous_store = current_tasklet->previous();
-			reinterpret_cast<PyTaskletObject*>( current_tasklet->previous() )->set_next( current_tasklet->next() );
-			reinterpret_cast<PyTaskletObject*>( current_tasklet->next() )->set_previous( previous_store );
-		}
+			//Decriment run count
+			if( current_scheduler->m_tasklet_limit > -1 )
+			{
+				if( current_scheduler->m_tasklet_limit > 0 )
+				{
+					current_scheduler->m_tasklet_limit--;
+				}
+			}
 
-        // If switch returns no error or if the error raised is a tasklet exception raised error
-		if( current_tasklet->switch_to() || current_tasklet->tasklet_exception_raised() )
-		{
-            //Clear possible tasklet exception to capture
-			current_tasklet->clear_tasklet_exception();
+			// If running with a tasklet limit then if there are no tasklets left and
+			// then don't move the scheduler forward to keep the stacks required to recreate the scheduler state
+			if( !current_scheduler->m_stop_scheduler )
+			{
+				// Remove tasklet from queue
+				PyObject* previous_store = current_tasklet->previous();
 
-            // Update current tasklet
-			Scheduler::set_current_tasklet( reinterpret_cast<PyTaskletObject*>( current_tasklet->get_tasklet_parent() ) );
+				if( current_tasklet->previous() != current_tasklet->next() )
+				{
+					reinterpret_cast<PyTaskletObject*>( current_tasklet->previous() )->set_next( current_tasklet->next() );
+					reinterpret_cast<PyTaskletObject*>( current_tasklet->next() )->set_previous( previous_store );
+
+                    cleanup_current_tasklet = true;
+                }
+
+                current_tasklet->set_scheduled( false );
+
+				//Will this get skipped if it happens to be when it will schedule
+				if( current_tasklet->requires_reschedule() )
+				{
+					//Special case, we are here because tasklet scheduled itself
+					insert_tasklet( current_tasklet );
+
+					current_tasklet->set_reschedule( false );
+				}
+
+				if( current_scheduler->m_tasklet_limit > -1 )
+				{
+					if( current_scheduler->m_tasklet_limit == 0 )
+					{
+						current_scheduler->m_stop_scheduler = true;
+					}
+				}
+			}
+
+			if( current_scheduler->m_stop_scheduler )
+			{
+			    // Switch back to parent now
+				PyTaskletObject* active_tasklet = reinterpret_cast<PyTaskletObject*>( Scheduler::get_current_tasklet() );
+
+                if( active_tasklet == reinterpret_cast<PyTaskletObject*>( Scheduler::get_main_tasklet() ) )
+                {
+                    break;
+                }
+                else
+                {
+					PyTaskletObject* call_parent = reinterpret_cast<PyTaskletObject*>( active_tasklet->get_tasklet_parent() );
+
+					if( call_parent->switch_to() )
+					{
+						// Update current tasklet
+						Scheduler::set_current_tasklet( active_tasklet );
+					}
+					else
+					{
+						//TODO handle error
+					}
+                }
+
+                
+            }
+
         }
 		else
 		{
@@ -251,11 +350,11 @@ PyObject* Scheduler::run( PyTaskletObject* start_tasklet /* = nullptr */ )
 			run_complete = true;
 		}
 
-        if( !current_tasklet->alive() )
+        if( cleanup_current_tasklet )
 		{
 			Py_XDECREF( current_tasklet );
         }
-
+		
 	}
 
     Py_IncRef( Py_None );

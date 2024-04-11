@@ -25,7 +25,8 @@ PyTaskletObject::PyTaskletObject( PyObject* callable, PyObject* tasklet_exit_exc
 	m_tasklet_exit_exception(tasklet_exit_exception),
 	m_paused(false),
 	m_tasklet_parent( Py_None ),
-	m_first_run(true)
+	m_first_run(true),
+	m_reschedule(false)
 {
 	
 }
@@ -121,8 +122,8 @@ PyObject* PyTaskletObject::switch_implementation()
 
 		if(Scheduler::run( this ))
 		{
-			// Schedule the tasklets parent as to not continue execution of the rest of this tasklet
-			Scheduler::schedule();
+			// Yeild the tasklets parent as to not continue execution of the rest of this tasklet
+			Scheduler::yield();
 
 			return Py_None;
         }
@@ -164,7 +165,7 @@ PyObject* PyTaskletObject::switch_to( )
 
 		Scheduler::insert_tasklet( this );
 
-        Scheduler::schedule();
+        Scheduler::yield();
 
     }
 	else
@@ -177,7 +178,6 @@ PyObject* PyTaskletObject::switch_to( )
 			return nullptr;
         }
 
-        m_scheduled = false; // TODO is a running tasklet scheduled in stackless? - I think it is, this is wrong
 
         // If tasklet has never been run exceptions are treated differently
         if(( m_first_run ) && (m_exception_state != Py_None))
@@ -227,10 +227,13 @@ PyObject* PyTaskletObject::switch_to( )
         }
 
         // Check state of tasklet
-        if( !m_blocked && !m_transfer_in_progress && !m_is_main && !m_paused && !m_scheduled ) 
+        if( !m_blocked && !m_transfer_in_progress && !m_is_main && !m_paused && !m_reschedule && !m_tagged_for_removal ) 
 		{
 			m_alive = false;
 		}
+
+        // Reset tagging used to preserve alive status after removal
+        m_tagged_for_removal = false;
 	
     }
 
@@ -323,7 +326,7 @@ PyObject* PyTaskletObject::run()
 
             Scheduler::insert_tasklet_at_beginning( current_tasklet );
 
-			Scheduler::schedule(); // TODO handle the error case
+			Scheduler::yield(); // TODO handle the error case
 		}
     }
 
@@ -691,3 +694,17 @@ void PyTaskletObject::clear_tasklet_exception()
 	}
 }
 
+void PyTaskletObject::set_reschedule( bool value )
+{
+	m_reschedule = value;
+}
+
+bool PyTaskletObject::requires_reschedule()
+{
+	return m_reschedule;
+}
+
+void PyTaskletObject::set_tagged_for_removal( bool value )
+{
+	m_tagged_for_removal = value;
+}

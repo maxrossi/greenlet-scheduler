@@ -237,7 +237,7 @@ static PyObject*
 {
 	Scheduler* current_scheduler = Scheduler::get_scheduler();
 
-	if( current_scheduler->insert_and_schedule() )
+	if( current_scheduler->schedule() )
 	{
 		return Py_None;
 	}
@@ -252,8 +252,14 @@ static PyObject*
 {
 	Scheduler* current_scheduler = Scheduler::get_scheduler();
 
-	PyErr_SetString( PyExc_RuntimeError, "Scheduler_scheduleremove Not yet implemented" ); //TODO
-	return NULL;
+	if( current_scheduler->schedule(true) )
+	{
+		return Py_None;
+	}
+	else
+	{
+		return nullptr;
+	}
 }
 
 static PyObject*
@@ -268,6 +274,25 @@ static PyObject*
 
 
 	return ret;
+}
+
+static PyObject*
+	Scheduler_run_n_tasklets( PyObject* self, PyObject* args )
+{
+	unsigned int number_of_tasklets = 0;
+
+    if( PyArg_ParseTuple( args, "I:set_channel_callback", &number_of_tasklets ) )
+	{
+		Scheduler* current_scheduler = Scheduler::get_scheduler(); //TODO not needed it's a static function
+
+		PyObject* ret = current_scheduler->run_n_tasklets( number_of_tasklets );
+
+		return ret;
+	}
+	else
+	{
+		return nullptr;
+    }
 }
 
 static PyObject*
@@ -420,6 +445,7 @@ static PyMethodDef SchedulerMethods[] = {
 	{ "schedule", (PyCFunction)Scheduler_schedule, METH_NOARGS, "Yield execution of the currently running tasklet" },
 	{ "schedule_remove", (PyCFunction)Scheduler_scheduleremove, METH_NOARGS, "Yield execution of the currently running tasklet and remove" },
 	{ "run", (PyCFunction)Scheduler_run, METH_NOARGS, "Run scheduler" },
+	{ "run_n_tasklets", (PyCFunction)Scheduler_run_n_tasklets, METH_VARARGS, "Run scheduler stopping after n tasklets" },
 	{ "set_schedule_callback", (PyCFunction)Scheduler_set_schedule_callback, METH_VARARGS, "Install a callback for scheduling" },
 	{ "get_schedule_callback", (PyCFunction)Scheduler_get_schedule_callback, METH_NOARGS, "Get the current global schedule callback" },
 	{ "get_thread_info", (PyCFunction)Scheduler_get_thread_info, METH_VARARGS, "Return a tuple containing the threads main tasklet, current tasklet and run-count" },

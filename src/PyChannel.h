@@ -72,5 +72,5 @@ private:
 	std::deque<PyObject*> blocked_on_receive;
 
     inline static PyObject* s_channel_callback; // This is global, not per channel
-
+    
 };
