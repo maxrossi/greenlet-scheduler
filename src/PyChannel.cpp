@@ -1,352 +1,199 @@
-#include <iostream>
+#include "Channel.h"
 
 #include "PyChannel.h"
 
-#include "PyTasklet.h"
+#include <new>
 
-#include "PyScheduler.h"
-
-PyChannelObject::PyChannelObject():
-	m_balance(0),
-	m_preference(-1),
-	m_lock( PyThread_allocate_lock() )
+static int
+	Channel_init( PyChannelObject* self, PyObject* args, PyObject* kwds )
 {
+	// Allocate the memory for the implementation member
+	self->m_impl = (Channel*)PyObject_Malloc( sizeof( Channel ) );
 
+	if( !self->m_impl )
+	{
+		PyErr_SetString( PyExc_RuntimeError, "Failed to allocate memory for implementation object." );
+
+		return -1;
+	}
+
+    // Call constructor
+	try
+	{
+		new( self->m_impl ) Channel( reinterpret_cast<PyObject*>( self ) );
+	}
+	catch( const std::exception& ex )
+	{
+		PyObject_Free( self->m_impl );
+
+		PyErr_SetString( PyExc_RuntimeError, ex.what() );
+
+		return -1;
+	}
+	catch( ... )
+	{
+		PyObject_Free( self->m_impl );
+
+		PyErr_SetString( PyExc_RuntimeError, "Failed to construct implementation object." );
+
+		return -1;
+	}
+
+	return 0;
 }
 
-PyChannelObject::~PyChannelObject()
+static void
+	Channel_dealloc( PyChannelObject* self )
 {
-	//TODO need to clean up tasklets that are stored in waiting_to_send and waiting_to_receive lists
+    // Call destructor
+	self->m_impl->~Channel();
 
+    PyObject_Free( self->m_impl );
 
-	Py_DECREF( m_lock );
+    Py_TYPE( self )->tp_free( (PyObject*)self );
 }
 
-bool PyChannelObject::send( PyObject* args, bool exception /* = false */)
+static PyObject*
+	Channel_preference_get( PyChannelObject* self, void* closure )
 {
-    PyThread_acquire_lock( m_lock, 1 );
-
-    PyObject* current = Scheduler::get_current_tasklet();  //TODO naming clean up
-
-	run_channel_callback( reinterpret_cast<PyObject*>(this), current, true, blocked_on_receive.empty() );  //TODO will_block logic here will change with addition of preference
-
-    reinterpret_cast<PyTaskletObject*>( current )->set_transfer_in_progress(true);
-
-	if( blocked_on_receive.empty() )
-	{
-		
-		// Block as there is no tasklet sending
-        if( !current )
-		{
-			PyErr_SetString( PyExc_RuntimeError, "No current tasklet set" );
-			PyThread_release_lock( m_lock );
-			return false;
-		}
-
-        //If current tasklet has block_trap set to true then throw runtime error
-		if( reinterpret_cast<PyTaskletObject*>( current )->blocktrap())
-		{
-			PyErr_SetString( PyExc_RuntimeError, "Channel cannot block on main tasklet with block_trap set true" );
-			PyThread_release_lock( m_lock );
-			return false;
-		}
-
-		// Block as there is no tasklet receiving
-		Py_IncRef( current );
-
-        add_tasklet_to_waiting_to_send( current );
-
-		reinterpret_cast<PyTaskletObject*>( current )->block( this );
-
-        PyThread_release_lock( m_lock );
-
-         // Continue scheduler
-		if( !Scheduler::yield() )
-		{
-			reinterpret_cast<PyTaskletObject*>( current )->unblock();
-
-			reinterpret_cast<PyTaskletObject*>( current )->set_transfer_in_progress( false );
-
-			PyObject* tasklet = pop_next_tasklet_blocked_on_send();
-
-            Py_DecRef( tasklet );
-
-			return false;
-        }
-
-        PyThread_acquire_lock( m_lock, 1 );
-
-	}
-
-    PyTaskletObject* receiving_tasklet = reinterpret_cast<PyTaskletObject*>( pop_next_tasklet_blocked_on_receive() );
-
-    receiving_tasklet->unblock();
-	
-    // Store for retrieval from receiving tasklet
-	receiving_tasklet->set_transfer_arguments( args, exception );
-
-    PyThread_release_lock( m_lock );
-
-	if (m_preference == PREFER_RECEIVER)
-    {
-		//Add this tasklet to the end of the scheduler
-		PyTaskletObject* current_tasklet = reinterpret_cast<PyTaskletObject*>(Scheduler::get_current_tasklet());
-		Scheduler::insert_tasklet( current_tasklet );
-
-		//Switch BACK to the receiving tasklet
-		if (!receiving_tasklet->switch_to())
-        {
-            return false; 
-        }
-		else
-		{
-            // Update current tasklet back to the correct calling tasklet
-            // Required as the switch_to circumvents the scheduling queue
-            // Which would normally deal with this
-			Scheduler::set_current_tasklet( current_tasklet );
-		}
-		
-	} 
-    else if (m_preference == PREFER_SENDER)
-    {
-		Scheduler::insert_tasklet(receiving_tasklet);
-	} 
-    else if (m_preference == PREFER_NEITHER) 
-    {
-		Scheduler::insert_tasklet(receiving_tasklet);
-
-		Scheduler::insert_tasklet( reinterpret_cast<PyTaskletObject*>( Scheduler::get_current_tasklet() ) );
-
-		// TODO handle failure case
-		Scheduler::yield();
-	}
-	else
-	{
-        // Invalid preference - Should never get here
-        // Preference attribute is sanitised in PyTasklet_python.cpp
-		PyErr_SetString( PyExc_RuntimeError, "Channel preference invalid." );
-		
-		return false;
-	}
-
-    Py_DECREF( receiving_tasklet );
-
-	reinterpret_cast<PyTaskletObject*>( current )->set_transfer_in_progress(false);
-
-	return true;
-
+	return PyLong_FromLong( self->m_impl->preference() );
 }
 
-PyObject* PyChannelObject::receive()
+static int
+	Channel_preference_set( PyChannelObject* self, PyObject* value, void* closure ) //TODO just test
 {
-	PyThread_acquire_lock( m_lock, 1 );
-
-    reinterpret_cast<PyTaskletObject*>( Scheduler::get_current_tasklet() )->set_transfer_in_progress(true);
-
-	// Block as there is no tasklet sending
-	PyObject* current = Scheduler::get_current_tasklet();
-
-	run_channel_callback( reinterpret_cast<PyObject*>( this ), current, false, blocked_on_send.empty() );    //TODO will_block logic here will change with addition of preference
-
-    if( current == nullptr )
+	if( value == NULL )
 	{
-		PyErr_SetString( PyExc_RuntimeError, "No current tasklet set" );
-		return nullptr;
+		PyErr_SetString( PyExc_TypeError, "Cannot delete the first attribute" );
+		return -1;
+	}
+	if( !PyLong_Check( value ) )
+	{
+		PyErr_SetString( PyExc_TypeError,
+						 "The first attribute value must be a number" );
+		return -1;
 	}
 
-	Py_IncRef( current );
+    long new_preference = PyLong_AsLong( value );
 
-    add_tasklet_to_waiting_to_receive( current );
-
-    if( blocked_on_send.empty() )
+    // Only accept valid values
+    // -1   - Prefer receive
+    // 0    - Prefer neither
+    // 1    - Prefer sender
+    if( ( new_preference > -2 ) && ( new_preference < 2 ) )
 	{
-		//If current tasklet has block_trap set to true then throw runtime error
-		if( reinterpret_cast<PyTaskletObject*>( current )->blocktrap() )
-		{
-			PyErr_SetString( PyExc_RuntimeError, "Channel cannot block on main tasklet with block_trap set true" );
-			PyThread_release_lock( m_lock );
-			return nullptr;
-		}
-		else
-		{
-			reinterpret_cast<PyTaskletObject*>( current )->block( this );
-
-			PyThread_release_lock( m_lock );
-
-			// Continue scheduler
-			if( !Scheduler::yield() )
-			{
-				// Will enter here is an exception has been thrown on a tasklet
-				remove_tasklet_from_blocked( current );
-
-				reinterpret_cast<PyTaskletObject*>( current )->unblock();
-
-				reinterpret_cast<PyTaskletObject*>( current )->set_transfer_in_progress( false );
-
-				return false;
-			}
-		}
-	}
-	else
-	{
-		//Get first
-		PyTaskletObject* sending_tasklet = reinterpret_cast<PyTaskletObject*>( pop_next_tasklet_blocked_on_send() );
-
-		sending_tasklet->unblock();
-
-        PyThread_release_lock( m_lock );
-
-        PyTaskletObject* current_tasklet = reinterpret_cast<PyTaskletObject*>( Scheduler::get_current_tasklet() );
-
-		if(!sending_tasklet->switch_to())
-		{
-			return false;
-        }
-		else
-		{
-			// Update current tasklet back to the correct calling tasklet
-			// Required as the switch_to circumvents the scheduling queue
-			// Which would normally deal with this
-			Scheduler::set_current_tasklet( current_tasklet );
-        }
-
-        Py_DECREF( sending_tasklet );
-	}
-
-    //Process the exception
-	if( reinterpret_cast<PyTaskletObject*>(current)->transfer_is_exception())
-	{
-		PyObject* arguments = reinterpret_cast<PyTaskletObject*>(current)->get_transfer_arguments();
-		reinterpret_cast<PyTaskletObject*>(current)->clear_transfer_arguments();
-
-        if(!PyTuple_Check(arguments))
-		{
-			PyErr_SetString( PyExc_RuntimeError, "This should be checked during send TODO remove this check when it is" ); //TODO
-        }
-		
-        PyObject* exception_type = PyTuple_GetItem( arguments, 0 );
-
-        PyObject* exception_values = PyTuple_GetSlice( arguments, 1, PyTuple_Size( arguments ) );
-
-		PyErr_SetObject( exception_type, exception_values );
-
-        Py_DecRef( arguments );
-
-		reinterpret_cast<PyTaskletObject*>(current)->set_transfer_in_progress(false);  //TODO having two of these sucks
-
-        return nullptr;
-
+		self->m_impl->set_preference( new_preference );
     }
 
-	reinterpret_cast<PyTaskletObject*>( current )->set_transfer_in_progress(false);
-
-	auto ret = reinterpret_cast<PyTaskletObject*>( current )->get_transfer_arguments();
-
-	reinterpret_cast<PyTaskletObject*>( current )->clear_transfer_arguments();
-
-	return ret;
+	return 0;
 }
 
-int PyChannelObject::balance() const
+static PyObject*
+	Channel_balance_get( PyChannelObject* self, void* closure )
 {
-	return m_balance;
+	return PyLong_FromLong( self->m_impl->balance() );
 }
 
-void PyChannelObject::remove_tasklet_from_blocked( PyObject* tasklet )
+static PyObject*
+	Channel_queue_get( PyChannelObject* self, void* closure )
 {
-	//	TODO: This is not performant. convert this to a linkedList implementation
-	// https://en.cppreference.com/w/cpp/container/deque:
-	// - Insertion or removal of elements - linear O(n).
-	// - As opposed to std::vector, the elements of a deque are not stored contiguously
-	auto it = std::find( blocked_on_send.begin(), blocked_on_send.end(),  tasklet);
-	if (it != blocked_on_send.end())
+	PyErr_SetString( PyExc_RuntimeError, "Channel_queue_get Not yet implemented" ); //TODO
+	return NULL;
+}
+
+static PyGetSetDef Channel_getsetters[] = {
+	{ "preference", (getter)Channel_preference_get, (setter)Channel_preference_set, "allows for customisation of how the channel actions", NULL },
+	{ "balance", (getter)Channel_balance_get, NULL, "number of tasklets waiting to send (>0) or receive (<0)", NULL },
+	{ "queue", (getter)Channel_queue_get, NULL, "the first tasklet in the chain of tasklets that are blocked on the channel", NULL },
+	{ NULL } /* Sentinel */
+};
+
+static PyObject*
+	Channel_send( PyChannelObject* self, PyObject* args, PyObject* kwds )
+{
+	PyObject* value;
+
+	if( PyArg_ParseTuple( args, "O:send_value", &value ) )
 	{
-		blocked_on_send.erase(it);
-		return;
+		if( !self->m_impl->send( value ) )
+		{
+			return NULL;
+		}
 	}
 
-	it = std::find( blocked_on_receive.begin(), blocked_on_receive.end(),  tasklet);
-	if (it != blocked_on_receive.end())
+    Py_IncRef( Py_None );
+
+	return Py_None;
+}
+
+static PyObject*
+	Channel_receive( PyChannelObject* self, PyObject* Py_UNUSED( ignored ) )
+{
+	return self->m_impl->receive();
+}
+
+static PyObject*
+	Channel_sendexception( PyChannelObject* self, PyObject* args, PyObject* kwds )
+{
+	if(!self->m_impl->send(args, true))
 	{
-		blocked_on_receive.erase(it);
-		return;
-	}
+		return NULL;
+    }
+
+    Py_IncRef( Py_None );   //TODO is this necessary?
+
+	return Py_None;
 }
 
-void PyChannelObject::run_channel_callback( PyObject* channel, PyObject* tasklet, bool sending, bool will_block ) const
-{
-	if( s_channel_callback != Py_None )
-	{
-		PyObject* args = PyTuple_New( 4 ); // TODO don't create this each time
+static PyMethodDef Channel_methods[] = {
+	{ "send", (PyCFunction)Channel_send, METH_VARARGS, "Send a value over the channel" },
+	{ "receive", (PyCFunction)Channel_receive, METH_NOARGS, "Receive a value over the channel" },
+	{ "send_exception", (PyCFunction)Channel_sendexception, METH_VARARGS, "Send an exception over the channel" },
+	{ NULL } /* Sentinel */
+};
 
-		Py_IncRef( channel );
-
-		Py_IncRef( tasklet );
-
-		PyTuple_SetItem( args, 0, channel );
-
-		PyTuple_SetItem( args, 1, tasklet );
-
-        PyTuple_SetItem( args, 2, sending ? Py_True : Py_False );
-
-        PyTuple_SetItem( args, 3, will_block ? Py_True : Py_False );
-
-		PyObject_Call( s_channel_callback, args, nullptr );
-
-		Py_DecRef( args );
-	}
-}
-
-void PyChannelObject::add_tasklet_to_waiting_to_send( PyObject* tasklet )
-{
-	blocked_on_send.push_back(tasklet);
-
-    m_balance++;
-}
-
-void PyChannelObject::add_tasklet_to_waiting_to_receive( PyObject* tasklet )
-{
-	blocked_on_receive.push_back(tasklet);
-
-	m_balance--;
-}
-
-PyObject* PyChannelObject::pop_next_tasklet_blocked_on_send()
-{
-	auto next = blocked_on_send.front();
-	blocked_on_send.pop_front();
-
-    m_balance--;
-
-    return next;
-}
-
-PyObject* PyChannelObject::pop_next_tasklet_blocked_on_receive()
-{
-	auto next = blocked_on_receive.front();
-	blocked_on_receive.pop_front();
-
-    m_balance++;
-
-	return next;
-}
-
-PyObject* PyChannelObject::channel_callback()
-{
-	return s_channel_callback;
-}
-
-void PyChannelObject::set_channel_callback( PyObject* callback )
-{
-	s_channel_callback = callback;
-}
-
-int PyChannelObject::preference() const
-{
-	return m_preference;
-}
-
-void PyChannelObject::set_preference( int value )
-{
-	m_preference = value;
-}
+static PyTypeObject ChannelType = {
+	/* The ob_type field must be initialized in the module init function
+     * to be portable to Windows without using C++. */
+	PyVarObject_HEAD_INIT( NULL, 0 ) "scheduler.Channel", /*tp_name*/
+	sizeof( PyChannelObject ), /*tp_basicsize*/
+	0, /*tp_itemsize*/
+	/* methods */
+	(destructor)Channel_dealloc, /*tp_dealloc*/
+	0, /*tp_vectorcall_offset*/
+	0, /*tp_getattr*/
+	0, /*tp_setattr*/
+	0, /*tp_as_async*/
+	0, /*tp_repr*/
+	0, /*tp_as_number*/
+	0, /*tp_as_sequence*/
+	0, /*tp_as_mapping*/
+	0, /*tp_hash*/
+	0, /*tp_call*/
+	0, /*tp_str*/
+	0, /*tp_getattro*/
+	0, /*tp_setattro*/
+	0, /*tp_as_buffer*/
+	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /*tp_flags*/
+	PyDoc_STR( "Channel objects" ), /*tp_doc*/
+	0, /*tp_traverse*/
+	0, /*tp_clear*/
+	0, /*tp_richcompare*/
+	0, /*tp_weaklistoffset*/
+	0, /*tp_iter*/
+	0, /*tp_iternext*/
+	Channel_methods, /*tp_methods*/
+	0, /*tp_members*/
+	Channel_getsetters, /*tp_getset*/
+	0,
+	/* see PyInit_xx */ /*tp_base*/
+	0, /*tp_dict*/
+	0, /*tp_descr_get*/
+	0, /*tp_descr_set*/
+	0, /*tp_dictoffset*/
+	(initproc)Channel_init, /*tp_init*/
+	0, /*tp_alloc*/
+	PyType_GenericNew, /*tp_new*/
+	0, /*tp_free*/
+	0, /*tp_is_gc*/
+};

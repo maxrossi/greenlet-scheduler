@@ -5,11 +5,11 @@
 #include "Scheduler.h"
 #include <greenlet.h>
 
-#include "PyScheduler.h"
+#include "ScheduleManager.h"
 
 //Types
-#include "PyTasklet_python.cpp"
-#include "PyChannel_python.cpp"
+#include "PyTasklet.cpp"
+#include "PyChannel.cpp"
 
 /*
 C Interface
@@ -97,12 +97,12 @@ extern "C"
 
     static int PyScheduler_GetRunCount()
 	{
-		return Scheduler::get_tasklet_count();
+		return ScheduleManager::get_tasklet_count();
 	}
     
     static PyObject* PyScheduler_GetCurrent()
 	{
-		return Scheduler::get_current_tasklet();
+		return ScheduleManager::get_current_tasklet()->python_object();
 	}
 
     // Note: flags used in game are PY_WATCHDOG_SOFT | PY_WATCHDOG_IGNORE_NESTING | PY_WATCHDOG_TOTALTIMEOUT
@@ -162,11 +162,11 @@ static PyObject*
 			return nullptr;
 		}
 
-		Py_INCREF( temp );
+		Py_IncRef( temp );
 
-		PyObject* previous_callback = PyChannelObject::channel_callback();
+		PyObject* previous_callback = Channel::channel_callback();
 
-		PyChannelObject::set_channel_callback(temp);
+		Channel::set_channel_callback(temp);
 
 		return previous_callback;
 	}
@@ -177,7 +177,7 @@ static PyObject*
 static PyObject*
 	get_channel_callback( PyObject* self, PyObject* args )
 {
-	PyObject* callable = PyChannelObject::channel_callback();
+	PyObject* callable = Channel::channel_callback();
 
 	Py_IncRef( callable );
 
@@ -202,31 +202,34 @@ static PyObject*
 	return Py_False;
 }
 
-// TEMP
 static PyObject*
 	Scheduler_getcurrent( PyObject* self, PyObject* Py_UNUSED( ignored ) )
 {
-	Scheduler* current_scheduler = Scheduler::get_scheduler();
+	ScheduleManager* current_scheduler = ScheduleManager::get_scheduler();
 
-	Py_INCREF( current_scheduler->m_current_tasklet );
+    PyObject* py_current_tasklet = current_scheduler->get_current_tasklet()->python_object();
 
-	return reinterpret_cast<PyObject*>( current_scheduler->m_current_tasklet );
+	Py_IncRef( py_current_tasklet );
+
+	return py_current_tasklet;
 }
 
 static PyObject*
 	Scheduler_getmain( PyObject* self, PyObject* Py_UNUSED( ignored ) )
 {
-	Scheduler* current_scheduler = Scheduler::get_scheduler();
+	ScheduleManager* current_scheduler = ScheduleManager::get_scheduler();
 
-	Py_INCREF( current_scheduler->m_scheduler_tasklet );
+    PyObject* py_main_tasklet = current_scheduler->get_main_tasklet()->python_object();
 
-	return reinterpret_cast<PyObject*>( current_scheduler->m_scheduler_tasklet );
+	Py_IncRef( py_main_tasklet );
+
+	return py_main_tasklet;
 }
 
 static PyObject*
 	Scheduler_getruncount( PyObject* self, PyObject* Py_UNUSED( ignored ) )
 {
-	Scheduler* current_scheduler = Scheduler::get_scheduler();
+	ScheduleManager* current_scheduler = ScheduleManager::get_scheduler();
 
 	return PyLong_FromLong( current_scheduler->get_tasklet_count() ); 
 }
@@ -234,7 +237,7 @@ static PyObject*
 static PyObject*
 	Scheduler_schedule( PyObject* self, PyObject* Py_UNUSED( ignored ) )
 {
-	Scheduler* current_scheduler = Scheduler::get_scheduler();
+	ScheduleManager* current_scheduler = ScheduleManager::get_scheduler();
 
 	if( current_scheduler->schedule() )
 	{
@@ -249,7 +252,7 @@ static PyObject*
 static PyObject*
 	Scheduler_scheduleremove( PyObject* self, PyObject* Py_UNUSED( ignored ) )
 {
-	Scheduler* current_scheduler = Scheduler::get_scheduler();
+	ScheduleManager* current_scheduler = ScheduleManager::get_scheduler();
 
 	if( current_scheduler->schedule(true) )
 	{
@@ -264,7 +267,7 @@ static PyObject*
 static PyObject*
 	Scheduler_run( PyObject* self, PyObject* Py_UNUSED( ignored ) )
 {
-	Scheduler* current_scheduler = Scheduler::get_scheduler();  //TODO not needed it's a static function
+	ScheduleManager* current_scheduler = ScheduleManager::get_scheduler(); //TODO not needed it's a static function
 
     PyObject* ret = current_scheduler->run();
 
@@ -282,7 +285,7 @@ static PyObject*
 
     if( PyArg_ParseTuple( args, "I:set_channel_callback", &number_of_tasklets ) )
 	{
-		Scheduler* current_scheduler = Scheduler::get_scheduler(); //TODO not needed it's a static function
+		ScheduleManager* current_scheduler = ScheduleManager::get_scheduler(); //TODO not needed it's a static function
 
 		PyObject* ret = current_scheduler->run_n_tasklets( number_of_tasklets );
 
@@ -308,13 +311,13 @@ static PyObject*
 			return NULL;    //TODO convert all to nullptr - left so I remember
 		}
 
-        Scheduler* current_scheduler = Scheduler::get_scheduler();
+        ScheduleManager* current_scheduler = ScheduleManager::get_scheduler();
 
-		Py_INCREF( temp );
+		Py_IncRef( temp );
 
-        PyObject* previous_callback = current_scheduler->m_scheduler_callback;
+        PyObject* previous_callback = current_scheduler->scheduler_callback();
 
-        current_scheduler->m_scheduler_callback = temp;
+        ScheduleManager::set_scheduler_callback( temp );
 
 		return previous_callback;
 	}
@@ -325,9 +328,9 @@ static PyObject*
 static PyObject*
 	Scheduler_get_schedule_callback( PyObject* self, PyObject* Py_UNUSED( ignored ) )
 {
-	Scheduler* current_scheduler = Scheduler::get_scheduler();
+	ScheduleManager* current_scheduler = ScheduleManager::get_scheduler();
 
-    PyObject* callable = current_scheduler->m_scheduler_callback;
+    PyObject* callable = current_scheduler->scheduler_callback();
 
 	Py_IncRef( callable );
 
@@ -338,17 +341,17 @@ static PyObject*
 static PyObject*
 	Scheduler_get_thread_info( PyObject* self, PyObject* args, PyObject* kwds )
 {
-	Scheduler* current_scheduler = Scheduler::get_scheduler();
+	ScheduleManager* current_scheduler = ScheduleManager::get_scheduler();
 
 	PyObject* thread_info_tuple = PyTuple_New( 3 );
 
-	Py_INCREF( current_scheduler->m_scheduler_tasklet );
+	Py_IncRef( current_scheduler->get_main_tasklet()->python_object() );
 
-	PyTuple_SetItem( thread_info_tuple, 0, reinterpret_cast<PyObject*>( current_scheduler->m_scheduler_tasklet ) );
+	PyTuple_SetItem( thread_info_tuple, 0, current_scheduler->get_main_tasklet()->python_object());
 
-	Py_INCREF( current_scheduler->m_current_tasklet );
+	Py_IncRef( current_scheduler->get_current_tasklet()->python_object() );
 
-	PyTuple_SetItem( thread_info_tuple, 1, reinterpret_cast<PyObject*>( current_scheduler->m_current_tasklet ) );
+	PyTuple_SetItem( thread_info_tuple, 1, current_scheduler->get_current_tasklet()->python_object());
 
 	PyTuple_SetItem( thread_info_tuple, 2, PyLong_FromLong( current_scheduler->get_tasklet_count() + 1 ) );
 
@@ -359,7 +362,7 @@ static PyObject*
 static PyObject*
 	Scheduler_set_current_tasklet_changed_callback( PyObject* self, PyObject* args, PyObject* kwds )
 {
-	Scheduler* current_scheduler = Scheduler::get_scheduler();
+	ScheduleManager* current_scheduler = ScheduleManager::get_scheduler();
 
 	PyObject* temp;
 
@@ -371,9 +374,9 @@ static PyObject*
 			return NULL;
 		}
 
-		Py_INCREF( temp );
+		Py_IncRef( temp );
 
-		current_scheduler->m_current_tasklet_changed_callback = temp;
+		current_scheduler->set_current_tasklet_changed_callback( temp );
 	}
 
 	return Py_None;
@@ -382,7 +385,7 @@ static PyObject*
 static PyObject*
 	Scheduler_switch_trap( PyObject* self, PyObject* args, PyObject* kwds )
 {
-	Scheduler* current_scheduler = Scheduler::get_scheduler();
+	ScheduleManager* current_scheduler = ScheduleManager::get_scheduler();
 
 	//TODO: channels need to track this and raise runtime error if appropriet
 	int delta;
@@ -392,9 +395,9 @@ static PyObject*
 		PyErr_SetString( PyExc_RuntimeError, "Scheduler_switch_trap requires a delta argument." ); //TODO
 	}
 
-    long original_switch_trap = current_scheduler->m_switch_trap_level;
+    long original_switch_trap = current_scheduler->switch_trap_level();
 
-	current_scheduler->m_switch_trap_level += delta;
+	current_scheduler->set_switch_trap_level( original_switch_trap + delta );
 
 	return PyLong_FromLong( original_switch_trap );
 }
@@ -421,7 +424,7 @@ static PyObject*
 	// Setup the schedulers tasklet
 	PyTaskletObject* tasklet = (PyTaskletObject*)scheduler_tasklet;
 
-	tasklet->set_is_main(true);
+	tasklet->m_impl->set_is_main( true );
 
     return scheduler_tasklet;
 
@@ -430,8 +433,7 @@ static PyObject*
 void module_destructor( void* )
 {
     // Cleanup
-
-	Py_XDECREF( Scheduler::s_create_scheduler_tasklet_callable );
+	Py_XDECREF( ScheduleManager::s_create_scheduler_tasklet_callable );
 }
 
 static PyMethodDef SchedulerMethods[] = {
@@ -601,10 +603,10 @@ PyMODINIT_FUNC
     //Create a main scheduler
 	PyObject* dict = PyModule_GetDict( m );
 	PyObject* create_scheduler_tasklet_callable = PyDict_GetItemString( dict, "newSchedulerTasklet" ); //Weak Linkage TODO
-    Scheduler::s_create_scheduler_tasklet_callable = create_scheduler_tasklet_callable;
+	ScheduleManager::s_create_scheduler_tasklet_callable = create_scheduler_tasklet_callable;
 	
     //Setup initial channel callback static
-	PyChannelObject::set_channel_callback(Py_None);
+	Channel::set_channel_callback(Py_None);
 
     return m;
 }

@@ -27,8 +27,8 @@
 /* Header file for scheduler */
 
 /* C API functions */
-class PyTaskletObject;
-class PyChannelObject;
+struct PyTaskletObject;
+struct PyChannelObject;
 
 #define Py_WATCHDOG_THREADBLOCK 1
 #define PY_WATCHDOG_SOFT 2
@@ -38,27 +38,27 @@ class PyChannelObject;
 
 #define PyTasklet_Check( op ) ( op && PyObject_TypeCheck( op, &PyTasklet_Type ) )
 
-typedef int( schedule_hook_func )( PyTaskletObject* from, PyTaskletObject* to );
+typedef int( schedule_hook_func )( struct PyTaskletObject* from, struct PyTaskletObject* to );
 
 class SchedulerCAPI
 {
     public:
     // =============== function pointer types ===============
     //tasklet functions
-    using PyTasklet_Setup_Routine                     = std::add_pointer_t<int(PyTaskletObject*, PyObject * args, PyObject * kwds)>;
-    using PyTasklet_Insert_Routine                    = std::add_pointer_t<int(PyTaskletObject*)>;
-    using PyTasklet_GetBlockTrap_Routine              = std::add_pointer_t<int(PyTaskletObject*)>;
-    using PyTasklet_SetBlockTrap_Routine              = std::add_pointer_t<void(PyTaskletObject*, int)>;
-    using PyTasklet_IsMain_Routine                    = std::add_pointer_t<int(PyTaskletObject*)>;
+    using PyTasklet_Setup_Routine                     = std::add_pointer_t<int(struct PyTaskletObject*, PyObject * args, PyObject * kwds)>;
+    using PyTasklet_Insert_Routine                    = std::add_pointer_t<int(struct PyTaskletObject*)>;
+    using PyTasklet_GetBlockTrap_Routine              = std::add_pointer_t<int(struct PyTaskletObject*)>;
+    using PyTasklet_SetBlockTrap_Routine              = std::add_pointer_t<void(struct PyTaskletObject*, int)>;
+    using PyTasklet_IsMain_Routine                    = std::add_pointer_t<int(struct PyTaskletObject*)>;
 
     //channel functions
-	using PyChannel_New_Routine           		      = std::add_pointer_t<PyChannelObject*(PyTypeObject*)>;
-	using PyChannel_Send_Routine          		      = std::add_pointer_t<int(PyChannelObject*, PyObject*)>;
-	using PyChannel_Receive_Routine       		      = std::add_pointer_t<PyObject*(PyChannelObject*)>;
-    using PyChannel_SendException_Routine 		      = std::add_pointer_t<int(PyChannelObject*, PyObject*, PyObject*)>;
-    using PyChannel_GetQueue_Routine      		      = std::add_pointer_t<PyObject*(PyChannelObject*)>;
-    using PyChannel_SetPreference_Routine 		      = std::add_pointer_t<void(PyChannelObject*, int)>;
-    using PyChannel_GetBalance_Routine    		      = std::add_pointer_t<int(PyChannelObject*)>;
+	using PyChannel_New_Routine           		      = std::add_pointer_t<struct PyChannelObject*(PyTypeObject*)>;
+	using PyChannel_Send_Routine          		      = std::add_pointer_t<int(struct PyChannelObject*, PyObject*)>;
+	using PyChannel_Receive_Routine       		      = std::add_pointer_t<PyObject*(struct PyChannelObject*)>;
+    using PyChannel_SendException_Routine 		      = std::add_pointer_t<int(struct PyChannelObject*, PyObject*, PyObject*)>;
+    using PyChannel_GetQueue_Routine      		      = std::add_pointer_t<PyObject*(struct PyChannelObject*)>;
+    using PyChannel_SetPreference_Routine 		      = std::add_pointer_t<void(struct PyChannelObject*, int)>;
+    using PyChannel_GetBalance_Routine    		      = std::add_pointer_t<int(struct PyChannelObject*)>;
 
     //scheduler functions
     using PyScheduler_Schedule_Routine                = std::add_pointer_t<PyObject*(PyObject*, int)>;

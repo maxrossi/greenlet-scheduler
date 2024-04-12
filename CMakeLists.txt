@@ -30,15 +30,17 @@ get_target_property(GREENLET_INCLUDE_DIRECTORY
 
 set(SRC_FILES
     include/Scheduler.h
-    src/PySchedulerModule.cpp
+    src/SchedulerModule.cpp
+    src/PyTasklet.h
     src/PyTasklet.cpp
     src/Tasklet.cpp
     src/Tasklet.h
     src/PyChannel.cpp
+    src/PyChannel.h
     src/Channel.cpp
     src/Channel.h
-    src/Scheduler.cpp
-    src/Scheduler.h
+    src/ScheduleManager.cpp
+    src/ScheduleManager.h
     src/stdafx.cpp
 )
 

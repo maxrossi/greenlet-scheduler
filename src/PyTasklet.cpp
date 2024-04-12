@@ -1,710 +1,420 @@
+#include "Tasklet.h"
+
+#include "ScheduleManager.h"
+
 #include "PyTasklet.h"
 
-#include "PyScheduler.h"
+#include <new>
 
-#include "PyChannel.h"
+static PyObject* TaskletExit;
 
-PyTaskletObject::PyTaskletObject( PyObject* callable, PyObject* tasklet_exit_exception ) :
-	m_greenlet( nullptr ),
-	m_callable( callable ),
-	m_arguments( nullptr ),
-	m_is_main( false ),
-	m_transfer_in_progress( false ),
-	m_scheduled( false ),
-	m_alive( false ),
-	m_blocktrap( false ),
-	m_previous( Py_None ),
-	m_next( Py_None ),
-	m_thread_id( PyThread_get_thread_ident() ),
-	m_transfer_arguments( nullptr ),
-	m_transfer_is_exception( false ),
-	m_channel_blocked_on(Py_None),
-	m_blocked(false),
-	m_exception_state(Py_None),
-	m_exception_arguments( Py_None ),
-	m_tasklet_exit_exception(tasklet_exit_exception),
-	m_paused(false),
-	m_tasklet_parent( Py_None ),
-	m_first_run(true),
-	m_reschedule(false)
+static int
+	Tasklet_init( PyTaskletObject* self, PyObject* args, PyObject* kwds )
 {
-	
-}
+    //Arguments passed in will be a callable function
+    //TODO this needs to be in the bind function
+	PyObject* temp;
 
-PyTaskletObject ::~PyTaskletObject()
-{
-	Py_XDECREF( m_callable );
-
-	Py_XDECREF( m_arguments );
-
-	Py_XDECREF( m_greenlet );
-
-	Py_XDECREF( m_transfer_arguments );
-}
-
-void PyTaskletObject::set_to_current_greenlet()
-{
-	// Import Greenlet C-API
-	PyGreenlet_Import();
-
-	if( _PyGreenlet_API == NULL )
+	if( PyArg_ParseTuple( args, "O:set_callable", &temp ) )
 	{
-		PySys_WriteStdout( "Failed to import greenlet capsule\n" );
-		PyErr_Print();
-	}
-
-	Py_XDECREF( m_greenlet );
-
-    m_greenlet = PyGreenlet_GetCurrent();
-}
-
-bool PyTaskletObject::remove()
-{
-	if(m_scheduled)
-	{
-		Scheduler::remove_tasklet( this );
-
-		m_paused = true;
-
-        return true;
-    }
-	else
-	{
-		return true;
-    }
-}
-
-bool PyTaskletObject::initialise()
-{
-	Py_XDECREF( m_greenlet );
-
-	m_greenlet = PyGreenlet_New( m_callable, nullptr );
-
-    return true;    //TODO handle failure
-}
-
-bool PyTaskletObject::insert()
-{
-	if(!m_blocked)
-	{
-		Scheduler::insert_tasklet( this );
-
-		m_paused = false;
-
-        return true;
-    }
-
-	return false;   
-}
-
-PyObject* PyTaskletObject::switch_implementation()
-{
-	// Remove the calling tasklet
-	if( !m_alive )
-	{
-		PyErr_SetString( PyExc_RuntimeError, "You cannot run an unbound(dead) tasklet" );
-
-		return nullptr;
-	}
-
-	if( m_blocked )
-	{
-		PyErr_SetString( PyExc_RuntimeError, "Cannot switch to a tasklet that is blocked" );
-
-		return nullptr;
-	}
-
-	// Run scheduler starting from this tasklet (If it is already in the scheduled)
-	if( m_scheduled )
-	{
-        // Pause the parent tasklet
-		reinterpret_cast<PyTaskletObject*>( Scheduler::get_current_tasklet() )->m_paused = true;
-
-		if(Scheduler::run( this ))
+		if( !PyCallable_Check( temp ) )
 		{
-			// Yeild the tasklets parent as to not continue execution of the rest of this tasklet
-			Scheduler::yield();
-
-			return Py_None;
-        }
-		else
-		{
-			reinterpret_cast<PyTaskletObject*>( Scheduler::get_current_tasklet() )->m_paused = false;
-
-			return nullptr;
-        } 
-
-	}
-	else
-	{
-		//TODO - Needs remove implemented in order to be able to implement this
-	}
-
-	return Py_None;
-
-
-}
-
-PyObject* PyTaskletObject::switch_to( )
-{
-	
-    PyObject* ret = Py_None;
-
-	if( m_arguments )
-	{
-		if( !PyTuple_Check( m_arguments ) )
-		{
-			PyErr_SetString( PyExc_RuntimeError, "Arguments must be a tuple" );
-			return nullptr;
+			PyErr_SetString( PyExc_TypeError, "parameter must be callable" );
+			return -1;
 		}
 
-	}
+        // Allocate the memory for the implementation member
+		self->m_impl = (Tasklet*)PyObject_Malloc( sizeof( Tasklet ) );
 
-    if( PyThread_get_thread_ident() != m_thread_id)
-	{
+		if( !self->m_impl )
+		{
+			PyErr_SetString( PyExc_RuntimeError, "Failed to allocate memory for implementation object." );
 
-		Scheduler::insert_tasklet( this );
+			return -1;
+		}
 
-        Scheduler::yield();
-
-    }
-	else
-	{
+		Py_IncRef( temp );
 		
-
-		if( Scheduler::is_switch_trapped() )
+        // Call constructor
+		try
 		{
-			PyErr_SetString( PyExc_RuntimeError, "Cannot schedule when scheduler switch_trap level is greater than 0" );
-			return nullptr;
+			new( self->m_impl ) Tasklet( reinterpret_cast<PyObject*>( self ), temp, TaskletExit );
+        }
+		catch( const std::exception& ex)
+		{
+			PyObject_Free( self->m_impl );
+
+            PyErr_SetString( PyExc_RuntimeError, ex.what() );
+
+			return -1;
+		}
+		catch(...)
+		{
+			PyObject_Free( self->m_impl );
+
+			PyErr_SetString( PyExc_RuntimeError, "Failed to construct implementation object." );
+
+			return -1;
         }
 
-
-        // If tasklet has never been run exceptions are treated differently
-        if(( m_first_run ) && (m_exception_state != Py_None))
-		{
-			// If tasklet exit has been raised then don't run tasklet and keep silent
-			if( m_exception_state == m_tasklet_exit_exception )
-			{
-				m_alive = false;
-
-				return Py_None;
-            }
-			else
-			{
-				set_python_exception_state_from_tasklet_exception_state();
-
-                return nullptr;
-            }
-		
-        }
-
-        // Tasklet is on the same thread so can be switched to now
-		Scheduler::set_current_tasklet( this );
-
-        m_paused = false;
-
-        m_first_run = false;
-
-		ret = PyGreenlet_Switch( m_greenlet, m_arguments, nullptr );
-
-       
-
-        // Check exception state of current tasklet
-        // It is important to understand that the current tasklet may not be the same value as this object
-        // This object will be the value of the tasklet that the other tasklet last switched to, commonly
-        // This will be the scheduler. So when the tasklet is resumed it will resume from that context
-        // We want to check the exception of the current tasklet so we need to get this value and check that
-
-		PyTaskletObject* current_tasklet = reinterpret_cast<PyTaskletObject*>( Scheduler::get_current_tasklet() );
-
-		if( current_tasklet->m_exception_state != Py_None )
-		{
-
-            current_tasklet->set_python_exception_state_from_tasklet_exception_state();
-
-            return nullptr;
-  
-        }
-
-        // Check state of tasklet
-        if( !m_blocked && !m_transfer_in_progress && !m_is_main && !m_paused && !m_reschedule && !m_tagged_for_removal ) 
-		{
-			m_alive = false;
-		}
-
-        // Reset tagging used to preserve alive status after removal
-        m_tagged_for_removal = false;
-	
-    }
-
-	return ret;
-}
-
-void PyTaskletObject::clear_exception()
-{
-	if( m_exception_state != Py_None)
-	{
-		Py_DecRef( m_exception_state );
-
-        m_exception_state = Py_None;
-    }
-
-    if( m_exception_arguments != Py_None )
-	{
-		Py_DecRef( m_exception_arguments );
-
-		m_exception_arguments = Py_None;
-    }
-}
-
-void PyTaskletObject::set_exception_state( PyObject* exception, PyObject* arguments /* = Py_None */)
-{
-	clear_exception();
-
-    Py_IncRef( exception );
-    m_exception_state = exception;
-
-    Py_IncRef( arguments );
-	m_exception_arguments = arguments;
-}
-
-// Assumes valid exception state
-// Exception state validity is sanitised in PyTasklet_python.cpp
-void PyTaskletObject::set_python_exception_state_from_tasklet_exception_state()
-{
-	//If it is an instance of an exception
-	if( PyObject_IsInstance( m_exception_state, PyExc_Exception ) )
-	{
-        // PyErr_SetRaisedException steals reference to exception state
-        // increffed to compensate so clear_exception will still work
-		Py_IncRef( m_exception_state ); 
-		PyErr_SetRaisedException( m_exception_state );
-	}
-	else
-	{
-		PyErr_SetObject( m_exception_state, m_exception_arguments );
-	}	
-
-	clear_exception();
-}
-
-PyObject* PyTaskletObject::run()
-{
-	if(!m_alive)
-	{
-		PyErr_SetString( PyExc_RuntimeError, "Cannot run tasklet that is not alive (dead)" );
-
-		return nullptr;
-    }
-
-    if( m_blocked )
-	{
-		PyErr_SetString( PyExc_RuntimeError, "Cannot run tasklet that is blocked" );
-
-		return nullptr;
+        return 0;
 	}
 
-	// Run scheduler starting from this tasklet (If it is already in the scheduled)
-	if(m_scheduled)
+	return -1;
+}
+
+static void
+	Tasklet_dealloc( PyTaskletObject* self )
+{
+    // Call destructor
+	self->m_impl->~Tasklet();
+
+    PyObject_Free( self->m_impl );
+
+	Py_TYPE( self )->tp_free( (PyObject*)self );
+}
+
+static PyObject*
+	Tasklet_alive_get( PyTaskletObject* self, void* closure )
+{
+	return self->m_impl->alive() ? Py_True : Py_False; 
+}
+
+static PyObject*
+	Tasklet_blocked_get( PyTaskletObject* self, void* closure )
+{
+	return self->m_impl->is_blocked() ? Py_True : Py_False;
+}
+
+static PyObject*
+	Tasklet_scheduled_get( PyTaskletObject* self, void* closure )
+{
+	return self->m_impl->scheduled() ? Py_True : Py_False;
+}
+
+static PyObject*
+	Tasklet_blocktrap_get( PyTaskletObject* self, void* closure )
+{
+	return self->m_impl->blocktrap() ? Py_True : Py_False;
+}
+
+static int
+	Tasklet_blocktrap_set( PyTaskletObject* self, PyObject* value, void* closure )
+{
+	if(!PyBool_Check(value))
 	{
-		return Scheduler::run( this );
+		PyErr_SetString( PyExc_RuntimeError, "Blocktrap expects a boolean" );
+		return -1;
+    }
+
+    self->m_impl->set_blocktrap( PyObject_IsTrue( value ) );
+
+	return 0;
+}
+
+static PyObject*
+	Tasklet_iscurrent_get( PyTaskletObject* self, void* closure )
+{
+	Tasklet* current_tasklet = ScheduleManager::get_current_tasklet();
+
+	return reinterpret_cast<PyObject*>( self ) == current_tasklet->python_object() ? Py_True : Py_False;
+}
+
+static PyObject*
+	Tasklet_ismain_get( PyTaskletObject* self, void* closure )
+{
+	return self->m_impl->is_main() ? Py_True : Py_False;
+}
+
+static PyObject*
+	Tasklet_threadid_get( PyTaskletObject* self, void* closure )
+{
+	return PyLong_FromLong( self->m_impl->thread_id() );
+}
+
+static PyObject*
+	Tasklet_next_get( PyTaskletObject* self, void* closure )
+{
+	Tasklet* next = self->m_impl->next();
+
+    if( !next )
+	{
+		return Py_None;
     }
 	else
 	{
-		PyTaskletObject* current_tasklet = reinterpret_cast<PyTaskletObject*>( Scheduler::get_current_tasklet() );
+		PyObject* py_next = next->python_object();
 
-		if( Scheduler::get_current_tasklet() == Scheduler::get_main_tasklet() )
-		{
-			// Run the scheduler starting at current_tasklet
-			Scheduler::insert_tasklet_at_beginning( this );
+        Py_IncRef( py_next );
 
-			return Scheduler::run( this );
-		}
-		else
-		{
-			Scheduler::insert_tasklet_at_beginning( this );
-
-            Scheduler::insert_tasklet_at_beginning( current_tasklet );
-
-			Scheduler::yield(); // TODO handle the error case
-		}
+		return py_next;
     }
-
-    return Py_None;
-}
-
-bool PyTaskletObject::kill( bool pending /*=false*/ )
-{
-
-    //Store so condition can be reinstated on failure
-    bool blocked_store = m_blocked;
-	PyChannelObject* block_channel_store = reinterpret_cast < PyChannelObject*>( m_channel_blocked_on);
-
-    if(m_blocked)
-	{
-        unblock();
-    }
-    
-    // Raise TaskletExit error
-	set_exception_state( m_tasklet_exit_exception );
-
-    if( reinterpret_cast<PyTaskletObject*>(Scheduler::get_current_tasklet()) == this )
-	{
-        // Continue on this tasklet and raise error immediately
-		set_python_exception_state_from_tasklet_exception_state();
-
-		return false;
-    }
-	else
-	{
-		if( pending )
-		{
-			Scheduler::insert_tasklet( this );
-
-            return true;
-		}
-		else
-		{
-			
-            // Must be alive
-			if(!m_alive)
-			{
-                // If exception state is tasklet exit then handle silently
-				if(m_exception_state == m_tasklet_exit_exception)
-				{
-					clear_exception();
-
-					return true;
-				}
-				else
-				{
-					// Invalid code path - Should never enter
-					clear_exception();
-
-                    PyErr_SetString( PyExc_RuntimeError, "Invalid exception called on dead tasklet." );
-
-                    return false;
-                }
-			    
-            }
-            
-
-			PyObject* result = run();
-
-			if( result == Py_None ) //TODO not keen mixing return types in this class
-			{
-				return true;
-			}
-			else
-			{
-				// Set tasklet back to original blocked state
-				if( blocked_store )
-				{
-
-					block( block_channel_store );
-				}
-
-				return false;
-			}
-			
-		}
-	}
-}
-
-PyObject* PyTaskletObject::get_transfer_arguments()
-{
-    //Ownership is relinquished
-	PyObject* ret = m_transfer_arguments;
-
-	return ret;
-}
-
-void PyTaskletObject::clear_transfer_arguments()
-{
-
-	m_transfer_arguments = nullptr;
-
-}
-
-void PyTaskletObject::set_transfer_arguments( PyObject* args, bool is_exception )
-{
-    //This should all change with the channel preference change
-	if(m_transfer_arguments != nullptr)
-	{
-        //TODO need to find a command to force switch thread context imediately
-		PySys_WriteStdout( "TRANSFER ARGS BROKEN %d\n", PyThread_get_thread_ident() );
-    }
-
-	Py_IncRef( args );
-
-	m_transfer_arguments = args;
-
-    m_transfer_is_exception = is_exception;
-}
-
-bool PyTaskletObject::is_blocked() const
-{
-	return m_blocked;
-}
-
-void PyTaskletObject::block( PyChannelObject* channel )
-{
-	m_blocked = true;
-
-    m_channel_blocked_on = reinterpret_cast<PyObject*>(channel);
-}
-
-void PyTaskletObject::unblock()
-{
-	m_blocked = false;
-
-	m_channel_blocked_on = Py_None;
-}
-
-void PyTaskletObject::set_alive( bool value )
-{
-	m_alive = value;
-}
-
-bool PyTaskletObject::alive() const
-{
-	return m_alive;
-}
-
-bool PyTaskletObject::scheduled() const
-{
-	return m_scheduled;
-}
-
-void PyTaskletObject::set_scheduled( bool value )
-{
-	m_scheduled = value;
-}
-
-bool PyTaskletObject::blocktrap() const
-{
-	return m_blocktrap;
-}
-
-void PyTaskletObject::set_blocktrap( bool value )
-{
-	m_blocktrap = value;
-}
-
-bool PyTaskletObject::is_main() const
-{
-	return m_is_main;
-}
-
-void PyTaskletObject::set_is_main( bool value )
-{
-	m_is_main = value;
-}
-
-unsigned long PyTaskletObject::thread_id() const
-{
-	return m_thread_id;
-}
-
-PyObject* PyTaskletObject::next() const
-{
-	return m_next;
-}
-
-void PyTaskletObject::set_next( PyObject* next )
-{
-	m_next = next;
-}
-
-PyObject* PyTaskletObject::previous() const
-{
-	return m_previous;
-}
-
-void PyTaskletObject::set_previous( PyObject* previous )
-{
-	m_previous = previous;
-}
-
-PyObject* PyTaskletObject::arguments() const
-{
-	return m_arguments;
-}
-
-void PyTaskletObject::set_arguments( PyObject* arguments )
-{
-	m_arguments = arguments;
-}
-
-bool PyTaskletObject::transfer_in_progress() const
-{
-	return m_transfer_in_progress;
-}
-
-void PyTaskletObject::set_transfer_in_progress( bool value )
-{
-	m_transfer_in_progress = value;
-}
-
-bool PyTaskletObject::transfer_is_exception() const
-{
-	return m_transfer_is_exception;
-}
-
-bool PyTaskletObject::throw_impl( PyObject* exception, PyObject* value, PyObject* tb, bool pending )
-{
-
-    set_exception_state( exception, value );
-
-    if( reinterpret_cast<PyTaskletObject*>( Scheduler::get_current_tasklet() ) == this )
-	{
-		// Continue on this tasklet and raise error immediately
-		set_python_exception_state_from_tasklet_exception_state();
-
-        return false;
-	}
-	else
-	{
-		if( pending )
-		{
-			if(m_alive)
-			{
-				Scheduler::insert_tasklet( this );
-            }
-			else
-			{
-				// If exception state is tasklet exit then handle silently
-				if( m_exception_state == m_tasklet_exit_exception )
-				{
-					clear_exception();
-
-					return true;
-				}
-				else
-				{
-					clear_exception();
-
-					PyErr_SetString( PyExc_RuntimeError, "You cannot throw to a dead tasklet." );
-
-					return false;
-				}
-            }
-			
-		}
-		else
-		{
-			if(m_blocked)
-			{
-				PyChannelObject* block_channel_store = reinterpret_cast<PyChannelObject*>( m_channel_blocked_on );
-
-				unblock();
-
-				if(run())
-				{
-					return true;
-                }
-				else
-				{
-                    // On failure return to original state
-					block( block_channel_store );
-
-					return false;
-                }
-			}
-			else
-			{
-                // Must be alive
-                if(!m_alive)
-				{
-					// If exception state is tasklet exit then handle silently
-					if( m_exception_state == m_tasklet_exit_exception )
-					{
-						clear_exception();
-
-						return true;
-					}
-					else
-					{
-						clear_exception();
-
-						PyErr_SetString( PyExc_RuntimeError, "You cannot throw to a dead tasklet" );
-
-						return false;
-					}
-
-                }
-				else if( m_exception_state == m_tasklet_exit_exception )
-				{
-					return run();
-                }
-				else
-				{
-					// If it tasklet is not blocked then raise error immediately
-					// See test test_tasklet.TestTaskletThrowImmediate.test_new
-					set_python_exception_state_from_tasklet_exception_state();
-
-                    return false;
-                }
-            }
-			
-		}
-
-		return true;
-    }
-
-}
-
-void PyTaskletObject::raise_exception()
-{
     
 }
 
-bool PyTaskletObject::is_paused()
+static PyObject*
+	Tasklet_previous_get( PyTaskletObject* self, void* closure )
 {
-	return m_paused;
-}
+	Tasklet* previous = self->m_impl->previous();
 
-PyObject* PyTaskletObject::get_tasklet_parent()
-{
-	return m_tasklet_parent;
-}
-
-void PyTaskletObject::set_parent( PyObject* parent )
-{
-	m_tasklet_parent = parent;
-}
-
-void PyTaskletObject::clear_parent()
-{
-	m_tasklet_parent = Py_None;
-}
-
-bool PyTaskletObject::tasklet_exception_raised()
-{
-	return PyErr_Occurred() == m_tasklet_exit_exception;
-}
-
-void PyTaskletObject::clear_tasklet_exception()
-{
-	if( PyErr_Occurred() == m_tasklet_exit_exception )
+	if( !previous )
 	{
-		clear_exception();
+		return Py_None;
+	}
+	else
+	{
+		PyObject* py_previous = previous->python_object();
 
-		PyErr_Clear();
+        Py_IncRef( py_previous );
+
+		return py_previous;
+    }
+
+}
+
+static PyObject*
+	Tasklet_paused_get( PyTaskletObject* self, void* closure )
+{
+	return self->m_impl->is_paused() ? Py_True : Py_False;
+}
+
+static PyGetSetDef Tasklet_getsetters[] = {
+	{ "alive", (getter)Tasklet_alive_get, NULL, "True while a tasklet is still running", NULL },
+	{ "blocked", (getter)Tasklet_blocked_get, NULL, "True when a tasklet is blocked on a channel", NULL },
+	{ "scheduled", (getter)Tasklet_scheduled_get, NULL, "True when the tasklet is either in the runnables list or blocked on a channel", NULL },
+	{ "block_trap", (getter)Tasklet_blocktrap_get, (setter)Tasklet_blocktrap_set, "True while this tasklet is within a n atomic block", NULL },
+	{ "is_current", (getter)Tasklet_iscurrent_get, NULL, "True if the tasklet is the current tasklet", NULL },
+	{ "is_main", (getter)Tasklet_ismain_get, NULL, "True if the tasklet is the main tasklet", NULL },
+	{ "thread_id", (getter)Tasklet_threadid_get, NULL, "Id of the thread the tasklet belongs to", NULL },
+	{ "next", (getter)Tasklet_next_get, NULL, "Get next tasklet in scheduler", NULL },
+	{ "prev", (getter)Tasklet_previous_get, NULL, "Get next tasklet in scheduler", NULL },
+	{ "paused", (getter)Tasklet_paused_get, NULL, "This attribute is True when a tasklet is alive, but not scheduled or blocked on a channel", NULL },
+	{ NULL } /* Sentinel */
+};
+
+static PyObject*
+	Tasklet_insert( PyTaskletObject* self, PyObject* Py_UNUSED( ignored ) )
+{
+	return self->m_impl->insert() ? Py_True : Py_False;
+}
+
+static PyObject*
+	Tasklet_remove( PyTaskletObject* self, PyObject* Py_UNUSED( ignored ) )
+{
+	return self->m_impl->remove() ? Py_True : Py_False;
+}
+
+static PyObject*
+	Tasklet_run( PyTaskletObject* self, void* closure )
+{
+	return self->m_impl->run();
+}
+
+static PyObject*
+	Tasklet_switch( PyTaskletObject* self, void* closure )
+{
+	return self->m_impl->switch_implementation();
+}
+
+static bool
+	check_exception_setup( PyObject* exception, PyObject* arguments )
+{
+	if( PyObject_IsInstance( exception, PyExc_Exception ) )
+	{
+		// If exception state is an implementation then expect no arguments
+		if( arguments != Py_None )
+		{
+			PyErr_SetString( PyExc_TypeError, "missing required argument 'exc' (pos 1)" );
+
+			return false;
+		}
+		else
+		{
+			return true;
+		}
+	}
+	else
+	{
+		if( exception == Py_None )
+		{
+			PyErr_SetString( PyExc_TypeError, "missing required argument 'exc' (pos 1)" );
+
+			return false;
+		}
+		if( !PyExceptionClass_Check( exception ) )
+		{
+			PyErr_SetString( PyExc_TypeError, "exceptions must be classes, or instances" );
+
+			return false;
+		}
+		else
+		{
+			return true;
+		}
 	}
 }
 
-void PyTaskletObject::set_reschedule( bool value )
+static PyObject*
+	Tasklet_throw( PyTaskletObject* self, PyObject* args, PyObject* kwds )
 {
-	m_reschedule = value;
+	const char* kwlist[] = { "exc", "val", "tb", "pending", NULL };
+
+    PyObject* exception = Py_None;
+	PyObject* value = Py_None;
+	PyObject* tb = Py_None; // TODO not yet used but the test passes which isn't great? 
+	bool pending = false;
+
+    if( !PyArg_ParseTupleAndKeywords( args, kwds, "|OOOp", (char**)kwlist, &exception, &value, &tb, &pending ) )
+	{
+		PyErr_SetString( PyExc_RuntimeError, "Failed to parse arguments" );
+		return nullptr;
+    }
+
+    // Test state validity
+	if( !check_exception_setup( exception, value ) )
+	{
+		return nullptr;
+    }
+
+    return self->m_impl->throw_impl( exception, value, tb, pending ) ? Py_None : nullptr;
+
 }
 
-bool PyTaskletObject::requires_reschedule()
+static PyObject*
+	Tasklet_raiseexception( PyTaskletObject* self, PyObject* args, PyObject* kwds )
 {
-	return m_reschedule;
+	PyObject* exception = Py_None;
+	PyObject* arguments = Py_None;
+
+    if( !PyArg_ParseTuple( args, "O:exception_class|O", &exception, &arguments ) )
+	{
+		PyErr_SetString( PyExc_RuntimeError, "Failed to parse arguments" );
+		return nullptr;
+	}
+
+    // Test state validity
+	if( !check_exception_setup( exception, arguments ) )
+	{
+		return nullptr;
+	}
+
+	return self->m_impl->throw_impl( exception, arguments, Py_None, false ) ? Py_None : nullptr;
 }
 
-void PyTaskletObject::set_tagged_for_removal( bool value )
+static PyObject*
+	Tasklet_kill( PyTaskletObject* self, PyObject* args, PyObject* kwds )
 {
-	m_tagged_for_removal = value;
+	const char* kwlist[] = { "pending", NULL };
+
+	bool pending = false;
+
+	if( !PyArg_ParseTupleAndKeywords( args, kwds, "|p", (char**)kwlist, &pending ) )
+	{
+		PyErr_SetString( PyExc_RuntimeError, "Failed to parse arguments" );
+		return nullptr;
+    }
+
+	if(self->m_impl->kill( pending ))
+	{
+		return Py_None;
+    }
+	else
+	{
+		return nullptr;
+    }
+
 }
+
+static PyObject*
+	Tasklet_setcontext( PyTaskletObject* self, void* closure )
+{
+	PyErr_SetString( PyExc_RuntimeError, "Tasklet_setcontext Not yet implemented" ); //TODO
+	return NULL;
+}
+
+
+static PyObject*
+    Tasklet_setup( PyObject* callable, PyObject* args, PyObject* kwargs )
+{
+	PyTaskletObject* tasklet = reinterpret_cast<PyTaskletObject*>( callable );
+	PyObject* result = NULL;
+
+    Py_XINCREF( args );
+
+	Py_XDECREF( tasklet->m_impl->arguments() );
+
+	tasklet->m_impl->set_arguments( args );
+
+    //Initialize the tasklet
+	tasklet->m_impl->initialise();
+
+    //Add to scheduler
+    tasklet->m_impl->insert();
+
+    tasklet->m_impl->set_alive( true );
+
+    Py_IncRef( callable );
+
+	return callable;
+}
+
+
+static PyMethodDef Tasklet_methods[] = {
+	{ "insert", (PyCFunction)Tasklet_insert, METH_NOARGS, "Insert a tasklet at the end of the scheduler runnables queue" },
+	{ "remove", (PyCFunction)Tasklet_remove, METH_NOARGS, "Remove a tasklet from the runnables queue" },
+	{ "run", (PyCFunction)Tasklet_run, METH_NOARGS, "run immediately*" },
+	{ "switch", (PyCFunction)Tasklet_switch, METH_NOARGS, "run immediately, pause caller" },
+	{ "throw", (PyCFunction)Tasklet_throw, METH_VARARGS | METH_KEYWORDS, "Raise an exception on the given tasklet" },
+	{ "raise_exception", (PyCFunction)Tasklet_raiseexception, METH_VARARGS, "Raise an exception on the given tasklet" },
+	{ "kill", (PyCFunction)Tasklet_kill, METH_VARARGS | METH_KEYWORDS, "Terminates the tasklet and unblocks it" },
+	{ "set_context", (PyCFunction)Tasklet_setcontext, METH_NOARGS, "Set the Context object to be used while this tasklet runs" },
+	{ NULL } /* Sentinel */
+};
+
+
+static PyTypeObject TaskletType = {
+	/* The ob_type field must be initialized in the module init function
+     * to be portable to Windows without using C++. */
+	PyVarObject_HEAD_INIT( NULL, 0 ) "scheduler.Tasklet", /*tp_name*/
+	sizeof( PyTaskletObject ), /*tp_basicsize*/
+	0, /*tp_itemsize*/
+	/* methods */
+	(destructor)Tasklet_dealloc, /*tp_dealloc*/
+	0, /*tp_vectorcall_offset*/
+	0, /*tp_getattr*/
+	0, /*tp_setattr*/
+	0, /*tp_as_async*/
+	0, /*tp_repr*/
+	0, /*tp_as_number*/
+	0, /*tp_as_sequence*/
+	0, /*tp_as_mapping*/
+	0, /*tp_hash*/
+	Tasklet_setup, /*tp_call*/
+	0, /*tp_str*/
+	0, /*tp_getattro*/
+	0, /*tp_setattro*/
+	0, /*tp_as_buffer*/
+	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /*tp_flags*/
+	PyDoc_STR( "Tasklet objects" ), /*tp_doc*/
+	0, /*tp_traverse*/
+	0, /*tp_clear*/
+	0, /*tp_richcompare*/
+	0, /*tp_weaklistoffset*/
+	0, /*tp_iter*/
+	0, /*tp_iternext*/
+	Tasklet_methods, /*tp_methods*/
+	0, /*tp_members*/
+	Tasklet_getsetters, /*tp_getset*/
+	0,
+	/* see PyInit_xx */ /*tp_base*/
+	0, /*tp_dict*/
+	0, /*tp_descr_get*/
+	0, /*tp_descr_set*/
+	0, /*tp_dictoffset*/
+	(initproc)Tasklet_init, /*tp_init*/
+	0, /*tp_alloc*/
+	PyType_GenericNew, /*tp_new*/
+	0, /*tp_free*/
+	0, /*tp_is_gc*/
+};
+
