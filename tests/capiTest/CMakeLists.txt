@@ -9,12 +9,18 @@ find_package(CcpCore REQUIRED NO_CMAKE_PATH)
 include(GoogleTest)
 
 set(SRC_FILES
+    InterpreterWithSchedulerModule.cpp
+    InterpreterWithSchedulerModule.h
     Scheduler.cpp
+    StdAfx.h
+    StdAfx.cpp
 )
 
 ccp_add_executable(SchedulerCapiTest ${SRC_FILES})
 
 target_include_directories(SchedulerCapiTest PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
+
+target_precompile_headers(SchedulerCapiTest PRIVATE StdAfx.h)
 
 target_link_libraries(SchedulerCapiTest PRIVATE GTest::GTest GTest::Main Python CcpCore Scheduler)
 

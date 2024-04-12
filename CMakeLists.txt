@@ -75,9 +75,6 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     # Build test
     add_subdirectory(tests/capiTest)
 
-    # Build test - Deprecated
-    add_subdirectory(tests/cpp)
-
     # Install rule to ensure that our runtime and linker files are in the expected, platform-specific folders
     install(
         TARGETS Scheduler
