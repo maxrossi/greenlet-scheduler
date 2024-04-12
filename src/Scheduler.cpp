@@ -97,8 +97,7 @@ extern "C"
 
     static int PyScheduler_GetRunCount()
 	{
-		PyErr_SetString( PyExc_RuntimeError, "PyScheduler_GetRunCount Not yet implemented" ); //TODO
-		return 0;
+		return Scheduler::get_tasklet_count();
 	}
     
     static PyObject* PyScheduler_GetCurrent()

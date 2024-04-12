@@ -30,15 +30,15 @@ get_target_property(GREENLET_INCLUDE_DIRECTORY
 
 set(SRC_FILES
     include/Scheduler.h
-    src/Scheduler.cpp
-    src/PyTasklet_python.cpp
+    src/PySchedulerModule.cpp
     src/PyTasklet.cpp
-    src/PyTasklet.h
-    src/PyChannel_python.cpp
+    src/Tasklet.cpp
+    src/Tasklet.h
     src/PyChannel.cpp
-    src/PyChannel.h
-    src/PyScheduler.cpp
-    src/PyScheduler.h
+    src/Channel.cpp
+    src/Channel.h
+    src/Scheduler.cpp
+    src/Scheduler.h
     src/stdafx.cpp
 )
 
@@ -71,6 +71,9 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     enable_testing()
 
     # Build test
+    add_subdirectory(tests/capiTest)
+
+    # Build test - Deprecated
     add_subdirectory(tests/cpp)
 
     # Install rule to ensure that our runtime and linker files are in the expected, platform-specific folders
