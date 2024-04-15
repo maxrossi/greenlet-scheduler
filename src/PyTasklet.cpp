@@ -8,59 +8,136 @@
 
 static PyObject* TaskletExit;
 
+static PyObject*
+	Tasklet_bind( PyTaskletObject* self, PyObject* args, PyObject* kwds )
+{
+
+	PyObject* callable = nullptr;
+	PyObject* bind_args = nullptr;
+	PyObject* bind_kw_args = nullptr;
+
+	bool args_supplied = false;
+	bool kwargs_supplied = false;
+
+	const char* keywords[] = { "callable", "args", "kwargs", NULL };
+
+	if( PyArg_ParseTupleAndKeywords( args, kwds, "|OOO:bind", (char**)keywords, &callable, &bind_args, &bind_kw_args ) )
+	{
+		if( callable == Py_None && ( bind_args == nullptr && bind_kw_args == nullptr ) )
+		{
+			auto current = reinterpret_cast<PyTaskletObject*>( ScheduleManager::get_current_tasklet()->python_object() );
+			if( self == current )
+			{
+				PyErr_SetString( PyExc_RuntimeError, "cannot unbind current tasklet" );
+				return nullptr;
+			}
+
+			if( self->m_impl->scheduled() )
+			{
+				PyErr_SetString( PyExc_RuntimeError, "cannot unbind scheduled tasklet" );
+				return nullptr;
+			}
+
+			self->m_impl->clear_callable();
+			return Py_None;
+		}
+
+		if( callable != nullptr && callable != Py_None && !PyCallable_Check( callable ) )
+		{
+			PyErr_SetString( PyExc_TypeError, "parameter must be callable" );
+			return nullptr;
+		}
+
+	    if( callable != nullptr && callable != Py_None )
+	    {
+		    Py_INCREF( callable );
+		    // Call constructor
+			self->m_impl->set_callable( callable );
+	    }
+
+		if( bind_args != nullptr )
+		{
+			if( bind_args == Py_None )
+			{
+				bind_args = Py_BuildValue( "()" );
+				if( bind_args == nullptr )
+				{
+					PyErr_SetString( PyExc_TypeError, "internal error: Could not build empty tuple in place of PyNone for bind args" );
+					return nullptr;
+				}
+			}
+			else
+			{
+				Py_INCREF( bind_args );
+			}
+
+			Py_XDECREF( self->m_impl->arguments() );
+			self->m_impl->set_arguments( bind_args );
+			args_supplied = true;
+		}
+
+		if( bind_kw_args != nullptr )
+		{
+			Py_INCREF( bind_kw_args );
+			Py_XDECREF( self->m_impl->kw_arguments() );
+			self->m_impl->set_kw_arguments( bind_kw_args );
+			kwargs_supplied = true;
+		}
+
+
+		if( args_supplied || kwargs_supplied )
+		{
+			self->m_impl->initialise();
+			self->m_impl->set_alive( true );
+		}
+
+
+		return Py_None;
+	}
+
+	return nullptr;
+}
+
 static int
 	Tasklet_init( PyTaskletObject* self, PyObject* args, PyObject* kwds )
 {
-    //Arguments passed in will be a callable function
-    //TODO this needs to be in the bind function
-	PyObject* temp;
+	self->m_impl = (Tasklet*)PyObject_Malloc( sizeof( Tasklet ) );
+	
 
-	if( PyArg_ParseTuple( args, "O:set_callable", &temp ) )
+    if( !self->m_impl )
 	{
-		if( !PyCallable_Check( temp ) )
-		{
-			PyErr_SetString( PyExc_TypeError, "parameter must be callable" );
-			return -1;
-		}
+		PyErr_SetString( PyExc_RuntimeError, "Failed to allocate memory for implementation object." );
 
-        // Allocate the memory for the implementation member
-		self->m_impl = (Tasklet*)PyObject_Malloc( sizeof( Tasklet ) );
-
-		if( !self->m_impl )
-		{
-			PyErr_SetString( PyExc_RuntimeError, "Failed to allocate memory for implementation object." );
-
-			return -1;
-		}
-
-		Py_IncRef( temp );
-		
-        // Call constructor
-		try
-		{
-			new( self->m_impl ) Tasklet( reinterpret_cast<PyObject*>( self ), temp, TaskletExit );
-        }
-		catch( const std::exception& ex)
-		{
-			PyObject_Free( self->m_impl );
-
-            PyErr_SetString( PyExc_RuntimeError, ex.what() );
-
-			return -1;
-		}
-		catch(...)
-		{
-			PyObject_Free( self->m_impl );
-
-			PyErr_SetString( PyExc_RuntimeError, "Failed to construct implementation object." );
-
-			return -1;
-        }
-
-        return 0;
+		return -1;
 	}
 
-	return -1;
+    try
+	{
+		new( self->m_impl ) Tasklet( reinterpret_cast<PyObject*>( self ), nullptr, TaskletExit );
+	}
+	catch( const std::exception& ex )
+	{
+		PyObject_Free( self->m_impl );
+
+		PyErr_SetString( PyExc_RuntimeError, ex.what() );
+
+		return -1;
+	}
+	catch( ... )
+	{
+		PyObject_Free( self->m_impl );
+
+		PyErr_SetString( PyExc_RuntimeError, "Failed to construct implementation object." );
+
+		return -1;
+	}
+
+    if (Tasklet_bind(self, args, kwds) == nullptr)
+    {
+		return -1;
+    }
+
+    return 0;
 }
 
 static void
@@ -368,6 +445,8 @@ static PyMethodDef Tasklet_methods[] = {
 	{ "raise_exception", (PyCFunction)Tasklet_raiseexception, METH_VARARGS, "Raise an exception on the given tasklet" },
 	{ "kill", (PyCFunction)Tasklet_kill, METH_VARARGS | METH_KEYWORDS, "Terminates the tasklet and unblocks it" },
 	{ "set_context", (PyCFunction)Tasklet_setcontext, METH_NOARGS, "Set the Context object to be used while this tasklet runs" },
+	{ "bind", (PyCFunction)Tasklet_bind, METH_VARARGS | METH_KEYWORDS, "binds a callable to a tasklet" },
+	{ "setup", (PyCFunction)Tasklet_setup, METH_VARARGS | METH_KEYWORDS, "inserts a tasklet into the scheduler" },
 	{ NULL } /* Sentinel */
 };
 

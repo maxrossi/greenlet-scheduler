@@ -9,6 +9,7 @@ Tasklet::Tasklet( PyObject* python_object, PyObject* callable, PyObject* tasklet
 	m_greenlet( nullptr ),
 	m_callable( callable ),
 	m_arguments( nullptr ),
+	m_kwarguments( nullptr ),
 	m_is_main( false ),
 	m_transfer_in_progress( false ),
 	m_scheduled( false ),
@@ -47,6 +48,26 @@ Tasklet::~Tasklet()
 PyObject* Tasklet::python_object()
 {
 	return m_python_object;
+}
+
+void Tasklet::clear_callable()
+{
+	Py_XDECREF( m_callable );
+	Py_XDECREF( m_arguments );
+	Py_XDECREF( m_greenlet );
+	//m_callable = nullptr;
+	//m_arguments = nullptr;
+	//m_greenlet = nullptr;
+}
+
+void Tasklet::set_kw_arguments( PyObject* kwarguments )
+{
+	m_kwarguments = kwarguments;
+}
+
+PyObject* Tasklet::kw_arguments() const
+{
+	return m_kwarguments;
 }
 
 void Tasklet::set_to_current_greenlet()
@@ -157,6 +178,9 @@ PyObject* Tasklet::switch_to( )
 	
     PyObject* ret = Py_None;
 
+    bool args_suppled = false;
+	bool kwargs_supplied = false;
+
 	if( m_arguments )
 	{
 		if( !PyTuple_Check( m_arguments ) )
@@ -165,6 +189,26 @@ PyObject* Tasklet::switch_to( )
 			return nullptr;
 		}
 
+        args_suppled = true;
+
+	}
+
+    if( m_kwarguments )
+	{
+		if( !PyDict_Check( m_kwarguments ) )
+		{
+			PyErr_SetString( PyExc_RuntimeError, "kwargs must be a dict" );
+			return nullptr;
+		}
+
+		kwargs_supplied = true;
+	}
+
+    auto main_tasklet = ScheduleManager::get_main_tasklet();
+	if( main_tasklet != this && !( kwargs_supplied || args_suppled ) )
+	{
+		PyErr_SetString( PyExc_RuntimeError, "No arguments supplied to tasklet" );
+		return nullptr;
 	}
 
     if( PyThread_get_thread_ident() != m_thread_id)
@@ -212,7 +256,7 @@ PyObject* Tasklet::switch_to( )
 
         m_first_run = false;
 
-		ret = PyGreenlet_Switch( m_greenlet, m_arguments, nullptr );
+		ret = PyGreenlet_Switch( m_greenlet, m_arguments, m_kwarguments );
 
        
 
@@ -714,4 +758,9 @@ bool Tasklet::requires_reschedule()
 void Tasklet::set_tagged_for_removal( bool value )
 {
 	m_tagged_for_removal = value;
+}
+
+void Tasklet::set_callable(PyObject* callable)
+{
+	m_callable = callable;
 }

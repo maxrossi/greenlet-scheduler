@@ -89,6 +89,10 @@ public:
 
     void set_arguments(PyObject* arguments);
 
+    PyObject* kw_arguments() const;
+
+    void set_kw_arguments( PyObject* kwarguments );
+
     bool transfer_in_progress() const;
 
     void set_transfer_in_progress( bool value );
@@ -117,6 +121,10 @@ public:
 
     void set_tagged_for_removal( bool value );
 
+    void clear_callable();
+
+    void set_callable( PyObject* callable );
+
 private:
 
     void set_exception_state( PyObject* exception, PyObject* arguments = Py_None );
@@ -134,6 +142,8 @@ private:
 	PyObject* m_callable;
 
 	PyObject* m_arguments;
+
+    PyObject* m_kwarguments;
 
     bool m_is_main;
 
