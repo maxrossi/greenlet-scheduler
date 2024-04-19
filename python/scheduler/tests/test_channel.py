@@ -219,7 +219,7 @@ class TestChannels(unittest.TestCase):
         channel = scheduler.channel()
 
         sendingTasklet = scheduler.tasklet(sender)(channel)
-        scheduler.run()
+        sendingTasklet.run()
 
         self.assertEqual(len(sentValues), 0)
         self.assertEqual(channel.balance, 1)
