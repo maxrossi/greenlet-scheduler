@@ -219,16 +219,46 @@ class TestChannels(unittest.TestCase):
         channel = scheduler.channel()
 
         sendingTasklet = scheduler.tasklet(sender)(channel)
-        sendingTasklet.run()
+        scheduler.run()
 
         self.assertEqual(len(sentValues), 0)
         self.assertEqual(channel.balance, 1)
 
         for i in range(0, 10):
-            channel.receive()
+            r = channel.receive()
 
         self.assertEqual(channel.balance, 0)
+        scheduler.run()
         self.assertEqual(sentValues, [0,1,2,3,4,5,6,7,8,9])
+
+    def testBlockedTaskletsGreenletIsNotParent(self):
+        def foo():
+            x = 1 + 1
+
+        channel = scheduler.channel()
+        receivedValues = []
+
+        def sender(chan):
+            scheduler.tasklet(foo)()
+            chan.send(1)
+            scheduler.tasklet(foo)()
+            chan.send(2)
+            scheduler.tasklet(foo)()
+            chan.send(3)
+            scheduler.tasklet(foo)()
+
+        senderTasklet = scheduler.tasklet(sender)(channel)
+        senderTasklet.run()
+        
+        # sendingTasklet
+        r = channel.receive()
+        receivedValues.append(r)
+        r = channel.receive()
+        receivedValues.append(r)
+        r = channel.receive()
+        receivedValues.append(r)
+
+        self.assertEqual(receivedValues, [1,2,3])
 
     def testBlockingSendOnMainTasklet(self):
 
@@ -296,7 +326,7 @@ class TestChannels(unittest.TestCase):
 
         self.assertEqual(10, len(completedSendTasklets))
 
-    @unittest.skip('TODO Hangs after scheduler change required for Watchdog')
+    # @unittest.skip('TODO Hangs after scheduler change required for Watchdog')
     def testPreferenceNeither(self):
         completedTasklets = []
 

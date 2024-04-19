@@ -1,5 +1,3 @@
-#include <iostream>
-
 #include "Channel.h"
 
 #include "Tasklet.h"
@@ -82,6 +80,7 @@ bool Channel::send( PyObject* args, bool exception /* = false */)
 
 			return false;
         }
+
 
         PyThread_acquire_lock( m_lock, 1 );
 
@@ -254,7 +253,6 @@ PyObject* Channel::receive()
 	auto ret = current->get_transfer_arguments();
 
 	current->clear_transfer_arguments();
-
 	return ret;
 }
 

@@ -2,7 +2,7 @@ import scheduler
 import unittest
 import sys
 import traceback
-
+import weakref
 
     
 class TestTasklets(unittest.TestCase):

@@ -4,6 +4,8 @@
 
 #include "Channel.h"
 
+#include <iostream>
+
 Tasklet::Tasklet( PyObject* python_object, PyObject* callable, PyObject* tasklet_exit_exception ) :
 	m_python_object( python_object ),
 	m_greenlet( nullptr ),
@@ -723,6 +725,7 @@ Tasklet* Tasklet::get_tasklet_parent()
 void Tasklet::set_parent( Tasklet* parent )
 {
 	m_tasklet_parent = parent;
+	PyGreenlet_SetParent( this->m_greenlet, parent->m_greenlet );
 }
 
 void Tasklet::clear_parent()
