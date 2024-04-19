@@ -4,8 +4,6 @@
 
 #include "Channel.h"
 
-#include <iostream>
-
 Tasklet::Tasklet( PyObject* python_object, PyObject* callable, PyObject* tasklet_exit_exception ) :
 	m_python_object( python_object ),
 	m_greenlet( nullptr ),

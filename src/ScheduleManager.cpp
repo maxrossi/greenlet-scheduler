@@ -260,7 +260,7 @@ PyObject* ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
 		
         // If set to true then tasklet will be decreffed at the end of the loop
         bool cleanup_current_tasklet = false;
-        
+
         // If switch returns no error or if the error raised is a tasklet exception raised error
 		if( current_tasklet->switch_to() || current_tasklet->tasklet_exception_raised() )
 		{
@@ -313,6 +313,7 @@ PyObject* ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
 				{
 					//Special case, we are here because tasklet scheduled itself
 					insert_tasklet( current_tasklet );
+
 					current_tasklet->set_reschedule( false );
 				}
 
@@ -337,6 +338,7 @@ PyObject* ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
                 else
                 {
 					Tasklet* call_parent = active_tasklet->get_tasklet_parent();
+
 					if( call_parent->switch_to() )
 					{
 						// Update current tasklet
@@ -374,7 +376,6 @@ PyObject* ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
 	}
 
     Py_IncRef( Py_None );
-
 
 	return Py_None;
 }
