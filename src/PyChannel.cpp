@@ -1,5 +1,7 @@
 #include "Channel.h"
 
+#include "Tasklet.h"
+
 #include "PyChannel.h"
 
 #include <new>
@@ -97,8 +99,20 @@ static PyObject*
 static PyObject*
 	Channel_queue_get( PyChannelObject* self, void* closure )
 {
-	PyErr_SetString( PyExc_RuntimeError, "Channel_queue_get Not yet implemented" ); //TODO
-	return NULL;
+	Tasklet* front = self->m_impl->blocked_queue_front();
+
+    if (!front)
+    {
+		return Py_None;
+    }
+    else
+    {
+		PyObject* front_of_queue = front->python_object();
+
+        Py_IncRef( front_of_queue );
+
+		return front_of_queue;
+    }
 }
 
 static PyGetSetDef Channel_getsetters[] = {

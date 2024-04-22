@@ -53,6 +53,8 @@ public:
 
     void set_preference( int value );
 
+    Tasklet* blocked_queue_front();
+
 private:
 
     void run_channel_callback( Channel* channel, Tasklet* tasklet, bool sending, bool will_block ) const;

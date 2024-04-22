@@ -410,7 +410,7 @@ static PyObject*
 }
 
 
-static PyObject*
+static int
     Tasklet_setup( PyObject* callable, PyObject* args, PyObject* kwargs )
 {
 	PyTaskletObject* tasklet = reinterpret_cast<PyTaskletObject*>( callable );
@@ -425,14 +425,28 @@ static PyObject*
     //Initialize the tasklet
 	tasklet->m_impl->initialise();
 
+    //Mark alive
+    tasklet->m_impl->set_alive( true );
+
     //Add to scheduler
     tasklet->m_impl->insert();
 
-    tasklet->m_impl->set_alive( true );
+	return 0;
+}
 
-    Py_IncRef( callable );
+static PyObject*
+	Tasklet_call( PyObject* callable, PyObject* args, PyObject* kwargs )
+{
+	if(Tasklet_setup( callable, args, kwargs ) == -1)
+	{
+		return nullptr;
+    }
+	else
+	{
+		Py_IncRef( callable );
 
-	return callable;
+		return callable;
+	}
 }
 
 
@@ -468,7 +482,7 @@ static PyTypeObject TaskletType = {
 	0, /*tp_as_sequence*/
 	0, /*tp_as_mapping*/
 	0, /*tp_hash*/
-	Tasklet_setup, /*tp_call*/
+	Tasklet_call, /*tp_call*/
 	0, /*tp_str*/
 	0, /*tp_getattro*/
 	0, /*tp_setattro*/

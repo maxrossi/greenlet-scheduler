@@ -28,7 +28,8 @@ Tasklet::Tasklet( PyObject* python_object, PyObject* callable, PyObject* tasklet
 	m_paused(false),
 	m_tasklet_parent( nullptr ),
 	m_first_run(true),
-	m_reschedule(false)
+	m_reschedule(false),
+	m_tagged_for_removal(false)
 {
 	
 }
@@ -55,9 +56,6 @@ void Tasklet::clear_callable()
 	Py_XDECREF( m_callable );
 	Py_XDECREF( m_arguments );
 	Py_XDECREF( m_greenlet );
-	//m_callable = nullptr;
-	//m_arguments = nullptr;
-	//m_greenlet = nullptr;
 }
 
 void Tasklet::set_kw_arguments( PyObject* kwarguments )
@@ -113,7 +111,7 @@ bool Tasklet::initialise()
 
 bool Tasklet::insert()
 {
-	if(!m_blocked)
+	if(!m_blocked && m_alive)
 	{
 		ScheduleManager::insert_tasklet( this );
 
@@ -165,7 +163,7 @@ PyObject* Tasklet::switch_implementation()
 	}
 	else
 	{
-		//TODO - Needs remove implemented in order to be able to implement this
+		//TODO - Needs remove implemented in order to be able to implement this - Update: Remove now in
 	}
 
 	return Py_None;

@@ -13,10 +13,6 @@ def block_trap(trap=True):
     finally:
         c.block_trap = old
     
-    
-    
-    
-    
 class TestChannels(unittest.TestCase):
 
     def setUp(self):

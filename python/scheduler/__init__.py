@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import os
-
 __all__ = [
     '_C_API',
     'current'
@@ -26,30 +24,30 @@ __all__ = [
     'TaskletExit'
 ]
 
-flavor = os.environ.get("BUILDFLAVOR", "release")
-
-if flavor == 'release':
-    import _scheduler
-    from _scheduler import _C_API
-elif flavor == 'debug':
-    import _scheduler_debug as _scheduler
-    from _scheduler_debug import _C_API
-elif flavor == 'trinitydev':
-    import _scheduler_trinitydev as _scheduler
-    from _scheduler_trinitydev import _C_API
-elif flavor == 'internal':
-    import _scheduler_internal as _scheduler
-    from _scheduler_internal import _C_API
-else:
-    raise RuntimeError("Unknown build flavor: {}".format(flavor))
-
-
-
+try:
+    import blue
+    _scheduler = blue.LoadExtension("_scheduler")
+except ImportError:
+    import os
+    flavor = os.environ.get("BUILDFLAVOR", "release")
+    if flavor == 'release':
+        import _scheduler
+    elif flavor == 'debug':
+        import _scheduler_debug as _scheduler
+    elif flavor == 'trinitydev':
+        import _scheduler_trinitydev as _scheduler
+    elif flavor == 'internal':
+        import _scheduler_internal as _scheduler
+    else:
+        _scheduler = None
+        raise RuntimeError("Unknown build flavor: {}".format(flavor))
+        
 # Expose main scheduler methods and members at base level of extension
+_C_API = _scheduler._C_API
 getcurrent = _scheduler.getcurrent
 getmain = _scheduler.getmain
-tasklet = _scheduler.Tasklet
-channel = _scheduler.Channel
+tasklet = _scheduler.tasklet
+channel = _scheduler.channel
 getruncount = _scheduler.getruncount
 schedule = _scheduler.schedule
 schedule_remove = _scheduler.schedule_remove
@@ -64,6 +62,4 @@ switch_trap = _scheduler.switch_trap
 enable_softswitch = _scheduler.enable_softswitch
 TaskletExit = _scheduler.TaskletExit
 
-# Attributes
-main = getmain()
-current = None # TODO so far not updated
+#NOTE: Attributes main and current are not currently supported

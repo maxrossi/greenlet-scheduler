@@ -288,7 +288,7 @@ void Channel::remove_tasklet_from_blocked( Tasklet* tasklet )
 
 void Channel::run_channel_callback( Channel* channel, Tasklet* tasklet, bool sending, bool will_block ) const
 {
-	if( s_channel_callback != Py_None )
+	if( s_channel_callback )
 	{
 		PyObject* args = PyTuple_New( 4 ); // TODO don't create this each time
 
@@ -366,4 +366,11 @@ int Channel::preference() const
 void Channel::set_preference( int value )
 {
 	m_preference = value;
+}
+
+Tasklet* Channel::blocked_queue_front()
+{
+    // TODO: This requires channels to use next and prev approach to blocked queues
+	PyErr_SetString( PyExc_RuntimeError, "blocked_queue_front Not yet implemented" );
+	return nullptr;
 }
