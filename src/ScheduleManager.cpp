@@ -195,6 +195,7 @@ bool ScheduleManager::yield()
 		Tasklet* current_tasklet = ScheduleManager::get_current_tasklet();
 
 		Tasklet* parent_tasklet = current_tasklet->get_tasklet_parent();
+
         if (!parent_tasklet->switch_to())
 		{
 			return false;
@@ -244,6 +245,7 @@ PyObject* ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
     while( ( base_tasklet->next() != nullptr ) && ( !run_complete ) )
 	{
 		Tasklet* current_tasklet = base_tasklet->next();
+		bool valid_next_tasklet_clobbered_by_reschedule = false;
 
         current_scheduler->run_scheduler_callback( current_tasklet->previous(), current_tasklet->next() );
 
@@ -261,10 +263,10 @@ PyObject* ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
         // If set to true then tasklet will be decreffed at the end of the loop
         bool cleanup_current_tasklet = false;
 
+
         // If switch returns no error or if the error raised is a tasklet exception raised error
 		if( current_tasklet->switch_to() || current_tasklet->tasklet_exception_raised() )
 		{
-            
 			//Clear possible tasklet exception to capture
 			current_tasklet->clear_tasklet_exception();
 
@@ -312,8 +314,11 @@ PyObject* ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
 				if( current_tasklet->requires_reschedule() )
 				{
 					//Special case, we are here because tasklet scheduled itself
+                    if (current_tasklet->next() != nullptr)
+                    {
+						valid_next_tasklet_clobbered_by_reschedule = true;
+                    }
 					insert_tasklet( current_tasklet );
-
 					current_tasklet->set_reschedule( false );
 				}
 
@@ -363,7 +368,7 @@ PyObject* ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
         }
 
         // Tasklets created during this run are not run in this loop
-		if( current_tasklet == end_tasklet || ( current_tasklet->next() == nullptr && end_tasklet == nullptr ) )
+		if( current_tasklet == end_tasklet || ( current_tasklet->next() == nullptr && end_tasklet == nullptr && !valid_next_tasklet_clobbered_by_reschedule ) )
 		{
 			run_complete = true;
 		}
