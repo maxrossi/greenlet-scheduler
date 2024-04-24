@@ -9,6 +9,8 @@
 static int
 	Channel_init( PyChannelObject* self, PyObject* args, PyObject* kwds )
 {
+	self->m_weakref_list = nullptr;
+
 	// Allocate the memory for the implementation member
 	self->m_impl = (Channel*)PyObject_Malloc( sizeof( Channel ) );
 
@@ -51,6 +53,10 @@ static void
 	self->m_impl->~Channel();
 
     PyObject_Free( self->m_impl );
+
+    // Handle weakrefs
+	if( self->m_weakref_list != nullptr )
+		PyObject_ClearWeakRefs( (PyObject*)self );
 
     Py_TYPE( self )->tp_free( (PyObject*)self );
 }
@@ -213,7 +219,7 @@ static PyTypeObject ChannelType = {
 	0, /*tp_traverse*/
 	0, /*tp_clear*/
 	0, /*tp_richcompare*/
-	0, /*tp_weaklistoffset*/
+	offsetof( PyChannelObject, m_weakref_list ), /*tp_weaklistoffset*/
 	(getiterfunc)Channel_iter, /*tp_iter*/
 	(iternextfunc)Channel_next, /*tp_iternext*/
 	Channel_methods, /*tp_methods*/
