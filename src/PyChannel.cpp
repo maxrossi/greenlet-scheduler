@@ -159,6 +159,26 @@ static PyObject*
 	return Py_None;
 }
 
+static PyObject*
+	Channel_iter( PyChannelObject* self )
+{
+	Py_INCREF( self ); 
+
+	return reinterpret_cast<PyObject*>(self);
+}
+
+static PyObject*
+	Channel_next( PyChannelObject* self )
+{
+    // Run receive until unblocked
+    // Note: behaviour is slightly different to stackless but probably better
+    // At end of iteration there will be an error due to DEADLOCK
+    // This will return a nullptr
+    // This null then returned here will turn this into a StopIteration error
+    // Which makes more sense
+	return Channel_receive( self, nullptr );
+}
+
 static PyMethodDef Channel_methods[] = {
 	{ "send", (PyCFunction)Channel_send, METH_VARARGS, "Send a value over the channel" },
 	{ "receive", (PyCFunction)Channel_receive, METH_NOARGS, "Receive a value over the channel" },
@@ -194,8 +214,8 @@ static PyTypeObject ChannelType = {
 	0, /*tp_clear*/
 	0, /*tp_richcompare*/
 	0, /*tp_weaklistoffset*/
-	0, /*tp_iter*/
-	0, /*tp_iternext*/
+	(getiterfunc)Channel_iter, /*tp_iter*/
+	(iternextfunc)Channel_next, /*tp_iternext*/
 	Channel_methods, /*tp_methods*/
 	0, /*tp_members*/
 	Channel_getsetters, /*tp_getset*/
