@@ -275,6 +275,7 @@ void Channel::remove_tasklet_from_blocked( Tasklet* tasklet )
 	if (it != blocked_on_send.end())
 	{
 		blocked_on_send.erase(it);
+		m_balance--;
 		return;
 	}
 
@@ -282,6 +283,7 @@ void Channel::remove_tasklet_from_blocked( Tasklet* tasklet )
 	if (it != blocked_on_receive.end())
 	{
 		blocked_on_receive.erase(it);
+		m_balance++;
 		return;
 	}
 }
