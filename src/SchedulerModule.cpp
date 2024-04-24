@@ -11,141 +11,7 @@
 #include "PyTasklet.cpp"
 #include "PyChannel.cpp"
 
-/*
-C Interface
-*/
-extern "C"
-{
-	// Tasklet functions
-	static int PyTasklet_Setup( PyTaskletObject*, PyObject* args, PyObject* kwds )
-	{
-		PyErr_SetString( PyExc_RuntimeError, "PyTasklet_Setup Not yet implemented" ); //TODO
-		return 0;
-	}
 
-    static int PyTasklet_Insert( PyTaskletObject* )
-	{
-		PyErr_SetString( PyExc_RuntimeError, "PyTasklet_Insert Not yet implemented" ); //TODO
-		return 0;
-	}
-
-    static int PyTasklet_GetBlockTrap( PyTaskletObject* )
-	{
-		PyErr_SetString( PyExc_RuntimeError, "PyTasklet_GetBlockTrap Not yet implemented" ); //TODO
-		return 0;
-	}
-
-    static void PyTasklet_SetBlockTrap( PyTaskletObject*, int )
-	{
-		PyErr_SetString( PyExc_RuntimeError, "PyTasklet_SetBlockTrap Not yet implemented" ); //TODO
-	}
-
-    static int PyTasklet_IsMain( PyTaskletObject* )
-	{
-		PyErr_SetString( PyExc_RuntimeError, "PyTasklet_IsMain Not yet implemented" ); //TODO
-		return 0;
-	}
-        
-    // Channel functions
-	static PyChannelObject* PyChannel_New( PyTypeObject* )
-	{
-		PyErr_SetString( PyExc_RuntimeError, "PyChannel_New Not yet implemented" ); //TODO
-		return NULL;
-	}
-
-    static int PyChannel_Send( PyChannelObject*, PyObject* )
-	{
-		PyErr_SetString( PyExc_RuntimeError, "PyChannel_Send Not yet implemented" ); //TODO
-		return 0;
-	}
-
-    static PyObject* PyChannel_Receive( PyChannelObject* )
-	{
-		PyErr_SetString( PyExc_RuntimeError, "PyChannel_Receive Not yet implemented" ); //TODO
-		return NULL;
-	}
-
-    static int PyChannel_SendException( PyChannelObject*, PyObject*, PyObject* )
-	{
-		PyErr_SetString( PyExc_RuntimeError, "PyChannel_SendException Not yet implemented" ); //TODO
-		return 0;
-	}
-
-    static PyObject* PyChannel_GetQueue( PyChannelObject* )
-	{
-		PyErr_SetString( PyExc_RuntimeError, "PyChannel_GetQueue Not yet implemented" ); //TODO
-		return NULL;
-	}
-
-    static void PyChannel_SetPreference( PyChannelObject*, int )
-	{
-		PyErr_SetString( PyExc_RuntimeError, "PyChannel_SetPreference Not yet implemented" ); //TODO
-	}
-
-    static int PyChannel_GetBalance( PyChannelObject* )
-	{
-		PyErr_SetString( PyExc_RuntimeError, "PyChannel_GetBalance Not yet implemented" ); //TODO
-		return 0;
-	}
-	
-	// Scheduler functions
-	static PyObject* PyScheduler_Schedule( PyObject*, int )
-	{
-		PyErr_SetString( PyExc_RuntimeError, "PyScheduler_Schedule Not yet implemented" ); //TODO
-		return NULL;
-	}
-
-    static int PyScheduler_GetRunCount()
-	{
-		return ScheduleManager::get_tasklet_count();
-	}
-    
-    static PyObject* PyScheduler_GetCurrent()
-	{
-		return ScheduleManager::get_current_tasklet()->python_object();
-	}
-
-    // Note: flags used in game are PY_WATCHDOG_SOFT | PY_WATCHDOG_IGNORE_NESTING | PY_WATCHDOG_TOTALTIMEOUT
-    // We can in theory remove the flags from proto and always assume these flags, we don't need to support
-    // all combinations.
-    // Initially left in just to keep api the same during the first stubbing out.
-	static PyObject* PyScheduler_RunWatchdogEx( long, int )
-	{
-		PyErr_SetString( PyExc_RuntimeError, "PyScheduler_RunWatchdogEx Not yet implemented" ); //TODO
-		return NULL;
-	}
-
-    static PyObject* PyScheduler_SetChannelCallback( PyObject*, PyObject* )
-    {
-		PyErr_SetString( PyExc_RuntimeError, "PyScheduler_SetChannelCallback Not yet implemented" ); //TODO
-		return NULL;
-    }
-
-    static PyObject* PyScheduler_GetChannelCallback( PyObject*, PyObject* )
-	{
-		PyErr_SetString( PyExc_RuntimeError, "PyScheduler_GetChannelCallback Not yet implemented" ); //TODO
-		return NULL;
-	}
-
-    static PyObject* PyScheduler_SetScheduleCallback( PyObject*, PyObject* )
-    {
-		PyErr_SetString( PyExc_RuntimeError, "PyScheduler_SetScheduleCallback Not yet implemented" ); //TODO
-		return NULL;
-    }
-
-    static void PyScheduler_SetScheduleFastCallback( schedule_hook_func func )
-	{
-		PyErr_SetString( PyExc_RuntimeError, "PyScheduler_SetScheduleFastCallback Not yet implemented" ); //TODO
-		return;
-	}
-
-    static PyObject* PyScheduler_CallMethod_Main( PyObject* o, char* name, char* format, ... )
-    {
-		PyErr_SetString( PyExc_RuntimeError, "PyScheduler_CallMethod_Main Not yet implemented" ); //TODO
-		return NULL;
-    }
-
-}	// extern C
 
 // End C API
 static PyObject*
@@ -168,7 +34,7 @@ static PyObject*
 
 		Channel::set_channel_callback(temp);
 
-		return previous_callback;
+		return previous_callback ? previous_callback : Py_None;
 	}
 
 	return nullptr;
@@ -289,6 +155,8 @@ static PyObject*
 
 		PyObject* ret = current_scheduler->run_n_tasklets( number_of_tasklets );
 
+        Py_IncRef( ret );
+
 		return ret;
 	}
 	else
@@ -319,7 +187,7 @@ static PyObject*
 
         ScheduleManager::set_scheduler_callback( temp );
 
-		return previous_callback;
+		return previous_callback ? previous_callback : Py_None;
 	}
 
 	return nullptr;
@@ -409,7 +277,7 @@ static PyObject*
 
 	PyObject* dict = PyModule_GetDict( self );
 
-	PyObject* tasklet_type = PyDict_GetItemString( dict, "Tasklet" ); //Weak Linkage TODO
+	PyObject* tasklet_type = PyDict_GetItemString( dict, "tasklet" ); //Weak Linkage TODO
 
 	PyObject* scheduler_callable = PyDict_GetItemString( dict, "run" ); //Weak Linkage TODO
 
@@ -435,6 +303,210 @@ void module_destructor( void* )
     // Cleanup
 	Py_XDECREF( ScheduleManager::s_create_scheduler_tasklet_callable );
 }
+
+
+
+/*
+C Interface
+*/
+extern "C"
+{
+	// Tasklet functions
+	static PyTaskletObject* PyTasklet_New( PyTypeObject* type, PyObject* args )
+	{
+		PyObject* scheduler_tasklet = PyObject_CallObject( reinterpret_cast<PyObject*>( type ), args );
+
+		return reinterpret_cast<PyTaskletObject*>( scheduler_tasklet );
+	}
+
+	static int PyTasklet_Setup( PyTaskletObject* tasklet, PyObject* args, PyObject* kwds )
+	{
+		return Tasklet_setup( reinterpret_cast<PyObject*>( tasklet ), args, kwds );
+	}
+
+	static int PyTasklet_Insert( PyTaskletObject* self )
+	{
+		return self->m_impl->insert() ? 0 : -1;
+	}
+
+	static int PyTasklet_GetBlockTrap( PyTaskletObject* self )
+	{
+		return self->m_impl->blocktrap() ? 1 : 0;
+	}
+
+	static void PyTasklet_SetBlockTrap( PyTaskletObject* task, int value )
+	{
+		task->m_impl->set_blocktrap( value );
+	}
+
+	static int PyTasklet_IsMain( PyTaskletObject* tasklet )
+	{
+		return tasklet->m_impl->is_main() ? 1 : 0;
+	}
+
+    static int PyTasklet_Check( PyObject* obj )
+	{
+		return obj && PyObject_TypeCheck( obj, &TaskletType );
+	}
+
+    static int PyTasklet_Alive( PyTaskletObject* tasklet )
+	{
+		return tasklet->m_impl->alive() ? 1 : 0;
+	}
+
+    static int PyTasklet_Kill( PyTaskletObject* tasklet )
+	{
+		return tasklet->m_impl->kill() ? 0 : 1;
+	}
+
+	// Channel functions
+	static PyChannelObject* PyChannel_New( PyTypeObject* type )
+	{
+		PyObject* scheduler_channel = PyObject_CallObject( reinterpret_cast<PyObject*>(type), nullptr );
+
+		return reinterpret_cast < PyChannelObject*>(scheduler_channel);
+	}
+
+	static int PyChannel_Send( PyChannelObject* self, PyObject* arg )
+	{
+		return self->m_impl->send( arg ) ? 0 : -1;
+	}
+
+	static PyObject* PyChannel_Receive( PyChannelObject* self )
+	{
+		return self->m_impl->receive();
+	}
+
+	static int PyChannel_SendException( PyChannelObject* self, PyObject* klass, PyObject* value )
+	{
+		PyObject* args = PyTuple_New( 2 );
+
+		PyTuple_SetItem( args, 0, klass );
+
+		PyTuple_SetItem( args, 1, value );
+
+		bool retval = self->m_impl->send( args, true );
+
+        Py_DecRef( args );
+
+		return retval;
+	}
+
+	static PyObject* PyChannel_GetQueue( PyChannelObject* self )
+	{
+		return Channel_queue_get( self, nullptr );
+	}
+
+	static void PyChannel_SetPreference( PyChannelObject* self, int val )
+	{
+		int sanitised_value = val;
+
+        if (val < -1)
+        {
+			sanitised_value = -1;
+        }
+		else if(val > 1)
+        {
+			sanitised_value = 1;
+        }
+
+		self->m_impl->set_preference( sanitised_value );
+	}
+
+    static int PyChannel_GetPreference( PyChannelObject* self )
+	{
+		return self->m_impl->preference( );
+	}
+
+	static int PyChannel_GetBalance( PyChannelObject* self )
+	{
+		return self->m_impl->balance();
+	}
+
+    static int PyChannel_Check( PyObject* obj )
+	{
+		return obj && PyObject_TypeCheck( obj, &ChannelType );
+	}
+
+	// Scheduler functions
+	static PyObject* PyScheduler_Schedule( PyObject* retval, int remove )
+	{
+		if(remove == 0)
+		{
+			return Scheduler_schedule( nullptr, nullptr );
+        }
+		else
+		{
+			return Scheduler_scheduleremove( nullptr, nullptr );
+        }
+	}
+
+	static int PyScheduler_GetRunCount()
+	{
+		return ScheduleManager::get_tasklet_count();
+	}
+
+	static PyObject* PyScheduler_GetCurrent()
+	{
+		return ScheduleManager::get_current_tasklet()->python_object();
+	}
+
+	// Note: flags used in game are PY_WATCHDOG_SOFT | PY_WATCHDOG_IGNORE_NESTING | PY_WATCHDOG_TOTALTIMEOUT
+	// Implementation treats these flags as default behaviour
+    // flags field is deprecated. Left in for stub compatibility
+	static PyObject* PyScheduler_RunWatchdogEx( long long timeout, int flags )
+	{
+		return ScheduleManager::run_tasklets_for_time( timeout );
+	}
+
+    static PyObject* PyScheduler_RunNTasklets( int number_of_tasklets_to_run )
+	{
+		return ScheduleManager::run_n_tasklets( number_of_tasklets_to_run );
+	}
+
+	static int PyScheduler_SetChannelCallback( PyObject* callable )
+	{
+		if( callable && !PyCallable_Check( callable ) )
+		{
+			return -1;
+		}
+
+        Channel::set_channel_callback( callable );
+
+		return 0;
+	}
+
+	static PyObject* PyScheduler_GetChannelCallback()
+	{
+		PyObject* channel_callback = Channel::channel_callback();
+
+        return channel_callback;
+        
+	}
+
+	static int PyScheduler_SetScheduleCallback( PyObject* callable )
+	{
+        if (callable && !PyCallable_Check(callable))
+        {
+			return -1;
+        }
+
+		ScheduleManager* current_scheduler = ScheduleManager::get_scheduler();
+
+		current_scheduler->set_scheduler_callback( callable );
+
+		return 0;
+	}
+
+	static void PyScheduler_SetScheduleFastCallback( schedule_hook_func func )
+	{
+		ScheduleManager* current_scheduler = ScheduleManager::get_scheduler();
+
+		current_scheduler->set_scheduler_fast_callback( func );
+	}
+
+} // extern C
+
 
 static PyMethodDef SchedulerMethods[] = {
 	{ "set_channel_callback", set_channel_callback, METH_VARARGS, "Install a global channel callback" },
@@ -506,7 +578,7 @@ PyMODINIT_FUNC
         return NULL;
 
 	Py_INCREF( &TaskletType );
-	if( PyModule_AddObject( m, "Tasklet", (PyObject*)&TaskletType ) < 0 )
+	if( PyModule_AddObject( m, "tasklet", (PyObject*)&TaskletType ) < 0 )
 	{
 		Py_DECREF( &TaskletType );
 		Py_DECREF( m );
@@ -514,7 +586,7 @@ PyMODINIT_FUNC
 	}
 
 	Py_INCREF( &ChannelType );
-	if( PyModule_AddObject( m, "Channel", (PyObject*)&ChannelType ) < 0 )
+	if( PyModule_AddObject( m, "channel", (PyObject*)&ChannelType ) < 0 )
 	{
 		Py_DECREF( &TaskletType );
 		Py_DECREF( &ChannelType );
@@ -523,8 +595,8 @@ PyMODINIT_FUNC
 	}
 
 	//Exceptions
-	auto exitExceptionString = CONCATENATE_TO_STRING(_scheduler, CCP_BUILD_FLAVOR) + std::string(".TaskletExit");
-    TaskletExit = PyErr_NewException( exitExceptionString.c_str(), NULL, NULL );
+	auto exit_exception_string = CONCATENATE_TO_STRING(_scheduler, CCP_BUILD_FLAVOR) + std::string(".TaskletExit");
+	TaskletExit = PyErr_NewException( exit_exception_string.c_str(), NULL, NULL );
 	Py_XINCREF( TaskletExit );
 	if( PyModule_AddObject( m, "TaskletExit", TaskletExit ) < 0 )
 	{
@@ -537,7 +609,7 @@ PyMODINIT_FUNC
     }
 
     // Import Greenlet
-	PyObject* greenlet_module = PyImport_ImportModule( "greenlet" );
+	PyObject* greenlet_module = PyImport_ImportModule( "greenlet" );    //TODO cleanup
 
     if( !greenlet_module )
 	{
@@ -560,11 +632,15 @@ PyMODINIT_FUNC
 	api.TaskletExit = &TaskletExit;
     
     // Tasklet Functions
+	api.PyTasklet_New = PyTasklet_New;
     api.PyTasklet_Setup = PyTasklet_Setup;
 	api.PyTasklet_Insert = PyTasklet_Insert;
 	api.PyTasklet_GetBlockTrap = PyTasklet_GetBlockTrap;
 	api.PyTasklet_SetBlockTrap = PyTasklet_SetBlockTrap;
 	api.PyTasklet_IsMain = PyTasklet_IsMain;
+	api.PyTasklet_Check = PyTasklet_Check;
+	api.PyTasklet_Alive = PyTasklet_Alive;
+	api.PyTasklet_Kill = PyTasklet_Kill;
 
     // Channel Functions
 	api.PyChannel_New = PyChannel_New;
@@ -572,21 +648,24 @@ PyMODINIT_FUNC
 	api.PyChannel_Receive = PyChannel_Receive;
 	api.PyChannel_SendException = PyChannel_SendException;
 	api.PyChannel_GetQueue = PyChannel_GetQueue;
+	api.PyChannel_GetPreference = PyChannel_GetPreference;
 	api.PyChannel_SetPreference = PyChannel_SetPreference;
 	api.PyChannel_GetBalance = PyChannel_GetBalance;
+	api.PyChannel_Check = PyChannel_Check;
 
     //Scheduler Functions
 	api.PyScheduler_Schedule = PyScheduler_Schedule;
 	api.PyScheduler_GetRunCount = PyScheduler_GetRunCount;
 	api.PyScheduler_GetCurrent = PyScheduler_GetCurrent;
 	api.PyScheduler_RunWatchdogEx = PyScheduler_RunWatchdogEx;
+	api.PyScheduler_RunNTasklets = PyScheduler_RunNTasklets;
 	api.PyScheduler_SetChannelCallback = PyScheduler_SetChannelCallback;
 	api.PyScheduler_GetChannelCallback = PyScheduler_GetChannelCallback;
 	api.PyScheduler_SetScheduleCallback = PyScheduler_SetScheduleCallback;
 	api.PyScheduler_SetScheduleFastCallback = PyScheduler_SetScheduleFastCallback;
-	api.PyScheduler_CallMethod_Main = PyScheduler_CallMethod_Main;
 
 	/* Create a Capsule containing the API pointer array's address */
+	//c_api_object = PyCapsule_New( (void*)&api, "_scheduler_debug._C_API", NULL );
 	c_api_object = PyCapsule_New( (void*)&api, "scheduler._C_API", NULL );
 
 	if( PyModule_AddObject( m, "_C_API", c_api_object ) < 0 )
@@ -606,7 +685,13 @@ PyMODINIT_FUNC
 	ScheduleManager::s_create_scheduler_tasklet_callable = create_scheduler_tasklet_callable;
 	
     //Setup initial channel callback static
-	Channel::set_channel_callback(Py_None);
+	Channel::set_channel_callback(nullptr);
 
+    //Setup scheduler attributes
+	PyObject* main = Scheduler_getmain( m, nullptr );
+	PyObject_SetAttrString( m, "main", main );
+	PyObject_SetAttrString( m, "current", main );
+	ScheduleManager::s_scheduler_module = m;
+  
     return m;
 }

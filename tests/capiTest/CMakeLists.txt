@@ -1,10 +1,9 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.18)
 
 project(SchedulerCapiTest)
 
 find_package(Python REQUIRED NO_CMAKE_PATH)
 find_package(GTest REQUIRED NO_CMAKE_PATH)
-find_package(CcpCore REQUIRED NO_CMAKE_PATH)
 
 include(GoogleTest)
 
@@ -12,6 +11,8 @@ set(SRC_FILES
     InterpreterWithSchedulerModule.cpp
     InterpreterWithSchedulerModule.h
     Scheduler.cpp
+    Channel.cpp
+    Tasklet.cpp
     StdAfx.h
     StdAfx.cpp
 )
@@ -20,14 +21,34 @@ ccp_add_executable(SchedulerCapiTest ${SRC_FILES})
 
 target_include_directories(SchedulerCapiTest PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
 
+target_include_directories(SchedulerCapiTest PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+
 target_precompile_headers(SchedulerCapiTest PRIVATE StdAfx.h)
 
-target_link_libraries(SchedulerCapiTest PRIVATE GTest::GTest GTest::Main Python CcpCore Scheduler)
+target_link_libraries(SchedulerCapiTest PRIVATE GTest::GTest GTest::Main Python Scheduler)
 
-# The modules have been supplied separately as passing together as a PYTHONPATH encounters problems with separators
-gtest_discover_tests(SchedulerCapiTest capiTests PROPERTIES ENVIRONMENT "SCHEDULER_MODULE_PATH=${CMAKE_SOURCE_DIR}/python/"
-                                                            ENVIRONMENT "SCHEDULER_CEXTENSION_MODULE_PATH=$<TARGET_FILE_DIR:Scheduler>"
-                                                            ENVIRONMENT "STDLIB_PATH=${BRANCH_ROOT_DIR}/carbon/common/stdlib/"
-                                                            ENVIRONMENT "GREENLET_CEXTENSION_MODULE_PATH=${Greenlet_ROOT}/${CCP_VENDOR_BIN_PATH}"
-                                                            ENVIRONMENT "GREENLET_MODULE_PATH=${Greenlet_ROOT}/python"
-                                                            ENVIRONMENT "BUILDFLAVOR=$<LOWER_CASE:$<CONFIG>>")
+# Generate paths Include for each config
+# Allows for easy use inside IDE
+file (GENERATE
+    OUTPUT "PackagePaths$<LOWER_CASE:$<IF:$<CONFIG:Release>,,_$<CONFIG>>>.h" 
+    CONTENT 
+"
+#pragma once
+#include <string>
+std::wstring SCHEDULER_MODULE_PATH = L\"${CMAKE_SOURCE_DIR}/python/\";
+std::wstring SCHEDULER_CEXTENSION_MODULE_PATH = L\"$<TARGET_FILE_DIR:Scheduler>\";
+std::wstring STDLIB_PATH = L\"${BRANCH_ROOT_DIR}/carbon/common/stdlib/\";
+std::wstring GREENLET_CEXTENSION_MODULE_PATH = L\"${Greenlet_ROOT}/${CCP_VENDOR_BIN_PATH}\";
+std::wstring GREENLET_MODULE_PATH = L\"${Greenlet_ROOT}/python\";
+std::string BUILDFLAVOR = \"BUILDFLAVOR=$<LOWER_CASE:$<CONFIG>>\";
+"
+)
+
+# Copy the python dll to target build directory
+add_custom_command(
+  TARGET SchedulerCapiTest POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy 
+    ${Python_ROOT}/${CCP_VENDOR_BIN_PATH}/python312.dll 
+    $<TARGET_FILE_DIR:SchedulerCapiTest>)
+
+gtest_discover_tests(SchedulerCapiTest capiTests)

@@ -323,6 +323,7 @@ class TestSwitchTrap(unittest.TestCase):
             self.assertRaisesRegex(RuntimeError, "switch_trap", c.send, None)
         c.send(None)
     
+    @unittest.skip('Not currently part of required stub, send_exception is implemented')
     def test_send_throw(self):
         c = scheduler.channel()
         def f():
@@ -331,6 +332,15 @@ class TestSwitchTrap(unittest.TestCase):
         with self.switch_trap:
             self.assertRaisesRegex(RuntimeError, "switch_trap", c.send_throw, NotImplementedError)
         c.send_throw(NotImplementedError)
+
+    def test_send_exception(self):
+        c = scheduler.channel()
+        def f():
+            self.assertRaises(NotImplementedError, c.receive)
+        s = scheduler.tasklet(f)()
+        with self.switch_trap:
+            self.assertRaisesRegex(RuntimeError, "switch_trap", c.send_exception, NotImplementedError)
+        c.send_exception(NotImplementedError)
     
     def test_receive(self):
         c = scheduler.channel()

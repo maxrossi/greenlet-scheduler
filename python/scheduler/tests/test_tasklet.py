@@ -457,8 +457,9 @@ class TestBind(unittest.TestCase):
         self.assertEqual(kwargs, self.kwargs)
 
     def test_bind(self):
+        import weakref
         t = scheduler.tasklet()
-        # wr = weakref.ref(t)
+        wr = weakref.ref(t)
 
         self.assertFalse(t.alive)
         # self.assertIsNone(t.frame)
@@ -485,7 +486,7 @@ class TestBind(unittest.TestCase):
 
         # remove the tasklet. Must run the finally clause
         t = None
-        # self.assertIsNone(wr())  # tasklet has been deleted
+        self.assertIsNone(wr())  # tasklet has been deleted
         self.assertEqual(self.finally_run_count, 1)
 
     def test_bind_fail_not_callable(self):
@@ -494,11 +495,12 @@ class TestBind(unittest.TestCase):
         self.assertRaisesRegex(TypeError, "callable", scheduler.getcurrent().bind, C())
 
     def test_unbind_ok(self):
+        import weakref
         if not scheduler.enable_softswitch(None):
             # the test requires softswitching
             return
         t = scheduler.tasklet(self.task)(False)
-        # wr = weakref.ref(t)
+        wr = weakref.ref(t)
 
         # prepare a paused tasklet
         scheduler.run()
@@ -513,7 +515,7 @@ class TestBind(unittest.TestCase):
 
         # remove the tasklet. Must not run the finally clause
         t = None
-        # self.assertIsNone(wr())  # tasklet has been deleted
+        self.assertIsNone(wr())  # tasklet has been deleted
         self.assertEqual(self.finally_run_count, 0)
 
     def test_unbind_fail_current(self):

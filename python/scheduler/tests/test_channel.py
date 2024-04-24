@@ -13,10 +13,6 @@ def block_trap(trap=True):
     finally:
         c.block_trap = old
     
-    
-    
-    
-    
 class TestChannels(unittest.TestCase):
 
     def setUp(self):
@@ -390,4 +386,43 @@ class TestChannels(unittest.TestCase):
         scheduler.tasklet(justAnotherTasklet)("fifth")
 
         scheduler.run()
+        
         self.assertEqual(len(completedTasklets), 47)
+
+    def testChannelIteratorInterface(self):
+        channel = scheduler.channel()
+
+        def send_value(x):
+            channel.send(x)
+
+        scheduler.tasklet(send_value)(1)
+        scheduler.tasklet(send_value)(2)
+        scheduler.tasklet(send_value)(3)
+
+        scheduler.run()
+
+        iterator = iter(channel)
+
+        self.assertEqual(next(iterator),1)
+        self.assertEqual(next(iterator),2)
+        self.assertEqual(next(iterator),3)
+
+        scheduler.run()
+
+        self.assertEqual(scheduler.getruncount(),1)
+
+        scheduler.tasklet(send_value)(1)
+        scheduler.tasklet(send_value)(2)
+        scheduler.tasklet(send_value)(3)
+
+        scheduler.run()
+
+        iterator = iter(channel)
+
+        count = 0
+
+        for sent_value in iterator:
+            count = count + sent_value
+
+        self.assertEqual(count,6)
+
