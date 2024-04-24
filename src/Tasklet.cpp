@@ -4,10 +4,10 @@
 
 #include "Channel.h"
 
-Tasklet::Tasklet( PyObject* python_object, PyObject* callable, PyObject* tasklet_exit_exception ) :
+Tasklet::Tasklet( PyObject* python_object, PyObject* tasklet_exit_exception ) :
 	m_python_object( python_object ),
 	m_greenlet( nullptr ),
-	m_callable( callable ),
+	m_callable( nullptr ),
 	m_arguments( nullptr ),
 	m_kwarguments( nullptr ),
 	m_is_main( false ),
@@ -49,13 +49,6 @@ Tasklet::~Tasklet()
 PyObject* Tasklet::python_object()
 {
 	return m_python_object;
-}
-
-void Tasklet::clear_callable()
-{
-	Py_XDECREF( m_callable );
-	Py_XDECREF( m_arguments );
-	Py_XDECREF( m_greenlet );
 }
 
 void Tasklet::set_kw_arguments( PyObject* kwarguments )
@@ -107,6 +100,13 @@ bool Tasklet::initialise()
 	m_greenlet = PyGreenlet_New( m_callable, nullptr );
 
     return true;    //TODO handle failure
+}
+
+void Tasklet::uninitialise()
+{
+	Py_XDECREF( m_greenlet );
+    
+    m_greenlet = nullptr;
 }
 
 bool Tasklet::insert()
@@ -582,6 +582,8 @@ PyObject* Tasklet::arguments() const
 
 void Tasklet::set_arguments( PyObject* arguments )
 {
+	Py_XDECREF( m_arguments );
+
 	m_arguments = arguments;
 }
 
@@ -761,5 +763,7 @@ void Tasklet::set_tagged_for_removal( bool value )
 
 void Tasklet::set_callable(PyObject* callable)
 {
+	Py_XDECREF( m_callable );
+
 	m_callable = callable;
 }

@@ -38,7 +38,15 @@ static PyObject*
 				return nullptr;
 			}
 
-			self->m_impl->clear_callable();
+            // Clear callable
+			self->m_impl->set_callable( nullptr );
+
+            // Clear arguments
+            self->m_impl->set_arguments( nullptr );
+
+            // Clear greenlet
+            self->m_impl->uninitialise();
+
 			return Py_None;
 		}
 
@@ -71,7 +79,6 @@ static PyObject*
 				Py_INCREF( bind_args );
 			}
 
-			Py_XDECREF( self->m_impl->arguments() );
 			self->m_impl->set_arguments( bind_args );
 			args_supplied = true;
 		}
@@ -115,7 +122,7 @@ static int
 
     try
 	{
-		new( self->m_impl ) Tasklet( reinterpret_cast<PyObject*>( self ), nullptr, TaskletExit );
+		new( self->m_impl ) Tasklet( reinterpret_cast<PyObject*>( self ), TaskletExit );
 	}
 	catch( const std::exception& ex )
 	{
@@ -416,7 +423,7 @@ static PyObject*
 }
 
 
-static int
+static PyObject*
     Tasklet_setup( PyObject* callable, PyObject* args, PyObject* kwargs )
 {
 	PyTaskletObject* tasklet = reinterpret_cast<PyTaskletObject*>( callable );
@@ -424,26 +431,38 @@ static int
 
     Py_XINCREF( args );
 
-	Py_XDECREF( tasklet->m_impl->arguments() );
-
 	tasklet->m_impl->set_arguments( args );
 
     //Initialize the tasklet
-	tasklet->m_impl->initialise();
+    if (!tasklet->m_impl->initialise())
+    {
+		tasklet->m_impl->set_arguments( nullptr );
+
+		return nullptr;
+    }
 
     //Mark alive
     tasklet->m_impl->set_alive( true );
 
     //Add to scheduler
-    tasklet->m_impl->insert();
+    if (!tasklet->m_impl->insert())
+    {
+		tasklet->m_impl->set_alive( false );
 
-	return 0;
+        tasklet->m_impl->uninitialise();
+
+		tasklet->m_impl->set_arguments( nullptr );
+
+		return nullptr;
+    }
+
+	return Py_None;
 }
 
 static PyObject*
 	Tasklet_call( PyObject* callable, PyObject* args, PyObject* kwargs )
 {
-	if(Tasklet_setup( callable, args, kwargs ) == -1)
+	if(!Tasklet_setup( callable, args, kwargs ))
 	{
 		return nullptr;
     }

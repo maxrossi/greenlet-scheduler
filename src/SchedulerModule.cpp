@@ -321,7 +321,7 @@ extern "C"
 
 	static int PyTasklet_Setup( PyTaskletObject* tasklet, PyObject* args, PyObject* kwds )
 	{
-		return Tasklet_setup( reinterpret_cast<PyObject*>( tasklet ), args, kwds );
+		return Tasklet_setup( reinterpret_cast<PyObject*>( tasklet ), args, kwds ) == Py_None ? 0 : -1;
 	}
 
 	static int PyTasklet_Insert( PyTaskletObject* self )

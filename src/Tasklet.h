@@ -25,7 +25,7 @@ class Tasklet
 {
 public:
 
-	Tasklet( PyObject* python_object, PyObject* callable, PyObject* tasklet_exit_exception );
+	Tasklet( PyObject* python_object, PyObject* tasklet_exit_exception );
 
     ~Tasklet();
 
@@ -36,6 +36,8 @@ public:
     bool remove();
 
     bool initialise();
+
+    void uninitialise();
 
 	bool insert();
 
@@ -121,7 +123,7 @@ public:
 
     void set_tagged_for_removal( bool value );
 
-    void clear_callable();
+    //void clear_callable();
 
     void set_callable( PyObject* callable );
 
