@@ -156,7 +156,6 @@ class TestChannels(unittest.TestCase):
 
         self.assertRaises(RuntimeError, test_send)
 
-    @unittest.skip('TODO Hangs after scheduler change required for Watchdog')
     def testInterthreadCommunication(self):
         ''' Test that tasklets in different threads sending over channels to each other work. '''
         import threading
@@ -221,13 +220,42 @@ class TestChannels(unittest.TestCase):
         self.assertEqual(channel.balance, 1)
 
         for i in range(0, 10):
-            channel.receive()
+            r = channel.receive()
 
         self.assertEqual(channel.balance, 0)
+        scheduler.run()
         self.assertEqual(sentValues, [0,1,2,3,4,5,6,7,8,9])
 
-    def testBlockingSendOnMainTasklet(self):
+    def testBlockedTaskletsGreenletIsNotParent(self):
+        def foo():
+            x = 1 + 1
 
+        channel = scheduler.channel()
+        receivedValues = []
+
+        def sender(chan):
+            scheduler.tasklet(foo)()
+            chan.send(1)
+            scheduler.tasklet(foo)()
+            chan.send(2)
+            scheduler.tasklet(foo)()
+            chan.send(3)
+            scheduler.tasklet(foo)()
+
+        senderTasklet = scheduler.tasklet(sender)(channel)
+        senderTasklet.run()
+        
+        # sendingTasklet
+        r = channel.receive()
+        receivedValues.append(r)
+        r = channel.receive()
+        receivedValues.append(r)
+        r = channel.receive()
+        receivedValues.append(r)
+
+        self.assertEqual(receivedValues, [1,2,3])
+
+    def testBlockingSendOnMainTasklet(self):
 
         receivedValues = []
 
@@ -251,22 +279,49 @@ class TestChannels(unittest.TestCase):
         self.assertEqual(receivedValues, [0,1,2,3,4,5,6,7,8,9])
 
     def testPreferenceSender(self):
-        completedSendTasklets = []
+        completedTasklets = []
 
         c = scheduler.channel()
+
         c.preference = 1
 
         def sender(chan, x):
-            chan.send(x)
-            completedSendTasklets.append(x)
+            chan.send("test")
+            completedTasklets.append(("sender", x))
 
-        for i in range(10):
-            tasklet = scheduler.tasklet(sender)(c, i)
-            tasklet.run()
+        def receiver(chan, x):
+            res = chan.receive()
+            completedTasklets.append(("receiver", x))
 
-        for i in range(10):
-            c.receive()
-            self.assertEqual(i+1, len(completedSendTasklets))
+        expectedExecutionOrder = [('sender', 0), ('sender', 1), ('sender', 2), ('receiver', 0), ('receiver', 1), ('receiver', 2)]
+
+        for i in range(3):
+            scheduler.tasklet(sender)(c, i)
+
+        for i in range(3):
+            scheduler.tasklet(receiver)(c, i)
+
+        self.assertEqual(completedTasklets, [])
+
+        scheduler.run()
+
+        self.assertEqual(expectedExecutionOrder, completedTasklets)
+
+        completedTasklets = []
+
+        c2 = scheduler.channel()
+        c2.preference = 1
+
+        for i in range(3):
+            scheduler.tasklet(receiver)(c2, i)
+
+        for i in range(3):
+            scheduler.tasklet(sender)(c2, i)
+
+        scheduler.run()
+
+        self.assertEqual(expectedExecutionOrder, completedTasklets)
+
 
     def testPreferenceReceiver(self):
         completedSendTasklets = []
@@ -292,7 +347,6 @@ class TestChannels(unittest.TestCase):
 
         self.assertEqual(10, len(completedSendTasklets))
 
-    @unittest.skip('TODO Hangs after scheduler change required for Watchdog')
     def testPreferenceNeither(self):
         completedTasklets = []
 
@@ -300,17 +354,22 @@ class TestChannels(unittest.TestCase):
 
         c.preference = 0
 
+        def justAnotherTasklet(x):
+            completedTasklets.append(x)
+
+        scheduler.tasklet(justAnotherTasklet)("actually first")
+        scheduler.tasklet(justAnotherTasklet)("actually second")
+
         def sender(chan, x):
+            scheduler.tasklet(justAnotherTasklet)("sender inbetween")
             chan.send("test")
             completedTasklets.append(("sender", x))
 
         def receiver(chan, x):
+            scheduler.tasklet(justAnotherTasklet)("recever inbetween")
             res = chan.receive()
             completedTasklets.append(("receiver", x))
             self.assertEqual(res, "test")
-
-        def justAnotherTasklet(x):
-            completedTasklets.append(x)
 
         for i in range(10):
             scheduler.tasklet(sender)(c, i)
@@ -320,11 +379,15 @@ class TestChannels(unittest.TestCase):
 
         self.assertEqual(len(completedTasklets), 0)
 
-        scheduler.tasklet(justAnotherTasklet)("first")
+        scheduler.tasklet(justAnotherTasklet)("fist")
+        scheduler.tasklet(justAnotherTasklet)("second")
+        scheduler.tasklet(justAnotherTasklet)("third")
+        scheduler.tasklet(justAnotherTasklet)("fourth")
+        scheduler.tasklet(justAnotherTasklet)("fifth")
 
         scheduler.run()
-
-        self.assertEqual(len(completedTasklets), 21)
+        
+        self.assertEqual(len(completedTasklets), 47)
 
     def testChannelIteratorInterface(self):
         channel = scheduler.channel()
@@ -362,3 +425,4 @@ class TestChannels(unittest.TestCase):
             count = count + sent_value
 
         self.assertEqual(count,6)
+

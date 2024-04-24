@@ -1,5 +1,3 @@
-#include <iostream>
-
 #include "Channel.h"
 
 #include "Tasklet.h"
@@ -83,6 +81,7 @@ bool Channel::send( PyObject* args, bool exception /* = false */)
 			return false;
         }
 
+
         PyThread_acquire_lock( m_lock, 1 );
 
 	}
@@ -96,7 +95,7 @@ bool Channel::send( PyObject* args, bool exception /* = false */)
 
     PyThread_release_lock( m_lock );
 
-	if (m_preference == PREFER_RECEIVER)
+	if( m_preference == PREFER_RECEIVER || m_preference == PREFER_NEITHER )
     {
 		//Add this tasklet to the end of the scheduler
 		Tasklet* current_tasklet = ScheduleManager::get_current_tasklet();
@@ -118,16 +117,16 @@ bool Channel::send( PyObject* args, bool exception /* = false */)
 	} 
     else if (m_preference == PREFER_SENDER)
     {
-		ScheduleManager::insert_tasklet(receiving_tasklet);
-	} 
-    else if (m_preference == PREFER_NEITHER) 
-    {
-		ScheduleManager::insert_tasklet(receiving_tasklet);
-
-		ScheduleManager::insert_tasklet( ScheduleManager::get_current_tasklet() );
-
-		// TODO handle failure case
-		ScheduleManager::yield();
+        // if the receiving tasklet wasn't blocked on a receive, then reschedule it
+        // otherwise simply insert it into the scheduler
+        if (receiving_tasklet->scheduled())
+        {
+			receiving_tasklet->set_reschedule( true );
+        }
+        else
+        {
+			ScheduleManager::insert_tasklet( receiving_tasklet );
+        }
 	}
 	else
 	{
@@ -208,7 +207,7 @@ PyObject* Channel::receive()
         PyThread_release_lock( m_lock );
 
         Tasklet* current_tasklet = ScheduleManager::get_current_tasklet();
-
+		
 		if(!sending_tasklet->switch_to())
 		{
 			return false;
@@ -223,6 +222,7 @@ PyObject* Channel::receive()
 
         Py_DecRef( sending_tasklet->python_object() );
 	}
+
 
     //Process the exception
 	if( current->transfer_is_exception())
@@ -254,7 +254,6 @@ PyObject* Channel::receive()
 	auto ret = current->get_transfer_arguments();
 
 	current->clear_transfer_arguments();
-
 	return ret;
 }
 
