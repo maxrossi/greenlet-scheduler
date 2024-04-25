@@ -99,6 +99,8 @@ bool Tasklet::initialise()
 
 	m_greenlet = PyGreenlet_New( m_callable, nullptr );
 
+    m_paused = true;
+
     return true;    //TODO handle failure
 }
 
@@ -163,7 +165,14 @@ PyObject* Tasklet::switch_implementation()
 	}
 	else
 	{
-		//TODO - Needs remove implemented in order to be able to implement this - Update: Remove now in
+		ScheduleManager::get_current_tasklet()->m_paused = true;
+
+		ScheduleManager::insert_tasklet( this );
+
+		ScheduleManager::run( this );
+
+        ScheduleManager::get_current_tasklet()->m_paused = false;
+
 	}
 
 	return Py_None;
