@@ -1,7 +1,7 @@
 import sys
 import unittest
 
-sys.modules['scheduler'] = sys
+sys.modules['_scheduler'] = sys
 
 def print_suite(suite):
     if hasattr(suite, '_exception'):

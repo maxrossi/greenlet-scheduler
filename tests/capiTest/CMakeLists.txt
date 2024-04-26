@@ -35,12 +35,10 @@ file (GENERATE
 "
 #pragma once
 #include <string>
-std::wstring SCHEDULER_MODULE_PATH = L\"${CMAKE_SOURCE_DIR}/python/\";
 std::wstring SCHEDULER_CEXTENSION_MODULE_PATH = L\"$<TARGET_FILE_DIR:Scheduler>\";
 std::wstring STDLIB_PATH = L\"${BRANCH_ROOT_DIR}/carbon/common/stdlib/\";
 std::wstring GREENLET_CEXTENSION_MODULE_PATH = L\"${Greenlet_ROOT}/${CCP_VENDOR_BIN_PATH}\";
 std::wstring GREENLET_MODULE_PATH = L\"${Greenlet_ROOT}/python\";
-std::string BUILDFLAVOR = \"BUILDFLAVOR=$<LOWER_CASE:$<CONFIG>>\";
 "
 )
 

@@ -1,4 +1,17 @@
-import scheduler
+import os
+flavor = os.environ.get("BUILDFLAVOR", "release")
+if flavor == 'release':
+    import _scheduler as scheduler
+elif flavor == 'debug':
+    import _scheduler_debug as scheduler
+elif flavor == 'trinitydev':
+    import _scheduler_trinitydev as scheduler
+elif flavor == 'internal':
+    import _scheduler_internal as scheduler
+else:
+    scheduler = None
+    raise RuntimeError("Unknown build flavor: {}".format(flavor))
+
 import unittest
 import sys
 import traceback
@@ -167,14 +180,13 @@ class TestTaskletThrowBase(object):
             self.assertRaises(IndexError, scheduler.run)
 
     def test_kill_new(self):
-        from scheduler import TaskletExit
 
         def t():
             self.assertFalse("should not run this")
         s = scheduler.tasklet(t)()
 
         # Should not do anything
-        s.throw(TaskletExit)
+        s.throw(scheduler.TaskletExit)
         # the tasklet should be dead
         scheduler.run()
         self.assertRaisesRegex(RuntimeError, "dead", s.run)
@@ -195,7 +207,6 @@ class TestTaskletThrowBase(object):
         self.assertRaises(RuntimeError, doit)
 
     def test_kill_dead(self):
-        from scheduler import TaskletExit
 
         c = scheduler.channel()
 
@@ -208,7 +219,7 @@ class TestTaskletThrowBase(object):
         self.assertFalse(s.alive)
 
         def doit():
-            self.throw(s, TaskletExit)
+            self.throw(s, scheduler.TaskletExit)
         # nothing should happen here.
         doit()
    
@@ -256,14 +267,13 @@ class TestKill(unittest.TestCase):
     SLP_TASKLET_KILL_REBINDS_THREAD = False  # see tasklet.c function impl_tasklet_kill()
 
     def test_kill_pending_true(self):
-        from scheduler import TaskletExit
 
         killed = [False]
 
         def foo():
             try:
                 scheduler.schedule()
-            except TaskletExit:
+            except scheduler.TaskletExit:
                 killed[0] = True
                 raise
         t = scheduler.tasklet(foo)()
@@ -275,14 +285,13 @@ class TestKill(unittest.TestCase):
         self.assertTrue(killed[0])
 
     def test_kill_pending_False(self):
-        from scheduler import TaskletExit
 
         killed = [False]
 
         def foo():
             try:
                 scheduler.schedule()
-            except TaskletExit:
+            except scheduler.TaskletExit:
                 killed[0] = True
                 raise
         t = scheduler.tasklet(foo)()
@@ -292,14 +301,13 @@ class TestKill(unittest.TestCase):
         self.assertTrue(killed[0])
 
     def test_kill_current(self):
-        from scheduler import TaskletExit
 
         killed = [False]
 
         def task():
             try:
                 scheduler.getcurrent().kill()   #TODO replace getcurrent with current when working again
-            except TaskletExit:
+            except scheduler.TaskletExit:
                 killed[0] = True
                 raise
         t = scheduler.tasklet(task)()
@@ -359,7 +367,6 @@ class TestKill(unittest.TestCase):
         # print("unbinding done")
 
     def _test_kill_without_thread_state(self, nl, block):
-        from scheduler import TaskletExit
         channel = scheduler.channel()
         loop = True
 
@@ -370,7 +377,7 @@ class TestKill(unittest.TestCase):
                         channel.receive()
                     else:
                         scheduler.main.run()
-                except TaskletExit:
+                except scheduler.TaskletExit:
                     pass
 
         def other_thread_main():
@@ -393,7 +400,7 @@ class TestKill(unittest.TestCase):
             self.assertFalse(tlet.blocked)
         self.assertFalse(tlet.alive)
         self.assertEqual(tlet.thread_id, -1)
-        self.assertRaisesRegex(RuntimeError, "tasklet has no thread", tlet.throw, TaskletExit, pending=True)
+        self.assertRaisesRegex(RuntimeError, "tasklet has no thread", tlet.throw, scheduler.TaskletExit, pending=True)
         tlet.kill(pending=True)
         self.assertFalse(tlet.blocked)
         if self.SLP_TASKLET_KILL_REBINDS_THREAD and scheduler.enable_softswitch(None) and nl == 0:
@@ -711,13 +718,12 @@ class TestTaskletExitException(unittest.TestCase):
 
 
     def test_tasklet_raising_TaskletExit_exception(self):
-        from scheduler import TaskletExit
         value = [False]
 
         def func():
             try:
-                raise(TaskletExit)
-            except TaskletExit:
+                raise(scheduler.TaskletExit)
+            except scheduler.TaskletExit:
                 value[0] = True
 
         t = scheduler.tasklet(func)()

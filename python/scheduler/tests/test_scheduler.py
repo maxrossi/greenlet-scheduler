@@ -1,4 +1,17 @@
-import scheduler
+import os
+flavor = os.environ.get("BUILDFLAVOR", "release")
+if flavor == 'release':
+    import _scheduler as scheduler
+elif flavor == 'debug':
+    import _scheduler_debug as scheduler
+elif flavor == 'trinitydev':
+    import _scheduler_trinitydev as scheduler
+elif flavor == 'internal':
+    import _scheduler_internal as scheduler
+else:
+    scheduler = None
+    raise RuntimeError("Unknown build flavor: {}".format(flavor))
+
 import unittest
 import contextlib
 
@@ -368,10 +381,9 @@ class TestSwitchTrap(unittest.TestCase):
         s.raise_exception(IndexError)
     
     def test_kill(self):
-        from scheduler import TaskletExit
         c = scheduler.channel()
         def foo():
-            self.assertRaises(TaskletExit, c.receive)
+            self.assertRaises(scheduler.TaskletExit, c.receive)
         s = scheduler.tasklet(foo)()
         s.run()  # necessary, since raise_exception won't automatically run it
         with self.switch_trap:

@@ -10,6 +10,10 @@
 #define MODULE_PATH_INCLUDE CONCATENATE_TO_STRING( PackagePaths, CCP_BUILD_FLAVOR, .h )
 #include MODULE_PATH_INCLUDE
 
+#define CONCATENATE_DIRECT_X2( s1, s2 ) s1##s2
+#define CONCATENATE_X2( s1, s2 ) CONCATENATE_DIRECT_X2( s1, s2 )
+#define CONCATENATE_TO_STRING_X2( s1, s2 ) STRING( CONCATENATE_DIRECT_X2( s1, s2 ) )
+
 static SchedulerCAPI* s_scheduler_api = nullptr;
 static int s_test_value = 0;
 
@@ -164,13 +168,6 @@ void InterpreterWithSchedulerModule::SetUp()
 	}
 
 	// Setup search paths
-	status = PyWideStringList_Append( &config.module_search_paths, SCHEDULER_MODULE_PATH.c_str() );
-	if( PyStatus_Exception( status ) )
-	{
-		PyErr_Print();
-		exit( -1 );
-	}
-
 	status = PyWideStringList_Append( &config.module_search_paths, SCHEDULER_CEXTENSION_MODULE_PATH.c_str() );
 	if( PyStatus_Exception( status ) )
 	{
@@ -199,13 +196,6 @@ void InterpreterWithSchedulerModule::SetUp()
 		exit( -1 );
 	}
 
-    //Set environment variable for build flavor
-	if(putenv( BUILDFLAVOR.c_str() ) == -1)
-	{
-		std::cout << "Failed to set build environment variable" << std::endl;
-		exit( -1 );
-    }
-
 	// Add to search paths
 	config.module_search_paths_set = 1;
 
@@ -229,7 +219,7 @@ void InterpreterWithSchedulerModule::SetUp()
 
 
 	// Import scheduler
-	m_scheduler_module = PyImport_ImportModule( "scheduler" );
+	m_scheduler_module = PyImport_ImportModule( CONCATENATE_TO_STRING_X2( _scheduler, CCP_BUILD_FLAVOR ) );
 
 	if( !m_scheduler_module )
 	{
@@ -237,6 +227,13 @@ void InterpreterWithSchedulerModule::SetUp()
 		PySys_WriteStdout( "Failed to import scheduler module\n" );
 		exit( -1 );
 	}
+
+    // Set _scheduler_debug to be scheduler ( Required as capsule name refers to this and the file in constant between flavors )
+    PyObject* sysmodule = PyImport_ImportModule( "sys" );
+	PyObject* dict = PyModule_GetDict( sysmodule );
+	PyObject* modules = PyDict_GetItemString( dict, "modules" );
+	PyDict_SetItemString( modules, "scheduler", m_scheduler_module );
+    Py_DECREF( sysmodule );
 
     // Import capsule
 	m_api = SchedulerAPI();
