@@ -4,6 +4,7 @@
 #define SCHEDULER_MODULE
 #include "Scheduler.h"
 #include <greenlet.h>
+#include <string>
 
 #include "ScheduleManager.h"
 
