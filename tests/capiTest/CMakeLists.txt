@@ -43,10 +43,16 @@ std::wstring GREENLET_MODULE_PATH = L\"${Greenlet_ROOT}/python\";
 )
 
 # Copy the python dll to target build directory
+if(WIN32)
+    set(PythonLibName "python312.dll")
+elseif(APPLE)
+    set(PythonLibName "libpython3.12.dylib")
+endif()
+
 add_custom_command(
   TARGET SchedulerCapiTest POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy 
-    ${Python_ROOT}/${CCP_VENDOR_BIN_PATH}/python312.dll 
+    ${Python_ROOT}/${CCP_VENDOR_BIN_PATH}/${PythonLibName}
     $<TARGET_FILE_DIR:SchedulerCapiTest>)
 
 gtest_discover_tests(SchedulerCapiTest capiTests)
