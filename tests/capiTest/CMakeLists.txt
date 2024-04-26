@@ -30,7 +30,7 @@ target_link_libraries(SchedulerCapiTest PRIVATE GTest::GTest GTest::Main Python 
 # Generate paths Include for each config
 # Allows for easy use inside IDE
 file (GENERATE
-    OUTPUT "PackagePaths$<LOWER_CASE:$<IF:$<CONFIG:Release>,,_$<CONFIG>>>.h" 
+    OUTPUT "$<LOWER_CASE:$<IF:$<CONFIG:Release>,,_$<CONFIG>>>_PackagePaths.h" 
     CONTENT 
 "
 #pragma once

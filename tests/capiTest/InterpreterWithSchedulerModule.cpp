@@ -3,16 +3,12 @@
 #include "StdAfx.h"
 
 // Include build config specific paths
-#define CONCATENATE_DIRECT( s1, s2, s3 ) s1##s2##s3
+#define CONCATENATE_DIRECT( s1, s2 ) s1##s2
 #define STRING_DIRECT( s ) #s
 #define STRING( s ) STRING_DIRECT( s )
-#define CONCATENATE_TO_STRING( s1, s2, s3 ) STRING( CONCATENATE_DIRECT( s1, s2, s3 ) )
-#define MODULE_PATH_INCLUDE CONCATENATE_TO_STRING( PackagePaths, CCP_BUILD_FLAVOR, .h )
+#define CONCATENATE_TO_STRING( s1, s2 ) STRING( CONCATENATE_DIRECT( s1, s2 ) )
+#define MODULE_PATH_INCLUDE CONCATENATE_TO_STRING( CCP_BUILD_FLAVOR, _PackagePaths.h )
 #include MODULE_PATH_INCLUDE
-
-#define CONCATENATE_DIRECT_X2( s1, s2 ) s1##s2
-#define CONCATENATE_X2( s1, s2 ) CONCATENATE_DIRECT_X2( s1, s2 )
-#define CONCATENATE_TO_STRING_X2( s1, s2 ) STRING( CONCATENATE_DIRECT_X2( s1, s2 ) )
 
 static SchedulerCAPI* s_scheduler_api = nullptr;
 static int s_test_value = 0;
@@ -219,7 +215,7 @@ void InterpreterWithSchedulerModule::SetUp()
 
 
 	// Import scheduler
-	m_scheduler_module = PyImport_ImportModule( CONCATENATE_TO_STRING_X2( _scheduler, CCP_BUILD_FLAVOR ) );
+	m_scheduler_module = PyImport_ImportModule( CONCATENATE_TO_STRING( _scheduler, CCP_BUILD_FLAVOR ) );
 
 	if( !m_scheduler_module )
 	{
@@ -228,7 +224,7 @@ void InterpreterWithSchedulerModule::SetUp()
 		exit( -1 );
 	}
 
-    // Set _scheduler_debug to be scheduler ( Required as capsule name refers to this and the file in constant between flavors )
+    // Set _scheduler_BUILDFLAVOR to be scheduler ( Required as capsule name refers to this and the file in constant between flavors )
     PyObject* sysmodule = PyImport_ImportModule( "sys" );
 	PyObject* dict = PyModule_GetDict( sysmodule );
 	PyObject* modules = PyDict_GetItemString( dict, "modules" );
