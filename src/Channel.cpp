@@ -193,7 +193,7 @@ PyObject* Channel::receive()
 
 				current->set_transfer_in_progress( false );
 
-				return false;
+				return nullptr;
 			}
 		}
 	}
@@ -210,7 +210,7 @@ PyObject* Channel::receive()
 		
 		if(!sending_tasklet->switch_to())
 		{
-			return false;
+			return nullptr;
         }
 		else
 		{
