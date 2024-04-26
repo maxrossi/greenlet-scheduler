@@ -94,12 +94,6 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     )
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/SchedulerConfig.cmake DESTINATION .)
 
-     # Install python package
-     install(DIRECTORY python/ DESTINATION python
-     FILES_MATCHING
-     PATTERN "*.py"
-    )
-
     if(WIN32)
         set(ENV{PYTHONPATH} ${BRANCH_ROOT_DIR}/carbon/common/stdlib\;${Python_ROOT}/${CCP_VENDOR_BIN_PATH})
     elseif(APPLE)
