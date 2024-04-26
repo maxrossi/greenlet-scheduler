@@ -362,7 +362,14 @@ extern "C"
 	// Channel functions
 	static PyChannelObject* PyChannel_New( PyTypeObject* type )
 	{
-		PyObject* scheduler_channel = PyObject_CallObject( reinterpret_cast<PyObject*>(type), nullptr );
+		PyTypeObject* channel_type = type;
+
+        if (!channel_type)
+        {
+			channel_type = &ChannelType;
+        }
+
+		PyObject* scheduler_channel = PyObject_CallObject( reinterpret_cast<PyObject*>( channel_type ), nullptr );
 
 		return reinterpret_cast < PyChannelObject*>(scheduler_channel);
 	}

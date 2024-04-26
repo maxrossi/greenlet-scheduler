@@ -347,6 +347,32 @@ class TestChannels(unittest.TestCase):
 
         self.assertEqual(10, len(completedSendTasklets))
 
+    def testPreferenceNeitherSimple(self):
+        taskletComplete = [False]
+
+        c = scheduler.channel()
+
+        c.preference = 0
+
+        def receiving_callable():
+            c.recieve()
+            taskletComplete[0] = True
+
+        scheduler.tasklet(receiving_callable)()
+
+        scheduler.run()
+
+        self.assertFalse(taskletComplete[0])
+
+        c.send(None)
+
+        self.assertFalse(taskletComplete[0])
+
+        scheduler.run()
+
+        self.assertTrue(taskletComplete[0])
+        
+
     def testPreferenceNeither(self):
         completedTasklets = []
 
