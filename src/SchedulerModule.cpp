@@ -513,6 +513,12 @@ extern "C"
 		current_scheduler->set_scheduler_fast_callback( func );
 	}
 
+	static PyObject* PyScheduler_CallMethod_Main( PyObject* o, char* name, char* format, ... )
+    {
+		PyErr_SetString( PyExc_RuntimeError, "PyScheduler_CallMethod_Main Not yet implemented" ); //TODO
+		return NULL;
+    }
+
 } // extern C
 
 
@@ -671,6 +677,7 @@ PyMODINIT_FUNC
 	api.PyScheduler_GetChannelCallback = PyScheduler_GetChannelCallback;
 	api.PyScheduler_SetScheduleCallback = PyScheduler_SetScheduleCallback;
 	api.PyScheduler_SetScheduleFastCallback = PyScheduler_SetScheduleFastCallback;
+	api.PyScheduler_CallMethod_Main = PyScheduler_CallMethod_Main;
 
 	/* Create a Capsule containing the API pointer array's address */
 	//c_api_object = PyCapsule_New( (void*)&api, "_scheduler_debug._C_API", NULL );

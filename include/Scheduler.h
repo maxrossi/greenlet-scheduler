@@ -72,6 +72,7 @@ struct SchedulerCAPI
     using PyScheduler_GetChannelCallback_Routine      = std::add_pointer_t<PyObject*(void)>;
     using PyScheduler_SetScheduleCallback_Routine     = std::add_pointer_t<int(PyObject*)>;
     using PyScheduler_SetScheduleFastCallback_Routine = std::add_pointer_t<void(schedule_hook_func func)>;
+	using PyScheduler_CallMethod_Main_Routine         = std::add_pointer_t<PyObject*(PyObject *o, char *name, char *format, ...)>;
 
     // =============== member function pointers ===============
 
@@ -107,6 +108,7 @@ struct SchedulerCAPI
 	PyScheduler_GetChannelCallback_Routine PyScheduler_GetChannelCallback;
 	PyScheduler_SetScheduleCallback_Routine PyScheduler_SetScheduleCallback;
 	PyScheduler_SetScheduleFastCallback_Routine PyScheduler_SetScheduleFastCallback;
+	PyScheduler_CallMethod_Main_Routine PyScheduler_CallMethod_Main;
 
     // types
     PyTypeObject* PyTaskletType;
