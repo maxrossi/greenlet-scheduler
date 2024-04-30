@@ -365,10 +365,10 @@ class TestChannels(unittest.TestCase):
 
         c = scheduler.channel()
 
-        c.preference = 0
+        c.preference = 1
 
         def receiving_callable():
-            c.recieve()
+            c.receive()
             taskletComplete[0] = True
 
         scheduler.tasklet(receiving_callable)()
@@ -416,6 +416,7 @@ class TestChannels(unittest.TestCase):
         for i in range(10):
             scheduler.tasklet(receiver)(c, 1)
 
+
         self.assertEqual(len(completedTasklets), 0)
 
         scheduler.tasklet(justAnotherTasklet)("fist")
@@ -425,6 +426,10 @@ class TestChannels(unittest.TestCase):
         scheduler.tasklet(justAnotherTasklet)("fifth")
 
         scheduler.run()
+
+        print(completedTasklets)
+
+        self.assertEqual(completedTasklets, ['actually first', 'actually second', ('receiver', 1), ('receiver', 1), ('receiver', 1), ('receiver', 1), ('receiver', 1), ('receiver', 1), ('receiver', 1), ('receiver', 1), ('receiver', 1), ('receiver', 1), 'fist', 'second', 'third', 'fourth', 'fifth', 'sender inbetween', 'sender inbetween', 'sender inbetween', 'sender inbetween', 'sender inbetween', 'sender inbetween', 'sender inbetween', 'sender inbetween', 'sender inbetween', 'sender inbetween', 'recever inbetween', ('sender', 0), 'recever inbetween', ('sender', 1), 'recever inbetween', ('sender', 2), 'recever inbetween', ('sender', 3), 'recever inbetween', ('sender', 4), 'recever inbetween', ('sender', 5), 'recever inbetween', ('sender', 6), 'recever inbetween', ('sender', 7), 'recever inbetween', ('sender', 8), 'recever inbetween', ('sender', 9)])
         
         self.assertEqual(len(completedTasklets), 47)
 

@@ -34,10 +34,10 @@ bool Channel::send( PyObject* args, bool exception /* = false */)
 	run_channel_callback( this, current, true, blocked_on_receive.empty() );  //TODO will_block logic here will change with addition of preference
 
     current->set_transfer_in_progress(true);
-
+	int direction = SENDER;
 	if( blocked_on_receive.empty() )
 	{
-		
+		direction = RECEIVER;
 		// Block as there is no tasklet sending
         if( !current )
 		{
@@ -95,47 +95,13 @@ bool Channel::send( PyObject* args, bool exception /* = false */)
 
     PyThread_release_lock( m_lock );
 
-	if( m_preference == PREFER_RECEIVER || m_preference == PREFER_NEITHER )
-    {
-		//Add this tasklet to the end of the scheduler
-		Tasklet* current_tasklet = ScheduleManager::get_current_tasklet();
-		ScheduleManager::insert_tasklet( current_tasklet );
+    Tasklet* current_tasklet = ScheduleManager::get_current_tasklet();
 
-		//Switch BACK to the receiving tasklet
-		if (!receiving_tasklet->switch_to())
-        {
-            return false; 
-        }
-		else
-		{
-            // Update current tasklet back to the correct calling tasklet
-            // Required as the switch_to circumvents the scheduling queue
-            // Which would normally deal with this
-			ScheduleManager::set_current_tasklet( current_tasklet );
-		}
-		
-	} 
-    else if (m_preference == PREFER_SENDER)
+    if (!channel_switch(current_tasklet, receiving_tasklet, direction, SENDER))
     {
-        // if the receiving tasklet wasn't blocked on a receive, then reschedule it
-        // otherwise simply insert it into the scheduler
-        if (receiving_tasklet->scheduled())
-        {
-			receiving_tasklet->set_reschedule( true );
-        }
-        else
-        {
-			ScheduleManager::insert_tasklet( receiving_tasklet );
-        }
-	}
-	else
-	{
-        // Invalid preference - Should never get here
-        // Preference attribute is sanitised in PyTasklet_python.cpp
-		PyErr_SetString( PyExc_RuntimeError, "Channel preference invalid." );
-		
 		return false;
-	}
+    }
+	
 
     Py_DecRef( receiving_tasklet->python_object() );
 
@@ -143,6 +109,46 @@ bool Channel::send( PyObject* args, bool exception /* = false */)
 
 	return true;
 
+}
+
+bool Channel::channel_switch(Tasklet* caller, Tasklet* other, int dir, int caller_dir)
+{
+    //if preference is opposit from direction, switch away from caller
+	if( ( -dir == m_preference && dir == caller_dir ) || (dir == m_preference && dir != caller_dir))
+    {
+		ScheduleManager::insert_tasklet( caller );
+        if (!other->switch_to())
+        {
+			return false;
+        }
+    }
+    //if preference is towards caller, schedule other tasklet and continue
+	else
+    {
+		if( m_preference == PREFER_NEITHER && -caller_dir == dir )
+        {
+			ScheduleManager::insert_tasklet( caller );
+            if (!other->switch_to())
+            {
+				return false;
+            }
+        }
+        else
+        {
+			if( other->scheduled() )
+			{
+				other->set_reschedule( true );
+			}
+			else
+			{
+				ScheduleManager::insert_tasklet( other );
+			}
+        }
+    }
+
+    ScheduleManager::set_current_tasklet( caller );
+
+    return true;
 }
 
 PyObject* Channel::receive()
