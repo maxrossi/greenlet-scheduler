@@ -427,8 +427,6 @@ class TestChannels(unittest.TestCase):
 
         scheduler.run()
 
-        print(completedTasklets)
-
         self.assertEqual(completedTasklets, ['actually first', 'actually second', ('receiver', 1), ('receiver', 1), ('receiver', 1), ('receiver', 1), ('receiver', 1), ('receiver', 1), ('receiver', 1), ('receiver', 1), ('receiver', 1), ('receiver', 1), 'fist', 'second', 'third', 'fourth', 'fifth', 'sender inbetween', 'sender inbetween', 'sender inbetween', 'sender inbetween', 'sender inbetween', 'sender inbetween', 'sender inbetween', 'sender inbetween', 'sender inbetween', 'sender inbetween', 'recever inbetween', ('sender', 0), 'recever inbetween', ('sender', 1), 'recever inbetween', ('sender', 2), 'recever inbetween', ('sender', 3), 'recever inbetween', ('sender', 4), 'recever inbetween', ('sender', 5), 'recever inbetween', ('sender', 6), 'recever inbetween', ('sender', 7), 'recever inbetween', ('sender', 8), 'recever inbetween', ('sender', 9)])
         
         self.assertEqual(len(completedTasklets), 47)
