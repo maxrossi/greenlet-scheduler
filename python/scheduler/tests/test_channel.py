@@ -365,7 +365,7 @@ class TestChannels(unittest.TestCase):
 
         c = scheduler.channel()
 
-        c.preference = 1
+        c.preference = 0
 
         def receiving_callable():
             c.receive()
