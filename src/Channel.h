@@ -21,8 +21,8 @@
 
 #include "stdafx.h"
 
-const int PREFER_SENDER = 1;
-const int PREFER_RECEIVER = -1;
+const int SENDER = 1;
+const int RECEIVER = -1;
 const int PREFER_NEITHER = 0;
 
 class Tasklet;
@@ -66,6 +66,8 @@ private:
     Tasklet* pop_next_tasklet_blocked_on_send();
 
     Tasklet* pop_next_tasklet_blocked_on_receive();
+
+    bool channel_switch( Tasklet* caller, Tasklet* other, int dir, int caller_dir );
 
 private:
 
