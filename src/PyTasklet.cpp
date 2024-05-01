@@ -86,7 +86,6 @@ static PyObject*
 		if( bind_kw_args != nullptr )
 		{
 			Py_INCREF( bind_kw_args );
-			Py_XDECREF( self->m_impl->kw_arguments() );
 			self->m_impl->set_kw_arguments( bind_kw_args );
 			kwargs_supplied = true;
 		}
@@ -433,10 +432,16 @@ static PyObject*
 
 	tasklet->m_impl->set_arguments( args );
 
+    Py_XINCREF( kwargs );
+
+    tasklet->m_impl->set_kw_arguments( kwargs );
+
     //Initialize the tasklet
     if (!tasklet->m_impl->initialise())
     {
 		tasklet->m_impl->set_arguments( nullptr );
+
+        tasklet->m_impl->set_kw_arguments( nullptr );
 
 		return nullptr;
     }
@@ -452,6 +457,8 @@ static PyObject*
         tasklet->m_impl->uninitialise();
 
 		tasklet->m_impl->set_arguments( nullptr );
+
+        tasklet->m_impl->set_kw_arguments( nullptr );
 
 		return nullptr;
     }

@@ -43,6 +43,38 @@ class TestTasklets(unittest.TestCase):
         s = scheduler.tasklet(foo)()
         s.run()
         self.assertEqual(flag[0], True)
+
+    def test_run_args(self):
+        passed_args = [None]
+        
+        def foo(*args):
+            passed_args[0] = args
+
+        args = (1,2,3)
+
+        scheduler.tasklet(foo)(*args)
+
+        scheduler.run()
+
+        self.assertTupleEqual(passed_args[0], args)
+
+    def test_run_args_kwargs(self):
+        passed_args = [None]
+        passed_kwargs = [None]
+        
+        def foo(*args, **kwargs):
+            passed_args[0] = args
+            passed_kwargs[0] = kwargs
+
+        args = (1,2,3)
+        kwargs = {"a": 1, "b": 2, "c": 3}
+
+        scheduler.tasklet(foo)(*args, **kwargs)
+
+        scheduler.run()
+
+        self.assertTupleEqual(passed_args[0], args)
+        self.assertDictEqual(passed_kwargs[0], kwargs)
     
     def test_kill_tasklet(self):
         value = [0]

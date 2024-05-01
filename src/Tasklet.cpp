@@ -40,6 +40,8 @@ Tasklet::~Tasklet()
 
 	Py_XDECREF( m_arguments );
 
+    Py_XDECREF( m_kwarguments );
+
 	Py_XDECREF( m_greenlet );
 
 	Py_XDECREF( m_transfer_arguments );
@@ -53,6 +55,7 @@ PyObject* Tasklet::python_object()
 
 void Tasklet::set_kw_arguments( PyObject* kwarguments )
 {
+	Py_XDECREF( m_kwarguments );
 	m_kwarguments = kwarguments;
 }
 
