@@ -456,7 +456,11 @@ extern "C"
 
 	static PyObject* PyScheduler_GetCurrent()
 	{
-		return ScheduleManager::get_current_tasklet()->python_object();
+		PyObject* current = ScheduleManager::get_current_tasklet()->python_object();
+
+        Py_IncRef( current );
+
+		return current;
 	}
 
 	// Note: flags used in game are PY_WATCHDOG_SOFT | PY_WATCHDOG_IGNORE_NESTING | PY_WATCHDOG_TOTALTIMEOUT
