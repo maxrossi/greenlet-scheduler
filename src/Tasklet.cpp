@@ -21,15 +21,17 @@ Tasklet::Tasklet( PyObject* python_object, PyObject* tasklet_exit_exception ) :
 	m_transfer_arguments( nullptr ),
 	m_transfer_is_exception( false ),
 	m_channel_blocked_on( nullptr ),
-	m_blocked(false),
-	m_exception_state(Py_None),
+	m_blocked( false ),
+	m_exception_state( Py_None ),
 	m_exception_arguments( Py_None ),
-	m_tasklet_exit_exception(tasklet_exit_exception),
-	m_paused(false),
+	m_tasklet_exit_exception( tasklet_exit_exception ),
+	m_paused( false ),
 	m_tasklet_parent( nullptr ),
-	m_first_run(true),
-	m_reschedule(false),
-	m_tagged_for_removal(false)
+	m_first_run( true ),
+	m_reschedule( false ),
+	m_tagged_for_removal( false ),
+	m_previous_blocked( nullptr ),
+	m_next_blocked( nullptr )
 {
 	
 }
@@ -45,6 +47,28 @@ Tasklet::~Tasklet()
 	Py_XDECREF( m_transfer_arguments );
 
 }
+
+void Tasklet::set_next_blocked(Tasklet* tasklet)
+{
+	m_next_blocked = tasklet;
+}
+
+Tasklet* Tasklet::next_blocked() const
+{
+	return m_next_blocked;
+}
+
+void Tasklet::set_previous_blocked(Tasklet* tasklet)
+{
+	m_previous_blocked = tasklet;
+}
+
+Tasklet* Tasklet::previous_blocked() const
+{
+	return m_previous_blocked;
+}
+
+
 
 PyObject* Tasklet::python_object()
 {

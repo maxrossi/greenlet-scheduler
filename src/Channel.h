@@ -79,10 +79,14 @@ private:
 
     PyThread_type_lock m_lock;
 
-	std::deque<Tasklet*> blocked_on_send;
-
-	std::deque<Tasklet*> blocked_on_receive;
-
     inline static PyObject* s_channel_callback; // This is global, not per channel
+
+    Tasklet* m_first_blocked_on_receive;
+
+	Tasklet* m_last_blocked_on_receive;
+
+	Tasklet* m_first_blocked_on_send;
+
+    Tasklet* m_last_blocked_on_send;
     
 };
