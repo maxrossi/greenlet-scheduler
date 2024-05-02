@@ -154,11 +154,8 @@ bool Channel::channel_switch(Tasklet* caller, Tasklet* other, int dir, int calle
     return true;
 }
 
-
-#include <iostream>
 PyObject* Channel::receive()
 {
-	std::cout << "CALLING RECEIVE m_first_blocked_on_send is" << m_first_blocked_on_send << std::endl;
 	PyThread_acquire_lock( m_lock, 1 );
 
     ScheduleManager::get_current_tasklet()->set_transfer_in_progress(true);
