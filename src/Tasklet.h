@@ -85,7 +85,15 @@ public:
 
     Tasklet* previous() const;
 
-    void set_previous( Tasklet* previous );
+	void set_previous( Tasklet* previous );
+
+    Tasklet* next_blocked() const;
+
+    void set_next_blocked(Tasklet* next);
+
+    Tasklet* previous_blocked() const;
+
+    void set_previous_blocked( Tasklet* previous );
 
     PyObject* arguments() const;
 
@@ -160,6 +168,10 @@ private:
     Tasklet* m_previous;
 
     Tasklet* m_next;
+
+    Tasklet* m_next_blocked;
+
+	Tasklet* m_previous_blocked;
 
     unsigned long m_thread_id;
 

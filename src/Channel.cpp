@@ -8,7 +8,11 @@ Channel::Channel( PyObject* python_object ) :
 	m_python_object( python_object ),
 	m_balance(0),
 	m_preference(-1),
-	m_lock( PyThread_allocate_lock() )
+	m_lock( PyThread_allocate_lock() ),
+	m_last_blocked_on_send( nullptr ),
+	m_first_blocked_on_send( nullptr ),
+	m_last_blocked_on_receive( nullptr ),
+	m_first_blocked_on_receive( nullptr )
 {
 
 }
@@ -31,11 +35,11 @@ bool Channel::send( PyObject* args, bool exception /* = false */)
 
     Tasklet* current = ScheduleManager::get_current_tasklet();  //TODO naming clean up
 
-	run_channel_callback( this, current, true, blocked_on_receive.empty() );  //TODO will_block logic here will change with addition of preference
+	run_channel_callback( this, current, true, m_first_blocked_on_receive == nullptr );  //TODO will_block logic here will change with addition of preference
 
     current->set_transfer_in_progress(true);
 	int direction = SENDER;
-	if( blocked_on_receive.empty() )
+	if( m_first_blocked_on_receive == nullptr )
 	{
 		direction = RECEIVER;
 		// Block as there is no tasklet sending
@@ -73,7 +77,6 @@ bool Channel::send( PyObject* args, bool exception /* = false */)
 			current->unblock();
 
 			current->set_transfer_in_progress( false );
-
 			Tasklet* tasklet = pop_next_tasklet_blocked_on_send();
 
             Py_DecRef( tasklet->python_object() );
@@ -160,7 +163,7 @@ PyObject* Channel::receive()
 	// Block as there is no tasklet sending
 	Tasklet* current = ScheduleManager::get_current_tasklet();
 
-	run_channel_callback( this , current, false, blocked_on_send.empty() );    //TODO will_block logic here will change with addition of preference
+	run_channel_callback( this , current, false, m_first_blocked_on_send == nullptr );    //TODO will_block logic here will change with addition of preference
 
     if( current == nullptr )
 	{
@@ -172,7 +175,7 @@ PyObject* Channel::receive()
 
     add_tasklet_to_waiting_to_receive( current );
 
-    if( blocked_on_send.empty() )
+    if( m_first_blocked_on_send == nullptr )
 	{
 		//If current tasklet has block_trap set to true then throw runtime error
 		if( current->blocktrap() )
@@ -194,6 +197,7 @@ PyObject* Channel::receive()
 			{
 				// Will enter here is an exception has been thrown on a tasklet
 				remove_tasklet_from_blocked( current );
+				m_balance++;
 
 				current->unblock();
 
@@ -270,27 +274,61 @@ int Channel::balance() const
 
 void Channel::remove_tasklet_from_blocked( Tasklet* tasklet )
 {
-	//	TODO: This is not performant. convert this to a linkedList implementation
-	// https://en.cppreference.com/w/cpp/container/deque:
-	// - Insertion or removal of elements - linear O(n).
-	// - As opposed to std::vector, the elements of a deque are not stored contiguously
-    // 
-    // NOTE! This has been added just to get functionality working, it must be fixed before release
-	auto it = std::find( blocked_on_send.begin(), blocked_on_send.end(),  tasklet);
-	if (it != blocked_on_send.end())
-	{
-		blocked_on_send.erase(it);
-		m_balance--;
-		return;
-	}
+	bool end_node = false;
+    if (tasklet == m_first_blocked_on_receive)
+    {
+		m_first_blocked_on_receive = tasklet->next_blocked();
+        if (m_first_blocked_on_receive != nullptr)
+        {
+			m_first_blocked_on_receive->set_previous_blocked( nullptr );
+        }
 
-	it = std::find( blocked_on_receive.begin(), blocked_on_receive.end(),  tasklet);
-	if (it != blocked_on_receive.end())
-	{
-		blocked_on_receive.erase(it);
-		m_balance++;
-		return;
-	}
+		end_node = true;
+    }
+
+    if (tasklet == m_first_blocked_on_send)
+    {
+		m_first_blocked_on_send = tasklet->next_blocked();
+        if (m_first_blocked_on_send != nullptr)
+        {
+			m_first_blocked_on_send->set_previous_blocked( nullptr );
+        }
+
+        end_node = true;
+    }
+
+    if (tasklet == m_last_blocked_on_receive)
+    {
+		m_last_blocked_on_receive = tasklet->previous_blocked();
+        if (m_last_blocked_on_receive != nullptr)
+        {
+			m_last_blocked_on_receive->set_next_blocked( nullptr );
+        }
+		
+		end_node = true;
+    }
+
+    if (tasklet == m_last_blocked_on_send)
+    {
+		m_last_blocked_on_send = tasklet->previous_blocked();
+        if (m_last_blocked_on_send != nullptr)
+        {
+			m_last_blocked_on_send->set_next_blocked( nullptr );
+        }
+		
+		end_node = true;
+    }
+
+    if (!end_node)
+    {
+		tasklet->previous_blocked()->set_next_blocked( tasklet->next_blocked() );
+		tasklet->next_blocked()->set_previous_blocked( tasklet->previous_blocked() );
+    }
+
+    tasklet->set_next_blocked( nullptr );
+	tasklet->set_previous_blocked( nullptr );
+
+
 }
 
 void Channel::run_channel_callback( Channel* channel, Tasklet* tasklet, bool sending, bool will_block ) const
@@ -323,36 +361,62 @@ void Channel::run_channel_callback( Channel* channel, Tasklet* tasklet, bool sen
 
 void Channel::add_tasklet_to_waiting_to_send( Tasklet* tasklet )
 {
-	blocked_on_send.push_back(tasklet);
+    if( m_first_blocked_on_send == nullptr )
+    {
+		m_first_blocked_on_send = tasklet;
+		m_last_blocked_on_send = tasklet;
+    }
+	else
+	{
+		m_first_blocked_on_send->set_previous_blocked( tasklet );
+		tasklet->set_next_blocked( m_first_blocked_on_send );
+		m_first_blocked_on_send = tasklet;
+    }
 
     m_balance++;
 }
 
 void Channel::add_tasklet_to_waiting_to_receive( Tasklet* tasklet )
 {
-	blocked_on_receive.push_back(tasklet);
+	if( m_first_blocked_on_receive == nullptr )
+    {
+		m_first_blocked_on_receive = tasklet;
+        m_last_blocked_on_receive = tasklet;
+    }
+    else
+    {
+		m_first_blocked_on_receive->set_previous_blocked( tasklet );
+		tasklet->set_next_blocked( m_first_blocked_on_receive );
+		m_first_blocked_on_receive = tasklet;
+    }
 
-	m_balance--;
+    m_balance--;
 }
 
 Tasklet* Channel::pop_next_tasklet_blocked_on_send()
 {
-	auto next = blocked_on_send.front();
-	blocked_on_send.pop_front();
-
-    m_balance--;
-
+	Tasklet* next = nullptr;
+    if (m_last_blocked_on_send != nullptr)
+    {
+		next = m_last_blocked_on_send;
+		remove_tasklet_from_blocked( next );
+		m_balance--;
+    }
+	
     return next;
 }
 
 Tasklet* Channel::pop_next_tasklet_blocked_on_receive()
 {
-	auto next = blocked_on_receive.front();
-	blocked_on_receive.pop_front();
+	Tasklet* next = nullptr;
+    if (m_last_blocked_on_receive != nullptr)
+    {
+		next = m_last_blocked_on_receive;
+		remove_tasklet_from_blocked( next );
+		m_balance++;
+    }
 
-    m_balance++;
-
-	return next;
+    return next;
 }
 
 PyObject* Channel::channel_callback()
@@ -377,7 +441,13 @@ void Channel::set_preference( int value )
 
 Tasklet* Channel::blocked_queue_front()
 {
-    // TODO: This requires channels to use next and prev approach to blocked queues
-	PyErr_SetString( PyExc_RuntimeError, "blocked_queue_front Not yet implemented" );
+    if (m_first_blocked_on_receive != nullptr)
+    {
+		return m_first_blocked_on_receive;
+    }
+    else if (m_first_blocked_on_send != nullptr)
+    {
+		return m_first_blocked_on_send;
+    }
 	return nullptr;
 }
