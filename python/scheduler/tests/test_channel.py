@@ -12,8 +12,10 @@ else:
     scheduler = None
     raise RuntimeError("Unknown build flavor: {}".format(flavor))
 
+import sys
 import contextlib
 import unittest
+import test_utils
     
 @contextlib.contextmanager
 def block_trap(trap=True):
@@ -26,14 +28,8 @@ def block_trap(trap=True):
     finally:
         c.block_trap = old
     
-class TestChannels(unittest.TestCase):
-
-    def setUp(self):
-        pass
-        
-    def tearDown(self):
-        pass
-        
+class TestChannels(test_utils.SchedulerTestCaseBase):
+ 
     def testBlockingSend(self):
         ''' Test that when a tasklet sends to a channel without waiting receivers, the tasklet is blocked. '''
 
@@ -214,6 +210,38 @@ class TestChannels(unittest.TestCase):
             channel.receive()
         except ValueError as e:
             self.assertEqual(e.args, (1, 2, 3))
+
+    def testSendThrow(self):
+        import traceback
+
+        # subfunction in tasklet
+        def bar():
+            raise ValueError(1, 2, 3)
+
+        # Function to send the exception
+        def f(testChannel):
+            try:
+                bar()
+            except Exception:
+                testChannel.send_throw(*sys.exc_info())
+
+        # Get the tasklet blocked on the channel.
+        channel = scheduler.channel()
+        tasklet = scheduler.tasklet(f)(channel)
+        tasklet.run()
+        self.assertRaises(ValueError, channel.receive)
+
+        tasklet = scheduler.tasklet(f)(channel)
+        tasklet.run()
+        try:
+            channel.receive()
+        except ValueError:
+            exc, val, _ = sys.exc_info()
+            self.assertEqual(val.args[0].args, (1, 2, 3))
+
+            # Check that the traceback is correct
+            l = traceback.extract_tb(val.args[1])
+            self.assertEqual(l[-1][2], "bar")
 
     def testBlockingReceiveOnMainTasklet(self):
 

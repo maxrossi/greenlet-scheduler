@@ -28,45 +28,55 @@ class Tasklet;
 class ScheduleManager
 {
 public:
-	ScheduleManager();
+	ScheduleManager( PyObject* python_object );
 
 	~ScheduleManager();
 
+    PyObject* python_object();
+
+    void incref();
+
+    void decref();
+
+    static int num_active_schedule_managers();
+
+    static ScheduleManager* find_scheduler( long thread_id );
+
     static ScheduleManager* get_scheduler( long thread_id = -1 );
 
-	static void set_current_tasklet( Tasklet* tasklet );
+	void set_current_tasklet( Tasklet* tasklet );
 
-	static Tasklet* get_current_tasklet();
+	Tasklet* get_current_tasklet();
 
-    static void remove_tasklet( Tasklet* tasklet );
+    void remove_tasklet( Tasklet* tasklet );
 
-    static void insert_tasklet_at_beginning( Tasklet* tasklet );
+    void insert_tasklet_at_beginning( Tasklet* tasklet );
 
-    static void insert_tasklet( Tasklet* tasklet );
+    void insert_tasklet( Tasklet* tasklet );
 
-    static int get_tasklet_count();
+    int get_tasklet_count();
 
-    static bool schedule(bool remove = false);
+    bool schedule(bool remove = false);
 
-    static bool yield();
+    bool yield();
 
-    static PyObject* run_n_tasklets( int number_of_tasklets );
+    PyObject* run_n_tasklets( int number_of_tasklets );
 
-    static PyObject* run_tasklets_for_time( long long timeout );
+    PyObject* run_tasklets_for_time( long long timeout );
 
-    static PyObject* run( Tasklet* start_tasklet = nullptr );
+    PyObject* run( Tasklet* start_tasklet = nullptr );
 
-    static Tasklet* get_main_tasklet();
+    Tasklet* get_main_tasklet();
 
-    static void set_scheduler_fast_callback( schedule_hook_func* func );
+    void set_scheduler_fast_callback( schedule_hook_func* func );
 
-    static void set_scheduler_callback( PyObject* callback );
+    void set_scheduler_callback( PyObject* callback );
 
     void run_scheduler_callback( Tasklet* prev, Tasklet* next );
 
     PyObject* scheduler_callback();
 
-    static bool is_switch_trapped();
+    bool is_switch_trapped();
 
     void set_current_tasklet_changed_callback( PyObject* callback );
 
@@ -74,12 +84,17 @@ public:
 
     void set_switch_trap_level( int level );
 
-public:
-	inline static PyObject* s_scheduler_module;                 // A reference to "current" attribute in base module. Must be updated when current tasklet is changed
+    void create_scheduler_tasklet();
 
-	inline static PyObject* s_create_scheduler_tasklet_callable; // A reference to easily create scheduler tasklets TODO shouldn't be public
+public:
+
+    inline static PyTypeObject* s_tasklet_type;
+
+    inline static PyTypeObject* s_schedule_manager_type;
 
 private:
+
+    PyObject* m_python_object;
 
     long m_thread_id;
 
@@ -106,7 +121,5 @@ private:
     bool m_stop_scheduler;
 
     inline static std::map<long, ScheduleManager*> s_schedulers;    //Each thread has its own scheduler
-
-    
     
 };

@@ -31,5 +31,7 @@ struct InterpreterWithSchedulerModule : public ::testing::Test
 
     PyObject* m_main_module;
 
+    PyObject* m_main_scheduler;
+
     SchedulerCAPI* m_api;
 };

@@ -39,6 +39,8 @@ set(SRC_FILES
     src/PyChannel.h
     src/Channel.cpp
     src/Channel.h
+    src/PyScheduleManager.cpp
+    src/PyScheduleManager.h
     src/ScheduleManager.cpp
     src/ScheduleManager.h
     src/stdafx.cpp

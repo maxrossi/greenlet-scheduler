@@ -166,6 +166,30 @@ static PyObject*
 }
 
 static PyObject*
+	Channel_sendThrow( PyChannelObject* self, PyObject* args, PyObject* kwds )
+{
+	const char* kwlist[] = { "exc", "val", "tb", NULL };
+
+	PyObject* exception = Py_None;
+	PyObject* value = Py_None;
+	PyObject* tb = Py_None;
+
+	if( !PyArg_ParseTupleAndKeywords( args, kwds, "|OOO", (char**)kwlist, &exception, &value, &tb ) )
+	{
+		PyErr_SetString( PyExc_RuntimeError, "Failed to parse arguments" );
+		return nullptr;
+	}
+
+    if( !self->m_impl->send( args, true ) )
+	{
+		return NULL;
+	}
+
+	return Py_None;
+}
+
+
+static PyObject*
 	Channel_iter( PyChannelObject* self )
 {
 	Py_INCREF( self ); 
@@ -189,6 +213,7 @@ static PyMethodDef Channel_methods[] = {
 	{ "send", (PyCFunction)Channel_send, METH_VARARGS, "Send a value over the channel" },
 	{ "receive", (PyCFunction)Channel_receive, METH_NOARGS, "Receive a value over the channel" },
 	{ "send_exception", (PyCFunction)Channel_sendexception, METH_VARARGS, "Send an exception over the channel" },
+	{ "send_throw", (PyCFunction)Channel_sendThrow, METH_VARARGS, "(exc, val, tb) is raised on the first tasklet blocked on channel self." },
 	{ NULL } /* Sentinel */
 };
 
@@ -196,7 +221,7 @@ static PyTypeObject ChannelType = {
 	/* The ob_type field must be initialized in the module init function
      * to be portable to Windows without using C++. */
 	PyVarObject_HEAD_INIT( NULL, 0 ) "scheduler.Channel", /*tp_name*/
-	sizeof( PyChannelObject ), /*tp_basicsize*/
+	sizeof( PyChannelObject ) + sizeof( Channel ), /*tp_basicsize*/
 	0, /*tp_itemsize*/
 	/* methods */
 	(destructor)Channel_dealloc, /*tp_dealloc*/

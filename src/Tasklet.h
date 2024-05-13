@@ -20,16 +20,21 @@
 #include "stdafx.h"
 
 class Channel;
+class ScheduleManager;
 
 class Tasklet
 {
 public:
 
-	Tasklet( PyObject* python_object, PyObject* tasklet_exit_exception );
+	Tasklet( PyObject* python_object, PyObject* tasklet_exit_exception, bool is_main );
 
     ~Tasklet();
 
     PyObject* python_object();
+
+    void incref();
+
+	void decref();
 
 	void set_to_current_greenlet();
 
@@ -109,7 +114,7 @@ public:
 
     bool transfer_is_exception() const;
 
-    bool throw_impl( PyObject* exception, PyObject* value, PyObject* tb, bool pending );
+    bool throw_exception( PyObject* exception, PyObject* value, PyObject* tb, bool pending );
 
     void raise_exception( );
 
@@ -200,5 +205,7 @@ private:
 	PyObject* m_exception_arguments;
 
     PyObject* m_tasklet_exit_exception; //Weak ref
+
+    ScheduleManager* m_schedule_manager;
 
 };

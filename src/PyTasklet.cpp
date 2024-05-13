@@ -25,7 +25,12 @@ static PyObject*
 	{
 		if( callable == Py_None && ( bind_args == nullptr && bind_kw_args == nullptr ) )
 		{
-			auto current = reinterpret_cast<PyTaskletObject*>( ScheduleManager::get_current_tasklet()->python_object() );
+			ScheduleManager* schedule_manager = ScheduleManager::get_scheduler();
+
+			auto current = reinterpret_cast<PyTaskletObject*>( schedule_manager->get_current_tasklet()->python_object() );
+
+            schedule_manager->decref();
+
 			if( self == current )
 			{
 				PyErr_SetString( PyExc_RuntimeError, "cannot unbind current tasklet" );
@@ -110,18 +115,27 @@ static int
 	self->m_weakref_list = nullptr;
 
 	self->m_impl = (Tasklet*)PyObject_Malloc( sizeof( Tasklet ) );
-	
 
-    if( !self->m_impl )
+	if( !self->m_impl )
 	{
 		PyErr_SetString( PyExc_RuntimeError, "Failed to allocate memory for implementation object." );
 
 		return -1;
 	}
 
+    PyObject* callable = nullptr;
+	bool is_main = false;
+
+    if( !PyArg_ParseTuple( args, "|Op", &callable, &is_main ) )
+	{
+		PyErr_SetString( PyExc_RuntimeError, "Failed while parsing arguments" );
+
+		return -1;
+	}
+
     try
 	{
-		new( self->m_impl ) Tasklet( reinterpret_cast<PyObject*>( self ), TaskletExit );
+		new( self->m_impl ) Tasklet( reinterpret_cast<PyObject*>( self ), TaskletExit, is_main );
 	}
 	catch( const std::exception& ex )
 	{
@@ -140,11 +154,17 @@ static int
 		return -1;
 	}
 
-    if (Tasklet_bind(self, args, kwds) == nullptr)
-    {
-		return -1;
-    }
+    // Don't pass args if this is main tasklet
 
+    if (!is_main)
+    {
+        if( Tasklet_bind( self, args, kwds ) == nullptr )
+        {
+		    Py_DecRef( args );
+		    return -1;
+        }
+	}
+    
     return 0;
 }
 
@@ -156,9 +176,13 @@ static void
 
     PyObject_Free( self->m_impl );
 
+    
     // Handle weakrefs
-    if( self->m_weakref_list != nullptr )
+	if( self->m_weakref_list != nullptr )
+	{
 		PyObject_ClearWeakRefs( (PyObject*)self );
+	}
+    
 
 	Py_TYPE( self )->tp_free( (PyObject*)self );
 }
@@ -204,7 +228,11 @@ static int
 static PyObject*
 	Tasklet_iscurrent_get( PyTaskletObject* self, void* closure )
 {
-	Tasklet* current_tasklet = ScheduleManager::get_current_tasklet();
+	ScheduleManager* schedule_manager = ScheduleManager::get_scheduler();
+
+	Tasklet* current_tasklet = schedule_manager->get_current_tasklet();
+
+    schedule_manager->decref();
 
 	return reinterpret_cast<PyObject*>( self ) == current_tasklet->python_object() ? Py_True : Py_False;
 }
@@ -365,7 +393,7 @@ static PyObject*
 		return nullptr;
     }
 
-    return self->m_impl->throw_impl( exception, value, tb, pending ) ? Py_None : nullptr;
+    return self->m_impl->throw_exception( exception, value, tb, pending ) ? Py_None : nullptr;
 
 }
 
@@ -387,7 +415,7 @@ static PyObject*
 		return nullptr;
 	}
 
-	return self->m_impl->throw_impl( exception, arguments, Py_None, false ) ? Py_None : nullptr;
+	return self->m_impl->throw_exception( exception, arguments, Py_None, false ) ? Py_None : nullptr;
 }
 
 static PyObject*
@@ -501,7 +529,7 @@ static PyTypeObject TaskletType = {
 	/* The ob_type field must be initialized in the module init function
      * to be portable to Windows without using C++. */
 	PyVarObject_HEAD_INIT( NULL, 0 ) "scheduler.Tasklet", /*tp_name*/
-	sizeof( PyTaskletObject ), /*tp_basicsize*/
+	sizeof( PyTaskletObject ) + sizeof( Tasklet ), /*tp_basicsize*/
 	0, /*tp_itemsize*/
 	/* methods */
 	(destructor)Tasklet_dealloc, /*tp_dealloc*/
@@ -530,8 +558,7 @@ static PyTypeObject TaskletType = {
 	Tasklet_methods, /*tp_methods*/
 	0, /*tp_members*/
 	Tasklet_getsetters, /*tp_getset*/
-	0,
-	/* see PyInit_xx */ /*tp_base*/
+	0, /* see PyInit_xx */ /*tp_base*/
 	0, /*tp_dict*/
 	0, /*tp_descr_get*/
 	0, /*tp_descr_set*/

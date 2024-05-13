@@ -44,6 +44,46 @@ static PyObject*
 }
 
 static PyObject*
+	schedulertest_channel_send_throw( PyObject* self, PyObject* args )
+{
+	PyObject* channel = Py_None;
+
+	PyObject* exception = Py_None;
+	PyObject* value = Py_None;
+	PyObject* tb = Py_None;
+
+	if( !PyArg_ParseTuple( args, "OOOO", &channel, &exception, &value, &tb ) )
+	{
+		return NULL;
+	}
+
+	if( !s_scheduler_api->PyChannel_Check( channel ) )
+	{
+		return NULL;
+	}
+
+	Py_IncRef( exception );
+
+    Py_IncRef( value );
+
+    Py_IncRef( tb );
+
+	s_test_value = 1; // Increment test value
+
+	int ret_val = s_scheduler_api->PyChannel_SendThrow( reinterpret_cast<PyChannelObject*>( channel ),exception, value, tb );
+
+	s_test_value = ret_val; // Will be -1 if failed (eg tasklet killed)
+
+    Py_DecRef( exception );
+
+	Py_DecRef( value );
+
+    Py_DecRef( tb );
+
+	return ret_val == 0 ? Py_None : nullptr;
+}
+
+static PyObject*
 	schedulertest_channel_receive( PyObject* self, PyObject* args )
 {
 	PyObject* channel = Py_None;
@@ -112,6 +152,7 @@ static PyObject*
 
 static PyMethodDef SchedulerTestMethods[] = {
 	{ "channel_send", schedulertest_channel_send, METH_VARARGS, "TODO" },
+	{ "channel_send_throw", schedulertest_channel_send_throw, METH_VARARGS, "TODO" },
 	{ "channel_receive", schedulertest_channel_receive, METH_VARARGS, "TODO" },
 	{ "schedule", schedulertest_schedule, METH_VARARGS, "Schedules using c-api PyScheduler_Schedule" },
 	{ "send_exception", schedulertest_send_exception, METH_VARARGS, "Sends and exception using c-api PyScheduler_Schedule" },
@@ -265,13 +306,19 @@ void InterpreterWithSchedulerModule::SetUp()
 		PyErr_Print();
 		exit( -1 );
     }
+
+    // Get a reference to the main scheduler
+    m_main_scheduler = m_api->PyScheduler_GetScheduler();
 }
 
 void InterpreterWithSchedulerModule::TearDown()
 {
-	
+	// Destroy main scheduler
+	Py_DecRef( m_main_scheduler );
+
+    // Destroy scheduler helper module
 	Py_DecRef( m_scheduler_module );
-	
+    
 	if( Py_FinalizeEx() < 0 )
 	{
 		PyErr_Print();

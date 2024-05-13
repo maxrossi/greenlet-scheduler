@@ -14,6 +14,7 @@ else:
 
 import unittest
 import contextlib
+import test_utils
 
 @contextlib.contextmanager
 def switch_trapped():
@@ -25,7 +26,7 @@ def switch_trapped():
 
 
 
-class TestTaskletRunOrder(unittest.TestCase):
+class TestTaskletRunOrder(test_utils.SchedulerTestCaseBase):
     
     def testTaskletRunOrder(self):
         completedSendTasklets = [""]
@@ -148,14 +149,8 @@ class TestScheduleOrderBase(object):
         self.assertEqual(completedSendTasklets[0],"t1t2t3t4t5t6")
 
 # Run all tasklets in queue
-class TestScheduleOrderRunAll(unittest.TestCase, TestScheduleOrderBase):
+class TestScheduleOrderRunAll(test_utils.SchedulerTestCaseBase, TestScheduleOrderBase):
     Watchdog = False
-
-    def setUp(self):
-        pass
-        
-    def tearDown(self):
-        pass
 
     @classmethod
     def run_scheduler(cls):
@@ -169,19 +164,11 @@ class TestScheduleOrderRunAll(unittest.TestCase, TestScheduleOrderBase):
 class TestScheduleOrderRunOne(TestScheduleOrderRunAll):
     Watchdog = True
 
-    def setUp(self):
-        pass
-        
-    def tearDown(self):
-        pass
-
-class TestSchedule(unittest.TestCase):
+class TestSchedule(test_utils.SchedulerTestCaseBase):
 
     def setUp(self):
+        super().setUp()
         self.events = []
-        
-    def tearDown(self):
-        pass
 
     def testSchedule(self):
         def foo(previous):
@@ -203,15 +190,17 @@ class TestSchedule(unittest.TestCase):
         self.assertEqual(self.events, ["foo"])
 
 
-class TestSwitch(unittest.TestCase):
+class TestSwitch(test_utils.SchedulerTestCaseBase):
     """Test the new tasklet.switch() method, which allows
     explicit switching
     """
-
     def setUp(self):
+        super().setUp()
+
         self.source = scheduler.getcurrent()
         self.finished = False
         self.c = scheduler.channel()
+
 
     def target(self):
         self.assertTrue(self.source.paused)
@@ -283,7 +272,7 @@ class TestSwitch(unittest.TestCase):
         t.switch()
         self.assertTrue(self.finished)
 
-class TestSwitchTrap(unittest.TestCase):
+class TestSwitchTrap(test_utils.SchedulerTestCaseBase):
 
     class SwitchTrap(object):
 

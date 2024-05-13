@@ -16,15 +16,9 @@ import unittest
 import sys
 import traceback
 import weakref
-
+import test_utils
     
-class TestTasklets(unittest.TestCase):
-
-    def setUp(self):
-        pass
-        
-    def tearDown(self):
-        pass
+class TestTasklets(test_utils.SchedulerTestCaseBase):
     
     def test_raise_exception(self):
         c = scheduler.channel()
@@ -198,7 +192,6 @@ class TestTaskletThrowBase(object):
                 self.assertTrue(isinstance(e, IndexError))
                 raise
         s = scheduler.tasklet(foo)()
-        #self.assertEqual(s.frame, None) #TODO - Removed as we have no s.frame attribute
         self.assertTrue(s.alive)
         # Test that the current "unhandled exception behaviour"
         # is invoked for the not-yet-running tasklet.
@@ -267,14 +260,8 @@ class TestTaskletThrowBase(object):
         self.assertRaises(TypeError, t)
 
 
-class TestTaskletThrowImmediate(unittest.TestCase, TestTaskletThrowBase):
+class TestTaskletThrowImmediate(test_utils.SchedulerTestCaseBase, TestTaskletThrowBase):
     pending = False
-
-    def setUp(self):
-        pass
-        
-    def tearDown(self):
-        pass
 
     @classmethod
     def throw(cls, s, *args):
@@ -295,7 +282,7 @@ class TestTaskletThrowNonImmediate(TestTaskletThrowImmediate):
         self.assertFalse(s.alive)
 
 
-class TestKill(unittest.TestCase):
+class TestKill(test_utils.SchedulerTestCaseBase):
     SLP_TASKLET_KILL_REBINDS_THREAD = False  # see tasklet.c function impl_tasklet_kill()
 
     def test_kill_pending_true(self):
@@ -472,9 +459,10 @@ class TestKill(unittest.TestCase):
     #    return self._test_kill_without_thread_state(1, True)
             
 
-class TestBind(unittest.TestCase):
+class TestBind(test_utils.SchedulerTestCaseBase):
 
     def setUp(self):
+        super().setUp()
         self.finally_run_count = 0
         self.args = self.kwargs = None
 
@@ -737,7 +725,7 @@ class TestBind(unittest.TestCase):
 
 
 
-class TestTaskletExitException(unittest.TestCase):
+class TestTaskletExitException(test_utils.SchedulerTestCaseBase):
 
     def test_tasklet_raising_standard_exception(self):
 

@@ -33,7 +33,9 @@ bool Channel::send( PyObject* args, bool exception /* = false */)
 {
     PyThread_acquire_lock( m_lock, 1 );
 
-    Tasklet* current = ScheduleManager::get_current_tasklet();  //TODO naming clean up
+    ScheduleManager* schedule_manager = ScheduleManager::get_scheduler();
+
+    Tasklet* current = schedule_manager->get_current_tasklet(); //TODO naming clean up
 
 	run_channel_callback( this, current, true, m_first_blocked_on_receive == nullptr );  //TODO will_block logic here will change with addition of preference
 
@@ -49,6 +51,8 @@ bool Channel::send( PyObject* args, bool exception /* = false */)
 
 			PyThread_release_lock( m_lock );
 
+            schedule_manager->decref();
+
 			return false;
 		}
 
@@ -58,6 +62,8 @@ bool Channel::send( PyObject* args, bool exception /* = false */)
 			PyErr_SetString( PyExc_RuntimeError, "Channel cannot block on main tasklet with block_trap set true" );
 
 			PyThread_release_lock( m_lock );
+
+            schedule_manager->decref();
 
 			return false;
 		}
@@ -72,7 +78,7 @@ bool Channel::send( PyObject* args, bool exception /* = false */)
         PyThread_release_lock( m_lock );
 
          // Continue scheduler
-		if( !ScheduleManager::yield() )
+		if( !schedule_manager->yield() )
 		{
 			current->unblock();
 
@@ -80,6 +86,8 @@ bool Channel::send( PyObject* args, bool exception /* = false */)
 			Tasklet* tasklet = pop_next_tasklet_blocked_on_send();
 
             Py_DecRef( tasklet->python_object() );
+
+            schedule_manager->decref();
 
 			return false;
         }
@@ -98,10 +106,12 @@ bool Channel::send( PyObject* args, bool exception /* = false */)
 
     PyThread_release_lock( m_lock );
 
-    Tasklet* current_tasklet = ScheduleManager::get_current_tasklet();
+    Tasklet* current_tasklet = schedule_manager->get_current_tasklet();
 
     if (!channel_switch(current_tasklet, receiving_tasklet, direction, SENDER))
     {
+		schedule_manager->decref();
+
 		return false;
     }
 	
@@ -110,18 +120,24 @@ bool Channel::send( PyObject* args, bool exception /* = false */)
 
 	current->set_transfer_in_progress( false );
 
+    schedule_manager->decref();
+
 	return true;
 
 }
 
 bool Channel::channel_switch(Tasklet* caller, Tasklet* other, int dir, int caller_dir)
 {
+	ScheduleManager* schedule_manager = ScheduleManager::get_scheduler();
+
     //if preference is opposit from direction, switch away from caller
 	if( ( -dir == m_preference && dir == caller_dir ) || (dir == m_preference && dir != caller_dir))
     {
-		ScheduleManager::insert_tasklet( caller );
+		schedule_manager->insert_tasklet( caller );
         if (!other->switch_to())
         {
+			schedule_manager->decref();
+
 			return false;
         }
     }
@@ -130,9 +146,11 @@ bool Channel::channel_switch(Tasklet* caller, Tasklet* other, int dir, int calle
     {
 		if( m_preference == PREFER_NEITHER && -caller_dir == dir )
         {
-			ScheduleManager::insert_tasklet( caller );
+			schedule_manager->insert_tasklet( caller );
             if (!other->switch_to())
             {
+				schedule_manager->decref();
+
 				return false;
             }
         }
@@ -144,12 +162,14 @@ bool Channel::channel_switch(Tasklet* caller, Tasklet* other, int dir, int calle
 			}
 			else
 			{
-				ScheduleManager::insert_tasklet( other );
+				schedule_manager->insert_tasklet( other );
 			}
         }
     }
 
-    ScheduleManager::set_current_tasklet( caller );
+    schedule_manager->set_current_tasklet( caller );
+
+    schedule_manager->decref();
 
     return true;
 }
@@ -158,16 +178,21 @@ PyObject* Channel::receive()
 {
 	PyThread_acquire_lock( m_lock, 1 );
 
-    ScheduleManager::get_current_tasklet()->set_transfer_in_progress(true);
+    ScheduleManager* schedule_manager = ScheduleManager::get_scheduler();
+
+    schedule_manager->get_current_tasklet()->set_transfer_in_progress( true );
 
 	// Block as there is no tasklet sending
-	Tasklet* current = ScheduleManager::get_current_tasklet();
+	Tasklet* current = schedule_manager->get_current_tasklet();
 
 	run_channel_callback( this , current, false, m_first_blocked_on_send == nullptr );    //TODO will_block logic here will change with addition of preference
 
     if( current == nullptr )
 	{
 		PyErr_SetString( PyExc_RuntimeError, "No current tasklet set" );
+
+        schedule_manager->decref();
+
 		return nullptr;
 	}
 
@@ -184,6 +209,8 @@ PyObject* Channel::receive()
 
 			PyThread_release_lock( m_lock );
 
+            schedule_manager->decref();
+
 			return nullptr;
 		}
 		else
@@ -193,7 +220,7 @@ PyObject* Channel::receive()
 			PyThread_release_lock( m_lock );
 
 			// Continue scheduler
-			if( !ScheduleManager::yield() )
+			if( !schedule_manager->yield() )
 			{
 				// Will enter here is an exception has been thrown on a tasklet
 				remove_tasklet_from_blocked( current );
@@ -202,6 +229,8 @@ PyObject* Channel::receive()
 				current->unblock();
 
 				current->set_transfer_in_progress( false );
+
+                schedule_manager->decref();
 
 				return nullptr;
 			}
@@ -216,10 +245,12 @@ PyObject* Channel::receive()
 
         PyThread_release_lock( m_lock );
 
-        Tasklet* current_tasklet = ScheduleManager::get_current_tasklet();
+        Tasklet* current_tasklet = schedule_manager->get_current_tasklet();
 		
 		if(!sending_tasklet->switch_to())
 		{
+			schedule_manager->decref();
+
 			return nullptr;
         }
 		else
@@ -227,7 +258,7 @@ PyObject* Channel::receive()
 			// Update current tasklet back to the correct calling tasklet
 			// Required as the switch_to circumvents the scheduling queue
 			// Which would normally deal with this
-			ScheduleManager::set_current_tasklet( current_tasklet );
+			schedule_manager->set_current_tasklet( current_tasklet );
         }
 
         Py_DecRef( sending_tasklet->python_object() );
@@ -248,12 +279,14 @@ PyObject* Channel::receive()
         PyObject* exception_type = PyTuple_GetItem( arguments, 0 );
 
         PyObject* exception_values = PyTuple_GetSlice( arguments, 1, PyTuple_Size( arguments ) );
-
-		PyErr_SetObject( exception_type, exception_values );
+		
+        PyErr_SetObject( exception_type, exception_values );
 
         Py_DecRef( arguments );
 
 		current->set_transfer_in_progress( false );  //TODO having two of these sucks
+
+        schedule_manager->decref();
 
         return nullptr;
 
@@ -264,6 +297,9 @@ PyObject* Channel::receive()
 	auto ret = current->get_transfer_arguments();
 
 	current->clear_transfer_arguments();
+
+    schedule_manager->decref();
+
 	return ret;
 }
 

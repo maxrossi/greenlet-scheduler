@@ -217,16 +217,18 @@ TEST_F( TaskletCapi, PyTasklet_IsMain )
 
     EXPECT_TRUE( m_api->PyTasklet_IsMain( reinterpret_cast<PyTaskletObject*>(main_tasklet) ) );
 
+    Py_DecRef( main_tasklet );
+	
     // Create tasklet
 	EXPECT_EQ( PyRun_SimpleString( "tasklet = scheduler.tasklet(lambda: None)\n" ), 0 );
 	PyObject* tasklet = PyObject_GetAttrString( m_main_module, "tasklet" );
 	EXPECT_NE( tasklet, nullptr );
 	EXPECT_TRUE( m_api->PyTasklet_Check( tasklet ) );
-
     EXPECT_FALSE( m_api->PyTasklet_IsMain( reinterpret_cast<PyTaskletObject*>( tasklet ) ) );
-
-    Py_XDECREF( tasklet );
-
+    
+    EXPECT_EQ( PyRun_SimpleString( "tasklet = None\n" ), 0 );
+	Py_XDECREF( tasklet );
+    
 }
 
 TEST_F( TaskletCapi, PyTasklet_Alive )

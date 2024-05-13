@@ -61,8 +61,10 @@ struct SchedulerCAPI
     using PyChannel_SetPreference_Routine 		      = std::add_pointer_t<void(struct PyChannelObject*, int)>;
     using PyChannel_GetBalance_Routine    		      = std::add_pointer_t<int(struct PyChannelObject*)>;
     using PyChannel_Check_Routine                     = std::add_pointer_t<int(PyObject*)>;
+    using PyChannel_SendThrow_Routine                 = std::add_pointer_t<int(struct PyChannelObject*, PyObject*, PyObject*, PyObject*)>;
 
     //scheduler functions
+    using PyScheduler_GetScheduler_Routine            = std::add_pointer_t<PyObject*(void)>;
     using PyScheduler_Schedule_Routine                = std::add_pointer_t<PyObject*(PyObject*, int)>;
     using PyScheduler_GetRunCount_Routine             = std::add_pointer_t<int(void)>;
     using PyScheduler_GetCurrent_Routine              = std::add_pointer_t<PyObject*(void)>;
@@ -72,7 +74,6 @@ struct SchedulerCAPI
     using PyScheduler_GetChannelCallback_Routine      = std::add_pointer_t<PyObject*(void)>;
     using PyScheduler_SetScheduleCallback_Routine     = std::add_pointer_t<int(PyObject*)>;
     using PyScheduler_SetScheduleFastCallback_Routine = std::add_pointer_t<void(schedule_hook_func func)>;
-	using PyScheduler_CallMethod_Main_Routine         = std::add_pointer_t<PyObject*(PyObject *o, char *name, char *format, ...)>;
 
     // =============== member function pointers ===============
 
@@ -97,8 +98,10 @@ struct SchedulerCAPI
 	PyChannel_SetPreference_Routine PyChannel_SetPreference;
 	PyChannel_GetBalance_Routine PyChannel_GetBalance;
 	PyChannel_Check_Routine PyChannel_Check;
+	PyChannel_SendThrow_Routine PyChannel_SendThrow;
 
     //scheduler functions
+	PyScheduler_GetScheduler_Routine PyScheduler_GetScheduler;
 	PyScheduler_Schedule_Routine PyScheduler_Schedule;
 	PyScheduler_GetRunCount_Routine PyScheduler_GetRunCount;
 	PyScheduler_GetCurrent_Routine PyScheduler_GetCurrent;
@@ -108,7 +111,6 @@ struct SchedulerCAPI
 	PyScheduler_GetChannelCallback_Routine PyScheduler_GetChannelCallback;
 	PyScheduler_SetScheduleCallback_Routine PyScheduler_SetScheduleCallback;
 	PyScheduler_SetScheduleFastCallback_Routine PyScheduler_SetScheduleFastCallback;
-	PyScheduler_CallMethod_Main_Routine PyScheduler_CallMethod_Main;
 
     // types
     PyTypeObject* PyTaskletType;
