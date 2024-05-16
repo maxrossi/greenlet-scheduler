@@ -338,7 +338,7 @@ PyObject* ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
     }
 	else
 	{
-		base_tasklet = get_main_tasklet(); 
+		base_tasklet = get_current_tasklet();
     }
 
     bool run_complete = false;
@@ -359,7 +359,10 @@ PyObject* ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
 			currentTaskletParentBlocked = current_tasklet->get_tasklet_parent()->is_blocked();
         }
 
-		current_tasklet->set_parent( ScheduleManager::get_current_tasklet() );
+        if (current_tasklet->set_parent(ScheduleManager::get_current_tasklet()) == -1)
+        {
+			return nullptr;
+        }
 		
         // If set to true then tasklet will be decreffed at the end of the loop
         bool cleanup_current_tasklet = false;

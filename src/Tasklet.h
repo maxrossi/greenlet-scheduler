@@ -122,7 +122,7 @@ public:
 
     Tasklet* get_tasklet_parent();
 
-    void set_parent( Tasklet* parent );
+    int set_parent( Tasklet* parent );
 
     void clear_parent();
 
