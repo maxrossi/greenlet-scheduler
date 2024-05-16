@@ -140,6 +140,8 @@ public:
 
     void set_callable( PyObject* callable );
 
+    bool requires_removal();
+
 private:
 
     void set_exception_state( PyObject* exception, PyObject* arguments = Py_None );
@@ -196,7 +198,9 @@ private:
 
     bool m_reschedule;
 
-    bool m_tagged_for_removal;
+    bool m_remove;
+
+    bool m_tagged_for_removal;  // This flag set will ensure that the tasklet doesn't get marked as not alive
 
     Tasklet* m_tasklet_parent; // Weak ref
 

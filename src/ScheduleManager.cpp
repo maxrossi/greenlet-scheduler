@@ -17,7 +17,8 @@ ScheduleManager::ScheduleManager( PyObject* python_object ) :
     m_scheduler_callback(nullptr),
     m_scheduler_fast_callback(nullptr),
     m_tasklet_limit(-1),
-    m_stop_scheduler(false)
+    m_stop_scheduler(false),
+	m_number_of_tasklets_in_queue(0)
 {
     // Create scheduler tasklet TODO pull out to separate
 	create_scheduler_tasklet();
@@ -156,6 +157,8 @@ void ScheduleManager::insert_tasklet_at_beginning( Tasklet* tasklet )
     current_scheduler->decref();
 
     tasklet->set_scheduled( true );
+
+    m_number_of_tasklets_in_queue++;
 }
 
 void ScheduleManager::insert_tasklet( Tasklet* tasklet )
@@ -178,6 +181,8 @@ void ScheduleManager::insert_tasklet( Tasklet* tasklet )
 		tasklet->unblock();
 
 		tasklet->set_scheduled( true );
+
+        m_number_of_tasklets_in_queue++;
     }
 	else
 	{
@@ -187,11 +192,16 @@ void ScheduleManager::insert_tasklet( Tasklet* tasklet )
     current_scheduler->decref();
 }
 
-void ScheduleManager::remove_tasklet( Tasklet* tasklet )
+bool ScheduleManager::remove_tasklet( Tasklet* tasklet )
 {
 	Tasklet* previous = tasklet->previous();
 
     Tasklet* next = tasklet->next();
+
+    if (previous == next)
+    {
+		return false;
+    }
 
     if(previous != nullptr)
 	{
@@ -202,6 +212,10 @@ void ScheduleManager::remove_tasklet( Tasklet* tasklet )
 	{
 		next->set_previous( previous );
     }
+
+    m_number_of_tasklets_in_queue--;
+
+    return true;
 }
 
 bool ScheduleManager::schedule( bool remove /* = false */ )
@@ -228,19 +242,22 @@ bool ScheduleManager::schedule( bool remove /* = false */ )
 
 int ScheduleManager::get_tasklet_count()
 {
-    // TODO could be cached
+	return m_number_of_tasklets_in_queue + 1;   // +1 is the main tasklet
+}
 
+int ScheduleManager::calculate_tasklet_count()
+{
 	int count = 0;
 
-    Tasklet* current_tasklet = ScheduleManager::get_main_tasklet();
+	Tasklet* current_tasklet = ScheduleManager::get_main_tasklet();
 
-	while( current_tasklet->next() != nullptr)
+	while( current_tasklet->next() != nullptr )
 	{
 		count++;
 		current_tasklet = current_tasklet->next();
-    }
+	}
 
-	return count + 1;   // +1 is the main tasklet
+	return count + 1; // +1 is the main tasklet
 }
 
 // Returns true if tasklet is in a clean state when resumed
@@ -364,13 +381,19 @@ PyObject* ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
 				m_previous_tasklet = current_tasklet->previous();
 			}
 
-			
-
 			// If running with a tasklet limit then if there are no tasklets left and
 			// then don't move the scheduler forward to keep the stacks required to recreate the scheduler state
 			if( !m_stop_scheduler )
 			{
 				// Remove tasklet from queue
+                if (remove_tasklet(current_tasklet))
+                {
+					cleanup_current_tasklet = true;
+                }
+
+                current_tasklet->set_scheduled( false );
+
+
 				Tasklet* previous_store = current_tasklet->previous();
 
 				if( current_tasklet->previous() != current_tasklet->next() )
@@ -456,6 +479,15 @@ PyObject* ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
         }
 		else
 		{
+		    // If exception state should lead to removal of tasklet
+            if( current_tasklet->requires_removal() )
+			{
+				if( remove_tasklet( current_tasklet ) )
+				{
+					cleanup_current_tasklet = true;
+				}
+			}
+            
             // Switch was unsuccessful
 			current_tasklet->clear_parent();
 

@@ -32,7 +32,8 @@ Tasklet::Tasklet( PyObject* python_object, PyObject* tasklet_exit_exception, boo
 	m_tagged_for_removal( false ),
 	m_previous_blocked( nullptr ),
 	m_next_blocked( nullptr ),
-	m_schedule_manager(nullptr)
+	m_schedule_manager(nullptr),
+	m_remove(false)
 {
 
     // If tasklet is not a scheduler tasklet then register the tasklet with the scheduler
@@ -326,6 +327,9 @@ PyObject* Tasklet::switch_to( )
 
                 schedule_manager->decref();
 
+                // Inform scheduler to remove this tasklet
+                m_remove = true;
+
                 return nullptr;
             }
 		
@@ -340,7 +344,7 @@ PyObject* Tasklet::switch_to( )
 
 		ret = PyGreenlet_Switch( m_greenlet, m_arguments, m_kwarguments );
 
-       
+        
 
         // Check exception state of current tasklet
         // It is important to understand that the current tasklet may not be the same value as this object
@@ -367,9 +371,16 @@ PyObject* Tasklet::switch_to( )
 			m_alive = false;
 		}
 
-        // Reset tagging used to preserve alive status after removal
+		// Reset tagging used to preserve alive status after removal
         m_tagged_for_removal = false;
-	
+
+        
+		if( !ret )
+		{
+			// Inform scheduler to remove this tasklet
+			m_remove = true;
+		}
+
     }
 
     schedule_manager->decref();
@@ -914,4 +925,9 @@ void Tasklet::set_callable(PyObject* callable)
 	Py_XDECREF( m_callable );
 
 	m_callable = callable;
+}
+
+bool Tasklet::requires_removal()
+{
+	return m_remove;
 }

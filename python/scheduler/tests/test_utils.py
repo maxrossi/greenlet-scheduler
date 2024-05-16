@@ -27,8 +27,11 @@ class SchedulerTestCaseBase(unittest.TestCase):
         self.assertEqual(sys.getrefcount(self.scheduleManager), 2)
 
     def tearDown(self):
-        # Finish scheduler
+        # Finish any remaining tasklets
         scheduler.run()
+
+        # Tests should clean up after themselves
+        self.assertEqual(self.getruncount(), 1)
 
         # Ensure garbage collector has run
         gc.collect()
@@ -45,3 +48,12 @@ class SchedulerTestCaseBase(unittest.TestCase):
 
         # None should then remain
         self.assertEqual(scheduler.get_number_of_active_schedule_managers(), 0)
+
+    # Method to wrap getruncount with an added check that running total matches calculated value
+    def getruncount(self):
+        runCount = scheduler.getruncount()
+        
+        #Ensure that running value matches calculated value
+        self.assertEqual(runCount, scheduler.calculateruncount())
+
+        return runCount

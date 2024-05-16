@@ -48,13 +48,15 @@ public:
 
 	Tasklet* get_current_tasklet();
 
-    void remove_tasklet( Tasklet* tasklet );
+    bool remove_tasklet( Tasklet* tasklet );
 
     void insert_tasklet_at_beginning( Tasklet* tasklet );
 
     void insert_tasklet( Tasklet* tasklet );
 
     int get_tasklet_count();
+
+    int calculate_tasklet_count();
 
     bool schedule(bool remove = false);
 
@@ -119,6 +121,8 @@ private:
     std::chrono::steady_clock::time_point m_start_time;
 
     bool m_stop_scheduler;
+
+    int m_number_of_tasklets_in_queue;
 
     inline static std::map<long, ScheduleManager*> s_schedulers;    //Each thread has its own scheduler
     

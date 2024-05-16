@@ -40,7 +40,9 @@ class TestChannels(test_utils.SchedulerTestCaseBase):
         # Get the tasklet blocked on the channel.
         channel = scheduler.channel()
         tasklet = scheduler.tasklet(f)(channel)
+        self.assertEqual(self.getruncount(), 2)
         tasklet.run()
+        self.assertEqual(self.getruncount(), 1)
 
         # The tasklet should be blocked.
         self.assertTrue(tasklet.blocked, "The tasklet should have been run and have blocked on the channel waiting for a corresponding receiver")
@@ -58,7 +60,9 @@ class TestChannels(test_utils.SchedulerTestCaseBase):
         # Get the tasklet blocked on the channel.
         channel = scheduler.channel()
         tasklet = scheduler.tasklet(f)(channel)
+        self.assertEqual(self.getruncount(), 2)
         tasklet.run()
+        self.assertEqual(self.getruncount(), 1)
 
         # The tasklet should be blocked.
         self.assertTrue(tasklet.blocked, "The tasklet should have been run and have blocked on the channel waiting for a corresponding sender")
@@ -79,7 +83,9 @@ class TestChannels(test_utils.SchedulerTestCaseBase):
         # Get the tasklet blocked on the channel.
         channel = scheduler.channel()
         tasklet = scheduler.tasklet(f)(channel)
+        self.assertEqual(self.getruncount(), 2)
         tasklet.run()
+        self.assertEqual(self.getruncount(), 1)
 
         # Make sure that the current tasklet cannot block when it tries to receive.  We do not want
         # to exit this test having clobbered the block trapping value, so we make sure we restore
@@ -104,7 +110,9 @@ class TestChannels(test_utils.SchedulerTestCaseBase):
         # Get the tasklet blocked on the channel.
         channel = scheduler.channel()
         tasklet = scheduler.tasklet(f)(channel, originalValue)
+        self.assertEqual(self.getruncount(), 2)
         tasklet.run()
+        self.assertEqual(self.getruncount(), 1)
 
         # Make sure that the current tasklet cannot block when it tries to receive.  We do not want
         # to exit this test having clobbered the block trapping value, so we make sure we restore
@@ -134,7 +142,9 @@ class TestChannels(test_utils.SchedulerTestCaseBase):
         # Test on main tasklet and on worker
         f()
         scheduler.tasklet(f)()
+        self.assertEqual(self.getruncount(), 2)
         scheduler.run()
+        self.assertEqual(self.getruncount(), 1)
         self.assertEqual(count[0], 2)
         
     def testBlockTrapRecv(self):
@@ -149,7 +159,9 @@ class TestChannels(test_utils.SchedulerTestCaseBase):
 
         f()
         scheduler.tasklet(f)()
+        self.assertEqual(self.getruncount(), 2)
         scheduler.run()
+        self.assertEqual(self.getruncount(), 1)
         self.assertEqual(count[0], 2)
 
     def testMainTaskletBlockingWithoutASender(self):
@@ -202,10 +214,14 @@ class TestChannels(test_utils.SchedulerTestCaseBase):
         # Get the tasklet blocked on the channel.
         channel = scheduler.channel()
         tasklet = scheduler.tasklet(f)(channel)
+        self.assertEqual(self.getruncount(), 2)
         tasklet.run()
+        self.assertEqual(self.getruncount(), 1)
         self.assertRaises(ValueError, channel.receive)
         tasklet = scheduler.tasklet(f)(channel)
+        self.assertEqual(self.getruncount(), 3)
         tasklet.run()
+        self.assertEqual(self.getruncount(), 2)
         try:
             channel.receive()
         except ValueError as e:
@@ -228,11 +244,15 @@ class TestChannels(test_utils.SchedulerTestCaseBase):
         # Get the tasklet blocked on the channel.
         channel = scheduler.channel()
         tasklet = scheduler.tasklet(f)(channel)
+        self.assertEqual(self.getruncount(), 2)
         tasklet.run()
+        self.assertEqual(self.getruncount(), 1)
         self.assertRaises(ValueError, channel.receive)
 
         tasklet = scheduler.tasklet(f)(channel)
+        self.assertEqual(self.getruncount(), 3)
         tasklet.run()
+        self.assertEqual(self.getruncount(), 2)
         try:
             channel.receive()
         except ValueError:
@@ -255,7 +275,9 @@ class TestChannels(test_utils.SchedulerTestCaseBase):
         channel = scheduler.channel()
 
         sendingTasklet = scheduler.tasklet(sender)(channel)
+        self.assertEqual(self.getruncount(), 2)
         sendingTasklet.run()
+        self.assertEqual(self.getruncount(), 1)
 
         self.assertEqual(len(sentValues), 0)
         self.assertEqual(channel.balance, 1)
@@ -284,7 +306,9 @@ class TestChannels(test_utils.SchedulerTestCaseBase):
             scheduler.tasklet(foo)()
 
         senderTasklet = scheduler.tasklet(sender)(channel)
+        self.assertEqual(self.getruncount(), 2)
         senderTasklet.run()
+        self.assertEqual(self.getruncount(), 2)
         
         # sendingTasklet
         r = channel.receive()
@@ -295,6 +319,7 @@ class TestChannels(test_utils.SchedulerTestCaseBase):
         receivedValues.append(r)
 
         self.assertEqual(receivedValues, [1,2,3])
+
 
     def testBlockingSendOnMainTasklet(self):
 
@@ -308,7 +333,9 @@ class TestChannels(test_utils.SchedulerTestCaseBase):
         channel = scheduler.channel()
 
         sendingTasklet = scheduler.tasklet(receiver)(channel)
+        self.assertEqual(self.getruncount(), 2)
         sendingTasklet.run()
+        self.assertEqual(self.getruncount(), 1)
 
         self.assertEqual(len(receivedValues), 0)
         self.assertEqual(channel.balance, -1)
@@ -479,7 +506,7 @@ class TestChannels(test_utils.SchedulerTestCaseBase):
 
         scheduler.run()
 
-        self.assertEqual(scheduler.getruncount(),1)
+        self.assertEqual(self.getruncount(),1)
 
         scheduler.tasklet(send_value)(1)
         scheduler.tasklet(send_value)(2)

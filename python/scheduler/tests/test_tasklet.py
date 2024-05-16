@@ -26,7 +26,9 @@ class TestTasklets(test_utils.SchedulerTestCaseBase):
         def foo():
             self.assertRaises(IndexError, c.receive)
         s = scheduler.tasklet(foo)()
+        self.assertEqual(self.getruncount(), 2)
         s.run()  # necessary, since raise_exception won't automatically run it
+        self.assertEqual(self.getruncount(), 1)
         s.raise_exception(IndexError)
    
     def test_run(self):
@@ -35,8 +37,10 @@ class TestTasklets(test_utils.SchedulerTestCaseBase):
         def foo():
             flag[0] = True
         s = scheduler.tasklet(foo)()
+        self.assertEqual(self.getruncount(), 2)
         s.run()
         self.assertEqual(flag[0], True)
+        self.assertEqual(self.getruncount(), 1)
 
     def test_run_args(self):
         passed_args = [None]
@@ -48,9 +52,13 @@ class TestTasklets(test_utils.SchedulerTestCaseBase):
 
         scheduler.tasklet(foo)(*args)
 
+        self.assertEqual(self.getruncount(), 2)
+
         scheduler.run()
 
         self.assertTupleEqual(passed_args[0], args)
+
+        self.assertEqual(self.getruncount(), 1)
 
     def test_run_args_kwargs(self):
         passed_args = [None]
@@ -65,7 +73,11 @@ class TestTasklets(test_utils.SchedulerTestCaseBase):
 
         scheduler.tasklet(foo)(*args, **kwargs)
 
+        self.assertEqual(self.getruncount(), 2)
+
         scheduler.run()
+
+        self.assertEqual(self.getruncount(), 1)
 
         self.assertTupleEqual(passed_args[0], args)
         self.assertDictEqual(passed_kwargs[0], kwargs)
@@ -78,9 +90,15 @@ class TestTasklets(test_utils.SchedulerTestCaseBase):
 
         tasklet = scheduler.tasklet(increment_value)()
 
+        self.assertEqual(self.getruncount(), 2)
+
         tasklet.kill()
 
+        self.assertEqual(self.getruncount(), 1)
+
         scheduler.run()
+
+        self.assertEqual(self.getruncount(), 1)
 
         # Tasklet was not run so value remains zero
         self.assertEqual(value[0],0)
@@ -91,7 +109,11 @@ class TestTasklets(test_utils.SchedulerTestCaseBase):
 
         tasklet3 = scheduler.tasklet(increment_value)()
 
+        self.assertEqual(self.getruncount(), 4)
+
         tasklet1.kill()
+
+        self.assertEqual(self.getruncount(), 1)
 
         # Tasklet 1 was killed, tasklets were run from this point
         # So tasklet 2 and 3 will run and value should be 2
@@ -110,7 +132,15 @@ class TestTaskletThrowBase(object):
             self.assertRaises(IndexError, c.receive)
 
         s = scheduler.tasklet(foo)()
+
+        self.assertEqual(self.getruncount(), 2)
+
         s.run()  # It needs to have started to run
+
+        self.assertEqual(self.getruncount(), 1)
+
+        self.assertEqual(c.balance, -1)
+
         self.throw(s, IndexError)
 
         self.aftercheck(s)
@@ -125,7 +155,10 @@ class TestTaskletThrowBase(object):
                 self.assertTrue(isinstance(e, IndexError))
                 self.assertEqual(e.args, (1, 2, 3))
         s = scheduler.tasklet(foo)()
+        self.assertEqual(self.getruncount(), 2)
         s.run()  # It needs to have started to run
+        self.assertEqual(self.getruncount(), 1)
+        self.assertEqual(c.balance, -1)
         self.throw(s, IndexError, (1, 2, 3))
         self.aftercheck(s)
 
@@ -139,7 +172,10 @@ class TestTaskletThrowBase(object):
                 self.assertTrue(isinstance(e, IndexError))
                 self.assertEqual(e.args, (1, 2, 3))
         s = scheduler.tasklet(foo)()
+        self.assertEqual(self.getruncount(), 2)
         s.run()  # It needs to have started to run
+        self.assertEqual(self.getruncount(), 1)
+        self.assertEqual(c.balance,-1)
         self.throw(s, IndexError(1, 2, 3))
         self.aftercheck(s)
 
@@ -152,7 +188,10 @@ class TestTaskletThrowBase(object):
             except Exception as e:
                 self.assertTrue(isinstance(e, ZeroDivisionError))
         s = scheduler.tasklet(foo)()
+        self.assertEqual(self.getruncount(), 2)
         s.run()  # It needs to have started to run
+        self.assertEqual(self.getruncount(), 1)
+        self.assertEqual(c.balance, -1)
 
         def errfunc():
             1 / 0
@@ -172,7 +211,10 @@ class TestTaskletThrowBase(object):
                 s = "".join(traceback.format_tb(sys.exc_info()[2]))
                 self.assertTrue("errfunc" in s)
         s = scheduler.tasklet(foo)()
+        self.assertEqual(self.getruncount(), 2)
         s.run()  # It needs to have started to run
+        self.assertEqual(self.getruncount(), 1)
+        self.assertEqual(c.balance, -1)
 
         def errfunc():
             1 / 0
@@ -192,6 +234,7 @@ class TestTaskletThrowBase(object):
                 self.assertTrue(isinstance(e, IndexError))
                 raise
         s = scheduler.tasklet(foo)()
+        self.assertEqual(self.getruncount(), 2)
         self.assertTrue(s.alive)
         # Test that the current "unhandled exception behaviour"
         # is invoked for the not-yet-running tasklet.
@@ -209,11 +252,13 @@ class TestTaskletThrowBase(object):
         def t():
             self.assertFalse("should not run this")
         s = scheduler.tasklet(t)()
-
+        self.assertEqual(self.getruncount(), 2)
         # Should not do anything
         s.throw(scheduler.TaskletExit)
+        self.assertEqual(self.getruncount(), 1)
         # the tasklet should be dead
         scheduler.run()
+        self.assertEqual(self.getruncount(), 1)
         self.assertRaisesRegex(RuntimeError, "dead", s.run)
  
     def test_dead(self):
@@ -222,8 +267,13 @@ class TestTaskletThrowBase(object):
         def foo():
             c.receive()
         s = scheduler.tasklet(foo)()
+        self.assertEqual(self.getruncount(), 2)
         s.run()
+        self.assertEqual(self.getruncount(), 1)
+        self.assertEqual(c.balance, -1)
         c.send(None)
+        self.assertEqual(c.balance, 0)
+        self.assertEqual(self.getruncount(), 1)
         scheduler.run()
         self.assertFalse(s.alive)
 
@@ -238,8 +288,13 @@ class TestTaskletThrowBase(object):
         def foo():
             c.receive()
         s = scheduler.tasklet(foo)()
+        self.assertEqual(self.getruncount(), 2)
         s.run()
+        self.assertEqual(self.getruncount(), 1)
+        self.assertEqual(c.balance, -1)
         c.send(None)
+        self.assertEqual(c.balance, 0)
+        self.assertEqual(self.getruncount(), 1)
         scheduler.run()
         self.assertFalse(s.alive)
 
@@ -296,12 +351,16 @@ class TestKill(test_utils.SchedulerTestCaseBase):
                 killed[0] = True
                 raise
         t = scheduler.tasklet(foo)()
+        self.assertEqual(self.getruncount(), 2)
         t.run()
+        self.assertEqual(self.getruncount(), 2)
         self.assertFalse(killed[0])
         t.kill(pending=True)
+        self.assertEqual(self.getruncount(), 2)
         self.assertFalse(killed[0])
         t.run()
         self.assertTrue(killed[0])
+        self.assertEqual(self.getruncount(), 2)
 
     def test_kill_pending_False(self):
 
@@ -314,9 +373,12 @@ class TestKill(test_utils.SchedulerTestCaseBase):
                 killed[0] = True
                 raise
         t = scheduler.tasklet(foo)()
+        self.assertEqual(self.getruncount(), 2)
         t.run()
+        self.assertEqual(self.getruncount(), 2)
         self.assertFalse(killed[0])
         t.kill(pending=False)
+        self.assertEqual(self.getruncount(), 1)
         self.assertTrue(killed[0])
 
     def test_kill_current(self):
@@ -330,8 +392,10 @@ class TestKill(test_utils.SchedulerTestCaseBase):
                 killed[0] = True
                 raise
         t = scheduler.tasklet(task)()
+        self.assertEqual(self.getruncount(), 2)
         t.run()
         self.assertTrue(killed[0])
+        self.assertEqual(self.getruncount(), 1)
         self.assertFalse(t.alive)
         self.assertEqual(t.thread_id, scheduler.getcurrent().thread_id) #TODO replace getcurrent with current when working again
 
@@ -486,6 +550,7 @@ class TestBind(test_utils.SchedulerTestCaseBase):
     def test_bind(self):
         import weakref
         t = scheduler.tasklet()
+        self.assertEqual(self.getruncount(), 1)
         wr = weakref.ref(t)
 
         self.assertFalse(t.alive)
@@ -501,7 +566,10 @@ class TestBind(test_utils.SchedulerTestCaseBase):
         t.bind(self.task)
         t.setup(False)
 
+        self.assertEqual(self.getruncount(), 2)
+
         scheduler.run()
+        self.assertEqual(self.getruncount(), 1)
         self.assertFalse(t.scheduled)
         self.assertTrue(t.alive)
         if scheduler.enable_softswitch(None):
@@ -509,7 +577,9 @@ class TestBind(test_utils.SchedulerTestCaseBase):
         # self.assertIsInstance(t.frame, types.FrameType)
 
         t.insert()
+        self.assertEqual(self.getruncount(), 2)
         scheduler.run()
+        self.assertEqual(self.getruncount(), 1)
 
         # remove the tasklet. Must run the finally clause
         t = None
@@ -523,14 +593,16 @@ class TestBind(test_utils.SchedulerTestCaseBase):
 
     def test_unbind_ok(self):
         import weakref
-        if not scheduler.enable_softswitch(None):
+        #if not scheduler.enable_softswitch(None):
             # the test requires softswitching
-            return
+        #    return
         t = scheduler.tasklet(self.task)(False)
+        self.assertEqual(self.getruncount(), 2)
         wr = weakref.ref(t)
 
         # prepare a paused tasklet
         scheduler.run()
+        self.assertEqual(self.getruncount(), 1)
         self.assertFalse(t.scheduled)
         self.assertTrue(t.alive)
         # self.assertEqual(t.nesting_level, 0)
@@ -550,17 +622,21 @@ class TestBind(test_utils.SchedulerTestCaseBase):
 
     def test_unbind_fail_scheduled(self):
         t = scheduler.tasklet(self.task)(False)
-
+        self.assertEqual(self.getruncount(), 2)
         # prepare a paused tasklet
         scheduler.run()
+        self.assertEqual(self.getruncount(), 1)
         t.insert()
+        self.assertEqual(self.getruncount(), 2)
         self.assertTrue(t.scheduled)
         self.assertTrue(t.alive)
+        scheduler.run()
+        self.assertEqual(self.getruncount(), 1)
         # self.assertIsInstance(t.frame, types.FrameType)
 
         self.assertRaisesRegex(RuntimeError, "scheduled", t.bind, None)
 
-    @unittest.skip('TODO - cstate not yet implemented')
+    @unittest.skip('TODO - cstate not implemented')
     def test_unbind_fail_cstate(self):
         t = scheduler.tasklet(self.task)(True)
         # wr = weakref.ref(t)
@@ -581,31 +657,44 @@ class TestBind(test_utils.SchedulerTestCaseBase):
 
     def test_bind_noargs(self):
         t = scheduler.tasklet(self.task)
+        self.assertEqual(self.getruncount(), 1)
         t.bind(self.argstest)
         self.assertRaises(RuntimeError, t.run)
 
     def test_bind_args(self):
         args = "foo", "bar"
         t = scheduler.tasklet(self.task)
+        self.assertEqual(self.getruncount(), 1)
         t.bind(self.argstest, args)
+        self.assertEqual(self.getruncount(), 1)
         t.run()
+        self.assertEqual(self.getruncount(), 1)
         self.assertArgs(args, {})
 
         t = scheduler.tasklet(self.task)
+        self.assertEqual(self.getruncount(), 1)
         t.bind(self.argstest, args=args)
+        self.assertEqual(self.getruncount(), 1)
         t.run()
+        self.assertEqual(self.getruncount(), 1)
         self.assertArgs(args, {})
 
     def test_bind_kwargs(self):
         t = scheduler.tasklet(self.task)
+        self.assertEqual(self.getruncount(), 1)
         kwargs = {"hello": "world"}
         t.bind(self.argstest, None, kwargs)
+        self.assertEqual(self.getruncount(), 1)
         t.run()
+        self.assertEqual(self.getruncount(), 1)
         self.assertArgs((), kwargs)
 
         t = scheduler.tasklet(self.task)
+        self.assertEqual(self.getruncount(), 1)
         t.bind(self.argstest, kwargs=kwargs)
+        self.assertEqual(self.getruncount(), 1)
         t.run()
+        self.assertEqual(self.getruncount(), 1)
         self.assertArgs((), kwargs)
 
     def test_bind_args_kwargs(self):
@@ -613,13 +702,19 @@ class TestBind(test_utils.SchedulerTestCaseBase):
         kwargs = {"hello": "world"}
 
         t = scheduler.tasklet(self.task)
+        self.assertEqual(self.getruncount(), 1)
         t.bind(self.argstest, args, kwargs)
+        self.assertEqual(self.getruncount(), 1)
         t.run()
+        self.assertEqual(self.getruncount(), 1)
         self.assertArgs(args, kwargs)
 
         t = scheduler.tasklet(self.task)
+        self.assertEqual(self.getruncount(), 1)
         t.bind(self.argstest, args=args, kwargs=kwargs)
+        self.assertEqual(self.getruncount(), 1)
         t.run()
+        self.assertEqual(self.getruncount(), 1)
         self.assertArgs(args, kwargs)
 
     def test_bind_args_kwargs_nofunc(self):
@@ -627,13 +722,19 @@ class TestBind(test_utils.SchedulerTestCaseBase):
         kwargs = {"hello": "world"}
 
         t = scheduler.tasklet(self.argstest)
+        self.assertEqual(self.getruncount(), 1)
         t.bind(None, args, kwargs)
+        self.assertEqual(self.getruncount(), 1)
         t.run()
+        self.assertEqual(self.getruncount(), 1)
         self.assertArgs(args, kwargs)
 
         t = scheduler.tasklet(self.argstest)
+        self.assertEqual(self.getruncount(), 1)
         t.bind(args=args, kwargs=kwargs)
+        self.assertEqual(self.getruncount(), 1)
         t.run()
+        self.assertEqual(self.getruncount(), 1)
         self.assertArgs(args, kwargs)
 
     def test_bind_args_not_runnable(self):
@@ -641,9 +742,12 @@ class TestBind(test_utils.SchedulerTestCaseBase):
         kwargs = {"hello": "world"}
 
         t = scheduler.tasklet(self.task)
+        self.assertEqual(self.getruncount(), 1)
         t.bind(self.argstest, args, kwargs)
+        self.assertEqual(self.getruncount(), 1)
         self.assertFalse(t.scheduled)
         t.run()
+        self.assertEqual(self.getruncount(), 1)
 
     @unittest.skip('TODO - Threading not yet fully implemented')
     def test_unbind_main(self):
@@ -734,7 +838,11 @@ class TestTaskletExitException(test_utils.SchedulerTestCaseBase):
         
         t = scheduler.tasklet(func)()
 
+        self.assertEqual(self.getruncount(), 2)
+
         self.assertRaises(TypeError, t.run)
+
+        self.assertEqual(self.getruncount(), 1)
 
 
     def test_tasklet_raising_TaskletExit_exception(self):
@@ -748,6 +856,10 @@ class TestTaskletExitException(test_utils.SchedulerTestCaseBase):
 
         t = scheduler.tasklet(func)()
 
+        self.assertEqual(self.getruncount(), 2)
+
         t.run()
+
+        self.assertEqual(self.getruncount(), 1)
 
         self.assertEqual(value[0], True)

@@ -109,6 +109,18 @@ static PyObject*
 }
 
 static PyObject*
+	Scheduler_calculateruncount( PyObject* self, PyObject* Py_UNUSED( ignored ) )
+{
+	ScheduleManager* current_scheduler = ScheduleManager::get_scheduler();
+
+	PyObject* ret = PyLong_FromLong( current_scheduler->calculate_tasklet_count() );
+
+	current_scheduler->decref();
+
+	return ret;
+}
+
+static PyObject*
 	Scheduler_schedule( PyObject* self, PyObject* Py_UNUSED( ignored ) )
 {
 	ScheduleManager* current_scheduler = ScheduleManager::get_scheduler();
@@ -590,7 +602,8 @@ static PyMethodDef SchedulerMethods[] = {
 	{ "enable_softswitch", enable_soft_switch, METH_VARARGS, "Legacy support" },
     { "getcurrent", (PyCFunction)Scheduler_getcurrent, METH_NOARGS, "Return the currently executing tasklet of this thread" },
 	{ "getmain", (PyCFunction)Scheduler_getmain, METH_NOARGS, "Return the main tasklet of this thread" },
-	{ "getruncount", (PyCFunction)Scheduler_getruncount, METH_NOARGS, "Return the number of currently runnable tasklets" },
+	{ "getruncount", (PyCFunction)Scheduler_getruncount, METH_NOARGS, "Return the number of currently runnable tasklets from a cached value" },
+	{ "calculateruncount", (PyCFunction)Scheduler_calculateruncount, METH_NOARGS, "Calculates and return the number of currently runnable tasklets" },
 	{ "schedule", (PyCFunction)Scheduler_schedule, METH_NOARGS, "Yield execution of the currently running tasklet" },
 	{ "schedule_remove", (PyCFunction)Scheduler_scheduleremove, METH_NOARGS, "Yield execution of the currently running tasklet and remove" },
 	{ "run", (PyCFunction)Scheduler_run, METH_NOARGS, "Run scheduler" },

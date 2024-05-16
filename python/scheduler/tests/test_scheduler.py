@@ -38,7 +38,11 @@ class TestTaskletRunOrder(test_utils.SchedulerTestCaseBase):
         scheduler.tasklet(taskletCallable)(2)
         scheduler.tasklet(taskletCallable)(3)
 
+        self.assertEqual(self.getruncount(), 4)
+
         t1.run()
+
+        self.assertEqual(self.getruncount(), 1)
 
         self.assertEqual(completedSendTasklets[0],"t1t2t3")
 
@@ -52,8 +56,15 @@ class TestTaskletRunOrder(test_utils.SchedulerTestCaseBase):
         t2 = scheduler.tasklet(taskletCallable)(2)
         scheduler.tasklet(taskletCallable)(3)
 
+        self.assertEqual(self.getruncount(), 4)
+
         t2.run()
+
+        self.assertEqual(self.getruncount(), 2)
+
         t1.run()
+
+        self.assertEqual(self.getruncount(), 1)
 
         self.assertEqual(completedSendTasklets[0],"t2t3t1")
 
@@ -69,7 +80,11 @@ class TestScheduleOrderBase(object):
         scheduler.tasklet(taskletCallable)(2)
         scheduler.tasklet(taskletCallable)(3)
 
+        self.assertEqual(self.getruncount(), 4)
+
         scheduler.run()
+
+        self.assertEqual(self.getruncount(), 1)
 
         self.assertEqual(completedSendTasklets[0],"t1t2t3")
 
@@ -89,7 +104,11 @@ class TestScheduleOrderBase(object):
         scheduler.tasklet(createNestedTaskletRun)()
         scheduler.tasklet(taskletCallable)(5)
 
+        self.assertEqual(self.getruncount(), 4)
+
         self.run_scheduler()
+
+        self.assertEqual(self.getruncount(), 1)
 
         self.assertEqual(completedSendTasklets[0],"t1t2t3t4t5")
 
@@ -113,7 +132,11 @@ class TestScheduleOrderBase(object):
         scheduler.tasklet(createNestedTaskletRun)()
         scheduler.tasklet(taskletCallable)(4)
 
+        self.assertEqual(self.getruncount(), 4)
+
         self.run_scheduler()
+
+        self.assertEqual(self.getruncount(), 1)
 
         self.assertEqual(completedSendTasklets[0],"t1t2t3t4")
 
@@ -144,7 +167,11 @@ class TestScheduleOrderBase(object):
         scheduler.tasklet(createNestedTaskletRun)()
         scheduler.tasklet(taskletCallable)(6)
 
+        self.assertEqual(self.getruncount(), 4)
+
         self.run_scheduler()
+
+        self.assertEqual(self.getruncount(), 1)
 
         self.assertEqual(completedSendTasklets[0],"t1t2t3t4t5t6")
 
@@ -152,10 +179,9 @@ class TestScheduleOrderBase(object):
 class TestScheduleOrderRunAll(test_utils.SchedulerTestCaseBase, TestScheduleOrderBase):
     Watchdog = False
 
-    @classmethod
-    def run_scheduler(cls):
-        if cls.Watchdog:
-            while scheduler.getruncount() > 1:
+    def run_scheduler(self):
+        if self.Watchdog:
+            while self.getruncount() > 1:
                 scheduler.run_n_tasklets(1)
         else:
             scheduler.run()
@@ -175,8 +201,10 @@ class TestSchedule(test_utils.SchedulerTestCaseBase):
             self.events.append("foo")
             self.assertTrue(previous.scheduled)
         t = scheduler.tasklet(foo)(scheduler.getcurrent())
+        self.assertEqual(self.getruncount(), 2)
         self.assertTrue(t.scheduled)
         scheduler.schedule()
+        self.assertEqual(self.getruncount(), 1)
         self.assertEqual(self.events, ["foo"])
 
     def testScheduleRemoveFail(self):
@@ -186,7 +214,9 @@ class TestSchedule(test_utils.SchedulerTestCaseBase):
             previous.insert()
             self.assertTrue(previous.scheduled)
         t = scheduler.tasklet(foo)(scheduler.getcurrent())
+        self.assertEqual(self.getruncount(), 2)
         scheduler.schedule_remove()
+        self.assertEqual(self.getruncount(), 1)
         self.assertEqual(self.events, ["foo"])
 
 
@@ -201,7 +231,6 @@ class TestSwitch(test_utils.SchedulerTestCaseBase):
         self.finished = False
         self.c = scheduler.channel()
 
-
     def target(self):
         self.assertTrue(self.source.paused)
         self.source.insert()
@@ -214,7 +243,9 @@ class TestSwitch(test_utils.SchedulerTestCaseBase):
     def test_switch(self):
         """Simple switch"""
         t = scheduler.tasklet(self.target)()
+        self.assertEqual(self.getruncount(), 2)
         t.switch()
+        self.assertEqual(self.getruncount(), 1)
         self.assertTrue(self.finished)
 
     @unittest.skip('TODO - This test looks broken, Stackless giving the same result')
@@ -224,7 +255,9 @@ class TestSwitch(test_utils.SchedulerTestCaseBase):
 
     def test_switch_blocked(self):
         t = scheduler.tasklet(self.blocked_target)()
+        self.assertEqual(self.getruncount(), 2)
         t.run()
+        self.assertEqual(self.getruncount(), 1)
         self.assertTrue(t.blocked)
         self.assertRaisesRegex(RuntimeError, "blocked", t.switch)
         self.c.send(None)
@@ -232,19 +265,24 @@ class TestSwitch(test_utils.SchedulerTestCaseBase):
 
     def test_switch_paused(self):
         t = scheduler.tasklet(self.target)
+        self.assertEqual(self.getruncount(), 1)
         t.bind(args=())
+        self.assertEqual(self.getruncount(), 1)
         self.assertTrue(t.paused)
         t.switch()
         self.assertTrue(self.finished)
+        self.assertEqual(self.getruncount(), 1)
 
     def test_switch_trapped(self):
         t = scheduler.tasklet(self.target)()
+        self.assertEqual(self.getruncount(), 2)
         self.assertFalse(t.paused)
         with switch_trapped():
             self.assertRaisesRegex(RuntimeError, "switch_trap", t.switch)
         self.assertFalse(t.paused)
         t.switch()
         self.assertTrue(self.finished)
+        self.assertEqual(self.getruncount(), 1)
 
     @unittest.skip('TODO - This test looks broken, Stackless giving the same result')
     def test_switch_self_trapped(self):
@@ -254,7 +292,9 @@ class TestSwitch(test_utils.SchedulerTestCaseBase):
 
     def test_switch_blocked_trapped(self):
         t = scheduler.tasklet(self.blocked_target)()
+        self.assertEqual(self.getruncount(), 2)
         t.run()
+        self.assertEqual(self.getruncount(), 1)
         self.assertTrue(t.blocked)
         with switch_trapped():
             self.assertRaisesRegex(RuntimeError, "blocked", t.switch)
@@ -264,13 +304,16 @@ class TestSwitch(test_utils.SchedulerTestCaseBase):
 
     def test_switch_paused_trapped(self):
         t = scheduler.tasklet(self.target)
+        self.assertEqual(self.getruncount(), 1)
         t.bind(args=())
+        self.assertEqual(self.getruncount(), 1)
         self.assertTrue(t.paused)
         with switch_trapped():
             self.assertRaisesRegex(RuntimeError, "switch_trap", t.switch)
         self.assertTrue(t.paused)
         t.switch()
         self.assertTrue(self.finished)
+        self.assertEqual(self.getruncount(), 1)
 
 class TestSwitchTrap(test_utils.SchedulerTestCaseBase):
 
@@ -285,45 +328,58 @@ class TestSwitchTrap(test_utils.SchedulerTestCaseBase):
 
     def test_schedule(self):
         s = scheduler.tasklet(lambda: None)()
+        self.assertEqual(self.getruncount(), 2)
         with self.switch_trap:
             self.assertRaisesRegex(RuntimeError, "switch_trap", scheduler.schedule)
         scheduler.run()
+        self.assertEqual(self.getruncount(), 1)
     
     def test_schedule_remove(self):
         main = []
         s = scheduler.tasklet(lambda: main[0].insert())()
+        self.assertEqual(self.getruncount(), 2)
         with self.switch_trap:
             self.assertRaisesRegex(RuntimeError, "switch_trap", scheduler.schedule_remove)
         main.append(scheduler.getcurrent())
         scheduler.schedule_remove()
+        self.assertEqual(self.getruncount(), 1)
     
     def test_run(self):
         s = scheduler.tasklet(lambda: None)()
+        self.assertEqual(self.getruncount(), 2)
         with self.switch_trap:
             self.assertRaisesRegex(RuntimeError, "switch_trap", scheduler.run)
         scheduler.run()
+        self.assertEqual(self.getruncount(), 1)
     
     def test_run_specific(self):
         s = scheduler.tasklet(lambda: None)()
+        self.assertEqual(self.getruncount(), 2)
         with self.switch_trap:
             self.assertRaisesRegex(RuntimeError, "switch_trap", s.run)
         s.run()
+        self.assertEqual(self.getruncount(), 1)
     
     def test_run_paused(self):
         s = scheduler.tasklet(lambda: None)
+        self.assertEqual(self.getruncount(), 1)
         s.bind(args=())
+        self.assertEqual(self.getruncount(), 1)
         self.assertTrue(s.paused)
         with self.switch_trap:
             self.assertRaisesRegex(RuntimeError, "switch_trap", s.run)
         self.assertTrue(s.paused)
         scheduler.run()
+        self.assertEqual(self.getruncount(), 1)
     
     def test_send(self):
         c = scheduler.channel()
         s = scheduler.tasklet(lambda: c.receive())()
+        self.assertEqual(self.getruncount(), 2)
         with self.switch_trap:
             self.assertRaisesRegex(RuntimeError, "switch_trap", c.send, None)
         c.send(None)
+        self.assertEqual(self.getruncount(), 1)
     
     @unittest.skip('Not currently part of required stub, send_exception is implemented')
     def test_send_throw(self):
@@ -331,59 +387,74 @@ class TestSwitchTrap(test_utils.SchedulerTestCaseBase):
         def f():
             self.assertRaises(NotImplementedError, c.receive)
         s = scheduler.tasklet(f)()
+        self.assertEqual(self.getruncount(), 2)
         with self.switch_trap:
             self.assertRaisesRegex(RuntimeError, "switch_trap", c.send_throw, NotImplementedError)
         c.send_throw(NotImplementedError)
+        self.assertEqual(self.getruncount(), 1)
 
     def test_send_exception(self):
         c = scheduler.channel()
         def f():
             self.assertRaises(NotImplementedError, c.receive)
         s = scheduler.tasklet(f)()
+        self.assertEqual(self.getruncount(), 2)
         with self.switch_trap:
             self.assertRaisesRegex(RuntimeError, "switch_trap", c.send_exception, NotImplementedError)
         c.send_exception(NotImplementedError)
+        self.assertEqual(self.getruncount(), 1)
     
     def test_receive(self):
         c = scheduler.channel()
         s = scheduler.tasklet(lambda: c.send(1))()
+        self.assertEqual(self.getruncount(), 2)
         with self.switch_trap:
             self.assertRaisesRegex(RuntimeError, "switch_trap", c.receive)
         self.assertEqual(c.receive(), 1)
+        self.assertEqual(self.getruncount(), 2)
     
     @unittest.skip('TODO - send_throw not in required stub so not implemented')
     def test_receive_throw(self):
         c = scheduler.channel()
         s = scheduler.tasklet(lambda: c.send_throw(NotImplementedError))()
+        self.assertEqual(self.getruncount(), 2)
         with self.switch_trap:
             self.assertRaisesRegex(RuntimeError, "switch_trap", c.receive)
         self.assertRaises(NotImplementedError, c.receive)
+        self.assertEqual(self.getruncount(), 1)
     
     def test_raise_exception(self):
         c = scheduler.channel()
         def foo():
             self.assertRaises(IndexError, c.receive)
         s = scheduler.tasklet(foo)()
+        self.assertEqual(self.getruncount(), 2)
         s.run()  # necessary, since raise_exception won't automatically run it
+        self.assertEqual(self.getruncount(), 1)
         with self.switch_trap:
             self.assertRaisesRegex(RuntimeError, "switch_trap", s.raise_exception, RuntimeError)
         s.raise_exception(IndexError)
+        self.assertEqual(self.getruncount(), 1)
     
     def test_kill(self):
         c = scheduler.channel()
         def foo():
             self.assertRaises(scheduler.TaskletExit, c.receive)
         s = scheduler.tasklet(foo)()
+        self.assertEqual(self.getruncount(), 2)
         s.run()  # necessary, since raise_exception won't automatically run it
         with self.switch_trap:
             self.assertRaisesRegex(RuntimeError, "switch_trap", s.kill)
         s.kill()
+        self.assertEqual(self.getruncount(), 1)
     
     def test_run2(self):
         c = scheduler.channel()
         def foo():
             pass
         s = scheduler.tasklet(foo)()
+        self.assertEqual(self.getruncount(), 2)
         with self.switch_trap:
             self.assertRaisesRegex(RuntimeError, "switch_trap", s.run)
         s.run()
+        self.assertEqual(self.getruncount(), 1)
