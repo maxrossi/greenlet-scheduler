@@ -879,10 +879,10 @@ Tasklet* Tasklet::get_tasklet_parent()
 	return m_tasklet_parent;
 }
 
-void Tasklet::set_parent( Tasklet* parent )
+int Tasklet::set_parent( Tasklet* parent )
 {
 	m_tasklet_parent = parent;
-	PyGreenlet_SetParent( this->m_greenlet, parent->m_greenlet );
+	return PyGreenlet_SetParent( this->m_greenlet, parent->m_greenlet );
 }
 
 void Tasklet::clear_parent()
