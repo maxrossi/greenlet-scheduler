@@ -338,7 +338,7 @@ PyObject* ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
     }
 	else
 	{
-		base_tasklet = get_main_tasklet(); 
+		base_tasklet = get_current_tasklet();
     }
 
     bool run_complete = false;

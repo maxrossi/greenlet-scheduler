@@ -219,6 +219,30 @@ class TestSchedule(test_utils.SchedulerTestCaseBase):
         self.assertEqual(self.getruncount(), 1)
         self.assertEqual(self.events, ["foo"])
 
+class TestRun(test_utils.SchedulerTestCaseBase):
+    def testCallingRunFromNonMainTasklet(self):
+
+        values = []
+        def foo(x):
+            values.append(x)
+
+        def bar(chan):
+            t = scheduler.tasklet(foo)("a")
+            scheduler.tasklet(foo)("b")
+            scheduler.tasklet(foo)("c")
+            scheduler.tasklet(foo)("d")
+            chan.send(1)
+            scheduler.tasklet(foo)("e")
+            scheduler.tasklet(foo)("f")
+            scheduler.tasklet(foo)("g")
+            scheduler.run()
+
+        channel = scheduler.channel()
+        t = scheduler.tasklet(bar)(channel)
+        t.run()
+        channel.receive()
+        scheduler.run()
+        self.assertEqual(values, ["a", "b", "c", "d", "e", "f", "g"])
 
 class TestSwitch(test_utils.SchedulerTestCaseBase):
     """Test the new tasklet.switch() method, which allows
