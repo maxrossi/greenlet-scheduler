@@ -467,7 +467,7 @@ PyObject* ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
 			{
 				if( remove_tasklet( current_tasklet ) )
 				{
-					cleanup_current_tasklet = true;
+					current_tasklet->decref();
 				}
 			}
             

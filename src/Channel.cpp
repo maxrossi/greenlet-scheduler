@@ -196,7 +196,7 @@ PyObject* Channel::receive()
 		return nullptr;
 	}
 
-	Py_IncRef( current->python_object() );
+	current->incref();
 
     add_tasklet_to_waiting_to_receive( current );
 
@@ -210,6 +210,8 @@ PyObject* Channel::receive()
 			PyThread_release_lock( m_lock );
 
             schedule_manager->decref();
+
+            current->decref();
 
 			return nullptr;
 		}
@@ -227,6 +229,8 @@ PyObject* Channel::receive()
 				m_balance++;
 
 				current->unblock();
+
+                current->decref();
 
 				current->set_transfer_in_progress( false );
 
@@ -249,6 +253,8 @@ PyObject* Channel::receive()
 		
 		if(!sending_tasklet->switch_to())
 		{
+			current->decref();
+
 			schedule_manager->decref();
 
 			return nullptr;
