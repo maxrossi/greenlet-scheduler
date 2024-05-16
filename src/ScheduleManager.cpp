@@ -393,23 +393,6 @@ PyObject* ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
 
                 current_tasklet->set_scheduled( false );
 
-
-				Tasklet* previous_store = current_tasklet->previous();
-
-				if( current_tasklet->previous() != current_tasklet->next() )
-				{
-					current_tasklet->previous()->set_next( current_tasklet->next() );
-
-                    if(current_tasklet->next())
-					{
-						current_tasklet->next()->set_previous( previous_store );
-					}
-
-                    cleanup_current_tasklet = true;
-                }
-
-                current_tasklet->set_scheduled( false );
-
 				//Will this get skipped if it happens to be when it will schedule
 				if( current_tasklet->requires_reschedule() )
 				{
