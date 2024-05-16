@@ -163,12 +163,12 @@ void ScheduleManager::insert_tasklet_at_beginning( Tasklet* tasklet )
 
 void ScheduleManager::insert_tasklet( Tasklet* tasklet )
 {
-	Py_IncRef( tasklet->python_object() );
 
     ScheduleManager* current_scheduler = get_scheduler( tasklet->thread_id() );
 
     if( current_scheduler->m_previous_tasklet != tasklet )
 	{
+		Py_IncRef( tasklet->python_object() );
 		current_scheduler->m_previous_tasklet->set_next( tasklet );
 
 		tasklet->set_previous( current_scheduler->m_previous_tasklet );
