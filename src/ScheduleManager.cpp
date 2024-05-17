@@ -345,6 +345,31 @@ PyObject* ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
 
     while( ( base_tasklet->next() != nullptr ) && ( !run_complete ) )
 	{
+
+        if( m_stop_scheduler )
+		{
+			// Switch back to parent now
+			Tasklet* active_tasklet = ScheduleManager::get_current_tasklet();
+
+			if( active_tasklet == ScheduleManager::get_main_tasklet() )
+			{
+				break;
+			}
+			else
+			{
+				Tasklet* call_parent = active_tasklet->get_tasklet_parent();
+				if( call_parent->switch_to() )
+				{
+					// Update current tasklet
+					ScheduleManager::set_current_tasklet( active_tasklet );
+				}
+				else
+				{
+					//TODO handle error
+				}
+			}
+		}
+
 		Tasklet* current_tasklet = base_tasklet->next();
 		bool valid_next_tasklet_clobbered_by_reschedule = false;
 
@@ -433,35 +458,6 @@ PyObject* ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
                 }
                
 			}
-
-			if( m_stop_scheduler )
-			{
-			    // Switch back to parent now
-				Tasklet* active_tasklet = ScheduleManager::get_current_tasklet();
-
-                if( active_tasklet == ScheduleManager::get_main_tasklet() )
-                {
-                    break;
-                }
-                else
-                {
-					Tasklet* call_parent = active_tasklet->get_tasklet_parent();
-
-					if( call_parent->switch_to() )
-					{
-						// Update current tasklet
-						ScheduleManager::set_current_tasklet( active_tasklet );
-					}
-					else
-					{
-						//TODO handle error
-                        
-					}
-                }
-
-                
-            }
-
         }
 		else
 		{
