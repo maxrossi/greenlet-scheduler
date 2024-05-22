@@ -166,7 +166,7 @@ void ScheduleManager::insert_tasklet( Tasklet* tasklet )
 
     ScheduleManager* current_scheduler = get_scheduler( tasklet->thread_id() );
 
-    if( current_scheduler->m_previous_tasklet != tasklet )
+    if( !tasklet->scheduled() )
 	{
 		Py_IncRef( tasklet->python_object() );
 		current_scheduler->m_previous_tasklet->set_next( tasklet );
@@ -343,6 +343,13 @@ PyObject* ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
 
     bool run_complete = false;
 
+    bool run_until_unblocked = false;
+
+    if (get_current_tasklet() == get_main_tasklet() && get_current_tasklet()->is_blocked())
+    {
+		run_until_unblocked = true;
+    }
+
     while( ( base_tasklet->next() != nullptr ) && ( !run_complete ) )
 	{
 
@@ -398,6 +405,11 @@ PyObject* ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
 		{
 			//Clear possible tasklet exception to capture
 			current_tasklet->clear_tasklet_exception();
+
+            if (run_until_unblocked && !get_main_tasklet()->is_blocked())
+            {
+				run_complete = true;
+            }
 
 			// Update current tasklet
 			ScheduleManager::set_current_tasklet( current_tasklet->get_tasklet_parent() );
