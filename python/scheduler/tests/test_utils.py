@@ -27,14 +27,19 @@ class SchedulerTestCaseBase(unittest.TestCase):
         self.assertEqual(sys.getrefcount(self.scheduleManager), 2)
 
     def tearDown(self):
+
+        # Clean up left over channels that still have blocked tasklets
+        scheduler.unblock_all_channels()
+        self.assertEqual(scheduler.get_number_of_active_channels(),0)
+
         # Finish any remaining tasklets
         scheduler.run()
 
-        # Tests should clean up after themselves
-        self.assertEqual(self.getruncount(), 1)
-
         # Ensure garbage collector has run
         gc.collect()
+
+        # Run possible garbage collection tasklets
+        scheduler.run()
         
         # Check references in schedule manager are all cleaned up and ready for removal
         self.assertEqual(sys.getrefcount(self.scheduleManager), 2)

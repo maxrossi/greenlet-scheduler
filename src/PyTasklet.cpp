@@ -175,14 +175,12 @@ static void
 	self->m_impl->~Tasklet();
 
     PyObject_Free( self->m_impl );
-
     
     // Handle weakrefs
 	if( self->m_weakref_list != nullptr )
 	{
 		PyObject_ClearWeakRefs( (PyObject*)self );
 	}
-    
 
 	Py_TYPE( self )->tp_free( (PyObject*)self );
 }
@@ -494,6 +492,19 @@ static PyObject*
 	return Py_None;
 }
 
+static int Tasklet_traverse( PyTaskletObject* self, visitproc visit, void* arg )
+{
+	self->m_impl->check_cstate();
+
+	return 0;
+}
+
+static int
+	Tasklet_clear( PyTaskletObject* self )
+{
+	return 0;
+}
+
 static PyObject*
 	Tasklet_call( PyObject* callable, PyObject* args, PyObject* kwargs )
 {
@@ -547,10 +558,10 @@ static PyTypeObject TaskletType = {
 	0, /*tp_getattro*/
 	0, /*tp_setattro*/
 	0, /*tp_as_buffer*/
-	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /*tp_flags*/
+	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
 	PyDoc_STR( "Tasklet objects" ), /*tp_doc*/
-	0, /*tp_traverse*/
-	0, /*tp_clear*/
+	(traverseproc)Tasklet_traverse, /*tp_traverse*/
+	(inquiry)Tasklet_clear, /*tp_clear*/
 	0, /*tp_richcompare*/
 	offsetof( PyTaskletObject, m_weakref_list ), /*tp_weaklistoffset*/
 	0, /*tp_iter*/

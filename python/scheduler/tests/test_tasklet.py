@@ -119,6 +119,14 @@ class TestTasklets(test_utils.SchedulerTestCaseBase):
         # So tasklet 2 and 3 will run and value should be 2
         self.assertEqual(value[0],2)
 
+    def test_paused(self):
+        def task():
+            scheduler.schedule_remove()
+
+        t = scheduler.tasklet(task)()
+        scheduler.run()
+        self.assertTrue(t.paused)
+
 class TestTaskletThrowBase(object):
 
     def aftercheck(self, s):

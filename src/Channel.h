@@ -20,6 +20,7 @@
 #include <deque>
 
 #include "stdafx.h"
+#include <list>
 
 const int SENDER = 1;
 const int RECEIVER = -1;
@@ -34,6 +35,12 @@ public:
 	Channel( PyObject* python_object );
 
     ~Channel();
+
+    void incref();
+
+	void decref();
+
+    int refcount();
 
     PyObject* python_object();
 
@@ -54,6 +61,14 @@ public:
     void set_preference( int value );
 
     Tasklet* blocked_queue_front();
+
+    void check_cstate();
+
+    void clear_blocked(bool pending);
+
+    static int num_active_channels();
+
+    static int unblock_all_channels();
 
 private:
 
@@ -88,5 +103,7 @@ private:
 	Tasklet* m_first_blocked_on_send;
 
     Tasklet* m_last_blocked_on_send;
+
+    inline static std::list<Channel*> s_active_channels;
     
 };

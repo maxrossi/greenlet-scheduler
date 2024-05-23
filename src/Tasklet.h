@@ -36,6 +36,8 @@ public:
 
 	void decref();
 
+    int refcount();
+
 	void set_to_current_greenlet();
 
     bool remove();
@@ -142,6 +144,8 @@ public:
 
     bool requires_removal();
 
+    void check_cstate();
+
 private:
 
     void set_exception_state( PyObject* exception, PyObject* arguments = Py_None );
@@ -212,4 +216,5 @@ private:
 
     ScheduleManager* m_schedule_manager;
 
+    bool m_kill_pending;
 };

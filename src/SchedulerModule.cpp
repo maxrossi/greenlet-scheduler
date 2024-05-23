@@ -331,6 +331,24 @@ static PyObject*
     return PyLong_FromLong( num_schedule_managers );
 }
 
+
+static PyObject*
+	Scheduler_get_number_of_active_channels( PyObject* self, PyObject* Py_UNUSED( ignored ) )
+{
+	
+	int num_channels = Channel::num_active_channels();
+
+	return PyLong_FromLong( num_channels );
+}
+
+static PyObject*
+	Scheduler_unblock_all_channels( PyObject* self, PyObject* Py_UNUSED( ignored ) )
+{
+	int num_channels = Channel::unblock_all_channels();
+
+	return PyLong_FromLong( num_channels );
+}
+
 void module_destructor( void* )
 {
 }
@@ -615,7 +633,9 @@ static PyMethodDef SchedulerMethods[] = {
 	{ "switch_trap", (PyCFunction)Scheduler_switch_trap, METH_VARARGS, "When the switch trap level is non-zero, any tasklet switching, e.g. due channel action or explicit, will result in a RuntimeError being raised." },
 	{ "get_schedule_manager", (PyCFunction)Scheduler_get_schedule_manager, METH_NOARGS, "Return the schedule manager from the thread it is called" },
 	{ "get_number_of_active_schedule_managers", (PyCFunction)Scheduler_get_number_of_active_schedule_managers, METH_NOARGS, "Return the number of active schedule managers" },
-
+	{ "get_number_of_active_channels", (PyCFunction)Scheduler_get_number_of_active_channels, METH_NOARGS, "Return the number of active channels" },
+	{ "unblock_all_channels", (PyCFunction)Scheduler_unblock_all_channels, METH_NOARGS, "Unblock all active channels " },
+	
 	{ NULL, NULL, 0, NULL } /* Sentinel */
 };
 
@@ -789,7 +809,7 @@ PyMODINIT_FUNC
 
 	ScheduleManager::s_schedule_manager_type = &ScheduleManagerType;
 	ScheduleManager::s_tasklet_type = &TaskletType;
-	
+
     //Setup initial channel callback static
 	Channel::set_channel_callback(nullptr);
 

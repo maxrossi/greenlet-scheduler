@@ -14,14 +14,35 @@ Channel::Channel( PyObject* python_object ) :
 	m_last_blocked_on_receive( nullptr ),
 	m_first_blocked_on_receive( nullptr )
 {
-
+    // Store weak reference in central store
+    // Required just in case we lose all references to channel
+    // The module will then be able to unblock if needed
+    s_active_channels.push_back( this );
 }
 
 Channel::~Channel()
 {
-	//TODO need to clean up tasklets that are stored in waiting_to_send and waiting_to_receive lists
+	// Destructor will never be called while there are tasklets blocking
 
+	// Remove weak ref from store
+	s_active_channels.remove( this );
+	
 	Py_DECREF( m_lock );
+}
+
+void Channel::incref()
+{
+	Py_IncRef( m_python_object );
+}
+
+void Channel::decref()
+{
+	Py_DecRef( m_python_object );
+}
+
+int Channel::refcount()
+{
+	return m_python_object->ob_refcnt;
 }
 
 PyObject* Channel::python_object()
@@ -492,4 +513,62 @@ Tasklet* Channel::blocked_queue_front()
 		return m_first_blocked_on_send;
     }
 	return nullptr;
+}
+
+void Channel::clear_blocked( bool pending )
+{
+    // Kill all blocked tasklets
+    Tasklet* current = m_first_blocked_on_receive;
+
+	while( current )
+    {
+		current->kill( pending );
+
+        current = current->next_blocked();
+    }
+
+    current = m_first_blocked_on_send;
+
+    while( current )
+	{
+		current->kill( pending );
+
+        current = current->next_blocked();
+	}
+
+}
+
+int Channel::num_active_channels()
+{
+	return s_active_channels.size();
+}
+
+int Channel::unblock_all_channels()
+{
+	int num_channels_unblocked = 0;
+
+	for( auto iter = s_active_channels.begin(); iter != s_active_channels.end(); iter++ )
+	{
+		Channel* channel = *iter;
+        if (channel->m_balance != 0)
+        {
+			num_channels_unblocked++;
+			channel->clear_blocked( false );
+        }
+	}
+
+    return num_channels_unblocked;
+}
+
+void Channel::check_cstate()
+{
+	if( refcount() == std::abs( m_balance ) )
+	{
+		// Catch scenario where cstate is not finished but all client facing references
+		// have been destroyed leaving an unfinished channel cleanup
+		// The channel blocked queue must be destroyed
+        // The kills are made pending.
+		clear_blocked( true );
+	}
+
 }

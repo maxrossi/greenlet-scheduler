@@ -212,6 +212,10 @@ bool ScheduleManager::remove_tasklet( Tasklet* tasklet )
 	{
 		next->set_previous( previous );
     }
+    else
+    {
+		m_previous_tasklet = previous;
+    }
 
     m_number_of_tasklets_in_queue--;
 

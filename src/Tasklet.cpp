@@ -33,7 +33,8 @@ Tasklet::Tasklet( PyObject* python_object, PyObject* tasklet_exit_exception, boo
 	m_previous_blocked( nullptr ),
 	m_next_blocked( nullptr ),
 	m_schedule_manager(nullptr),
-	m_remove(false)
+	m_remove(false),
+	m_kill_pending(false)
 {
 
     // If tasklet is not a scheduler tasklet then register the tasklet with the scheduler
@@ -57,7 +58,10 @@ Tasklet::~Tasklet()
 	Py_XDECREF( m_arguments );
 
     Py_XDECREF( m_kwarguments );
-
+ 
+    // Greenlets will be completed at this point
+    // Tasklets removed from queue are cleaned up
+    // with a memory management handled through traverse
 	Py_XDECREF( m_greenlet );
 
 	Py_XDECREF( m_transfer_arguments );
@@ -97,6 +101,11 @@ void Tasklet::incref()
 void Tasklet::decref()
 {
 	Py_DecRef( m_python_object );
+}
+
+int Tasklet::refcount()
+{
+	return m_python_object->ob_refcnt;
 }
 
 void Tasklet::set_kw_arguments( PyObject* kwarguments )
@@ -279,7 +288,9 @@ PyObject* Tasklet::switch_to( )
     ScheduleManager* schedule_manager = ScheduleManager::get_scheduler();
 
     auto main_tasklet = schedule_manager->get_main_tasklet();
-	if( main_tasklet != this && !( kwargs_supplied || args_suppled ) )
+	// Check required arguments have been supplied if this is the first time the tasklet
+	// Has been switch to
+	if( m_first_run && (main_tasklet != this) && !( kwargs_supplied || args_suppled ) )
 	{
 		PyErr_SetString( PyExc_RuntimeError, "No arguments supplied to tasklet" );
 
@@ -344,8 +355,11 @@ PyObject* Tasklet::switch_to( )
 
 		ret = PyGreenlet_Switch( m_greenlet, m_arguments, m_kwarguments );
 
-        
+        // Clear arguments
+		set_arguments( nullptr );
+		set_kw_arguments( nullptr );
 
+        
         // Check exception state of current tasklet
         // It is important to understand that the current tasklet may not be the same value as this object
         // This object will be the value of the tasklet that the other tasklet last switched to, commonly
@@ -370,6 +384,15 @@ PyObject* Tasklet::switch_to( )
 		{
 			m_alive = false;
 		}
+
+		// Removed tasklet is paused
+        if (m_tagged_for_removal)
+        {
+            // Incref is created to ensure that tasklet remains around while paused so its release can be managed correctly
+			incref();
+
+			m_paused = true;
+        }
 
 		// Reset tagging used to preserve alive status after removal
         m_tagged_for_removal = false;
@@ -480,11 +503,13 @@ PyObject* Tasklet::run()
 		}
 		else
 		{
-			schedule_manager->insert_tasklet_at_beginning( this );
+			schedule_manager->insert_tasklet( this );
 
-            schedule_manager->insert_tasklet_at_beginning( current_tasklet );
+            PyObject* ret = schedule_manager->run( this );
 
-			schedule_manager->yield(); // TODO handle the error case
+            schedule_manager->decref();
+
+            return ret;
 		}
     }
 
@@ -495,6 +520,11 @@ PyObject* Tasklet::run()
 
 bool Tasklet::kill( bool pending /*=false*/ )
 {
+    // Quick out if kill is already pending
+    if (m_kill_pending)
+    {
+		return true;
+    }
 
     //Store so condition can be reinstated on failure
     bool blocked_store = m_blocked;
@@ -524,6 +554,8 @@ bool Tasklet::kill( bool pending /*=false*/ )
 		if( pending )
 		{
 			schedule_manager->insert_tasklet( this );
+
+            m_kill_pending = true;
 
             schedule_manager->decref();
 
@@ -930,4 +962,20 @@ void Tasklet::set_callable(PyObject* callable)
 bool Tasklet::requires_removal()
 {
 	return m_remove;
+}
+
+void Tasklet::check_cstate()
+{
+	// Check for if tasklet is paused and dangling
+    if (m_paused && refcount() == 1)
+    {
+        // Set Tasklet Exception error state
+		set_exception_state( m_tasklet_exit_exception );
+
+        // Tasklet needs cleaning up
+		insert();
+
+        // Remove the holding reference
+		decref();
+    }
 }
