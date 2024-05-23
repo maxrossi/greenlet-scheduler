@@ -52,6 +52,8 @@ static PyObject*
             // Clear greenlet
             self->m_impl->uninitialise();
 
+            self->m_impl->set_alive( false );
+
 			return Py_None;
 		}
 

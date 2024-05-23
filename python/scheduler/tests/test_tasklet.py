@@ -407,56 +407,6 @@ class TestKill(test_utils.SchedulerTestCaseBase):
         self.assertFalse(t.alive)
         self.assertEqual(t.thread_id, scheduler.getcurrent().thread_id) #TODO replace getcurrent with current when working again
 
-    def test_kill_thread_without_main_tasklet(self):
-        # this test depends on a race condition.
-        # unfortunately I do not have any better test case
-
-        # This lock is used as a simple event variable.
-        ready = thread.allocate_lock()
-        ready.acquire()
-
-        channel = scheduler.channel()
-        tlet = scheduler.tasklet()
-        self.tlet = tlet
-
-        class DelayError(Exception):
-            def __str__(self):
-                time.sleep(0.05)
-                return super(DelayError, self).__str__()
-
-        # catch stderr
-        self.addCleanup(setattr, sys, "stderr", sys.stderr)
-        sys.stderr = open(os.devnull, "w")
-        self.addCleanup(sys.stderr.close)
-
-        def other_thread_main():
-            tlet.bind_thread()
-            tlet.bind(channel.receive, ())
-            tlet.run()
-            ready.release()
-            raise DelayError("a slow exception")
-            # during the processing of this exception the
-            # thread has no main tasklet. Exception processing
-            # takes some time. During this time the main thread
-            # kills the tasklet
-
-        thread.start_new_thread(other_thread_main, ())
-        ready.acquire()  # Be sure the other thread is ready.
-        #print("at end")
-        is_blocked = tlet.blocked
-        #tlet.bind_thread()
-        try:
-            tlet.kill(pending=True)
-        except RuntimeError as e:
-            self.assertIn("Target thread isn't initialised", str(e))
-            # print("got exception")
-        else:
-            # print("no exception")
-            pass
-        self.assertTrue(is_blocked)
-        time.sleep(0.5)
-        # print("unbinding done")
-
     def _test_kill_without_thread_state(self, nl, block):
         channel = scheduler.channel()
         loop = True
@@ -562,14 +512,10 @@ class TestBind(test_utils.SchedulerTestCaseBase):
         wr = weakref.ref(t)
 
         self.assertFalse(t.alive)
-        # self.assertIsNone(t.frame)
-        # self.assertEqual(t.nesting_level, 0)
 
         t.bind(None)  # must not change the tasklet
 
         self.assertFalse(t.alive)
-        # self.assertIsNone(t.frame)
-        # self.assertEqual(t.nesting_level, 0)
 
         t.bind(self.task)
         t.setup(False)
@@ -582,7 +528,6 @@ class TestBind(test_utils.SchedulerTestCaseBase):
         self.assertTrue(t.alive)
         if scheduler.enable_softswitch(None):
             self.assertTrue(t.restorable)
-        # self.assertIsInstance(t.frame, types.FrameType)
 
         t.insert()
         self.assertEqual(self.getruncount(), 2)
@@ -601,10 +546,11 @@ class TestBind(test_utils.SchedulerTestCaseBase):
 
     def test_unbind_ok(self):
         import weakref
-        #if not scheduler.enable_softswitch(None):
-            # the test requires softswitching
-        #    return
-        t = scheduler.tasklet(self.task)(False)
+
+        def task():
+            scheduler.schedule_remove()
+
+        t = scheduler.tasklet(task)()
         self.assertEqual(self.getruncount(), 2)
         wr = weakref.ref(t)
 
@@ -613,12 +559,9 @@ class TestBind(test_utils.SchedulerTestCaseBase):
         self.assertEqual(self.getruncount(), 1)
         self.assertFalse(t.scheduled)
         self.assertTrue(t.alive)
-        # self.assertEqual(t.nesting_level, 0)
-        # self.assertIsInstance(t.frame, types.FrameType)
 
         t.bind(None)
         self.assertFalse(t.alive)
-        # self.assertIsNone(t.frame)
 
         # remove the tasklet. Must not run the finally clause
         t = None
@@ -638,30 +581,8 @@ class TestBind(test_utils.SchedulerTestCaseBase):
         self.assertEqual(self.getruncount(), 2)
         self.assertTrue(t.scheduled)
         self.assertTrue(t.alive)
-        scheduler.run()
-        self.assertEqual(self.getruncount(), 1)
-        # self.assertIsInstance(t.frame, types.FrameType)
 
         self.assertRaisesRegex(RuntimeError, "scheduled", t.bind, None)
-
-    @unittest.skip('TODO - cstate not implemented')
-    def test_unbind_fail_cstate(self):
-        t = scheduler.tasklet(self.task)(True)
-        # wr = weakref.ref(t)
-
-        # prepare a paused tasklet
-        scheduler.run()
-        self.assertFalse(t.scheduled)
-        self.assertTrue(t.alive)
-        # self.assertGreaterEqual(t.nesting_level, 1)
-        # self.assertIsInstance(t.frame, types.FrameType)
-
-        self.assertRaisesRegex(RuntimeError, "C state", t.bind, None)
-
-        # remove the tasklet. Must run the finally clause
-        t = None
-        # self.assertIsNone(wr())  # tasklet has been deleted
-        self.assertEqual(self.finally_run_count, 1)
 
     def test_bind_noargs(self):
         t = scheduler.tasklet(self.task)

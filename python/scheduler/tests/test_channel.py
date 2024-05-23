@@ -290,20 +290,20 @@ class TestChannels(test_utils.SchedulerTestCaseBase):
         self.assertEqual(sentValues, [0,1,2,3,4,5,6,7,8,9])
 
     def testBlockedTaskletsGreenletIsNotParent(self):
-        def foo():
-            x = 1 + 1
+        taskletOrder = []
+        def foo(x):
+            taskletOrder.append(x)
 
         channel = scheduler.channel()
-        receivedValues = []
 
         def sender(chan):
-            scheduler.tasklet(foo)()
+            scheduler.tasklet(foo)("a")
             chan.send(1)
-            scheduler.tasklet(foo)()
+            scheduler.tasklet(foo)("b")
             chan.send(2)
-            scheduler.tasklet(foo)()
+            scheduler.tasklet(foo)("c")
             chan.send(3)
-            scheduler.tasklet(foo)()
+            scheduler.tasklet(foo)("d")
 
         senderTasklet = scheduler.tasklet(sender)(channel)
         self.assertEqual(self.getruncount(), 2)
@@ -312,13 +312,13 @@ class TestChannels(test_utils.SchedulerTestCaseBase):
         
         # sendingTasklet
         r = channel.receive()
-        receivedValues.append(r)
+        taskletOrder.append(r)
         r = channel.receive()
-        receivedValues.append(r)
+        taskletOrder.append(r)
         r = channel.receive()
-        receivedValues.append(r)
+        taskletOrder.append(r)
 
-        self.assertEqual(receivedValues, [1,2,3])
+        self.assertEqual(taskletOrder, [1, 'a', 2, 'b', 3])
 
 
     def testBlockingSendOnMainTasklet(self):
