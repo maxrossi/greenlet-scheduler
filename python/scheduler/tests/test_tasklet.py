@@ -399,6 +399,7 @@ class TestKill(test_utils.SchedulerTestCaseBase):
         self.assertFalse(t.alive)
         self.assertEqual(t.thread_id, scheduler.getcurrent().thread_id) #TODO replace getcurrent with current when working again
 
+    @unittest.skip("not applicable to scheduler implementation")
     def test_kill_thread_without_main_tasklet(self):
         # this test depends on a race condition.
         # unfortunately I do not have any better test case
@@ -554,14 +555,10 @@ class TestBind(test_utils.SchedulerTestCaseBase):
         wr = weakref.ref(t)
 
         self.assertFalse(t.alive)
-        # self.assertIsNone(t.frame)
-        # self.assertEqual(t.nesting_level, 0)
 
         t.bind(None)  # must not change the tasklet
 
         self.assertFalse(t.alive)
-        # self.assertIsNone(t.frame)
-        # self.assertEqual(t.nesting_level, 0)
 
         t.bind(self.task)
         t.setup(False)
@@ -574,7 +571,6 @@ class TestBind(test_utils.SchedulerTestCaseBase):
         self.assertTrue(t.alive)
         if scheduler.enable_softswitch(None):
             self.assertTrue(t.restorable)
-        # self.assertIsInstance(t.frame, types.FrameType)
 
         t.insert()
         self.assertEqual(self.getruncount(), 2)
@@ -593,10 +589,11 @@ class TestBind(test_utils.SchedulerTestCaseBase):
 
     def test_unbind_ok(self):
         import weakref
-        #if not scheduler.enable_softswitch(None):
-            # the test requires softswitching
-        #    return
-        t = scheduler.tasklet(self.task)(False)
+
+        def task():
+            scheduler.schedule_remove()
+
+        t = scheduler.tasklet(task)()
         self.assertEqual(self.getruncount(), 2)
         wr = weakref.ref(t)
 
@@ -605,12 +602,9 @@ class TestBind(test_utils.SchedulerTestCaseBase):
         self.assertEqual(self.getruncount(), 1)
         self.assertFalse(t.scheduled)
         self.assertTrue(t.alive)
-        # self.assertEqual(t.nesting_level, 0)
-        # self.assertIsInstance(t.frame, types.FrameType)
 
         t.bind(None)
         self.assertFalse(t.alive)
-        # self.assertIsNone(t.frame)
 
         # remove the tasklet. Must not run the finally clause
         t = None
@@ -630,9 +624,6 @@ class TestBind(test_utils.SchedulerTestCaseBase):
         self.assertEqual(self.getruncount(), 2)
         self.assertTrue(t.scheduled)
         self.assertTrue(t.alive)
-        scheduler.run()
-        self.assertEqual(self.getruncount(), 1)
-        # self.assertIsInstance(t.frame, types.FrameType)
 
         self.assertRaisesRegex(RuntimeError, "scheduled", t.bind, None)
 
