@@ -29,7 +29,12 @@ class SchedulerTestCaseBase(unittest.TestCase):
     def tearDown(self):
 
         # Clean up left over channels that still have blocked tasklets
+        scheduler.run()
+        
         scheduler.unblock_all_channels()
+        
+        gc.collect()
+
         self.assertEqual(scheduler.get_number_of_active_channels(),0)
 
         # Finish any remaining tasklets

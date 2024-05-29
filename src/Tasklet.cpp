@@ -58,10 +58,7 @@ Tasklet::~Tasklet()
 	Py_XDECREF( m_arguments );
 
     Py_XDECREF( m_kwarguments );
- 
-    // Greenlets will be completed at this point
-    // Tasklets removed from queue are cleaned up
-    // with a memory management handled through traverse
+
 	Py_XDECREF( m_greenlet );
 
 	Py_XDECREF( m_transfer_arguments );
@@ -388,9 +385,6 @@ PyObject* Tasklet::switch_to( )
 		// Removed tasklet is paused
         if (m_tagged_for_removal)
         {
-            // Incref is created to ensure that tasklet remains around while paused so its release can be managed correctly
-			incref();
-
 			m_paused = true;
         }
 
@@ -970,20 +964,4 @@ void Tasklet::set_callable(PyObject* callable)
 bool Tasklet::requires_removal()
 {
 	return m_remove;
-}
-
-void Tasklet::check_cstate()
-{
-	// Check for if tasklet is paused and dangling
-    if (m_paused && refcount() == 1)
-    {
-        // Set Tasklet Exception error state
-		set_exception_state( m_tasklet_exit_exception );
-
-        // Tasklet needs cleaning up
-		insert();
-
-        // Remove the holding reference
-		decref();
-    }
 }

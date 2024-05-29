@@ -291,13 +291,13 @@ PyObject* Channel::receive()
         Py_DecRef( sending_tasklet->python_object() );
 	}
 
-
+    
     //Process the exception
 	if( current->transfer_is_exception())
-	{
+	{	
 		PyObject* arguments = current->get_transfer_arguments();
 		current->clear_transfer_arguments();
-
+        
         if(!PyTuple_Check(arguments))
 		{
 			PyErr_SetString( PyExc_RuntimeError, "This should be checked during send TODO remove this check when it is" ); //TODO
@@ -309,12 +309,14 @@ PyObject* Channel::receive()
 		
         PyErr_SetObject( exception_type, exception_values );
 
+        Py_DecRef( exception_values );
+
         Py_DecRef( arguments );
-
+         
 		current->set_transfer_in_progress( false );  //TODO having two of these sucks
-
+        
         schedule_manager->decref();
-
+       
         return nullptr;
 
     }
@@ -570,5 +572,5 @@ void Channel::check_cstate()
         // The kills are made pending.
 		clear_blocked( true );
 	}
-
+	
 }

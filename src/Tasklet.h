@@ -144,8 +144,6 @@ public:
 
     bool requires_removal();
 
-    void check_cstate();
-
 private:
 
     void set_exception_state( PyObject* exception, PyObject* arguments = Py_None );

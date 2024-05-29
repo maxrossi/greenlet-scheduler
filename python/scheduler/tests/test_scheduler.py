@@ -255,6 +255,11 @@ class TestSwitch(test_utils.SchedulerTestCaseBase):
         self.finished = False
         self.c = scheduler.channel()
 
+    def tearDown(self):
+        self.source = None
+        self.c = None
+        super().tearDown()
+
     def target(self):
         self.assertTrue(self.source.paused)
         self.source.insert()
