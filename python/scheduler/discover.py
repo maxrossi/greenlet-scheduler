@@ -1,7 +1,11 @@
 import sys
 import unittest
 
-sys.modules['_scheduler'] = sys
+
+class Mock:
+    channel = object
+
+sys.modules['_scheduler'] = Mock
 
 def print_suite(suite):
     if hasattr(suite, '_exception'):
