@@ -240,6 +240,7 @@ PyObject* Tasklet::switch_implementation()
 
         if (schedule_manager->run(this) == nullptr)
         {
+			schedule_manager->get_current_tasklet()->m_paused = false;
 			schedule_manager->decref();
 			return nullptr;
         }
