@@ -208,16 +208,20 @@ class TestSchedule(test_utils.SchedulerTestCaseBase):
         self.assertEqual(self.events, ["foo"])
 
     def testScheduleRemoveFail(self):
-        def foo(previous):
-            self.events.append("foo")
-            self.assertFalse(previous.scheduled)
-            previous.insert()
-            self.assertTrue(previous.scheduled)
-        t = scheduler.tasklet(foo)(scheduler.getcurrent())
-        self.assertEqual(self.getruncount(), 2)
-        scheduler.schedule_remove()
-        self.assertEqual(self.getruncount(), 1)
-        self.assertEqual(self.events, ["foo"])
+        def nestedTasklet():
+            def foo(previous):
+                self.events.append("foo")
+                self.assertFalse(previous.scheduled)
+                previous.insert()
+                self.assertTrue(previous.scheduled)
+            t = scheduler.tasklet(foo)(scheduler.getcurrent())
+            self.assertEqual(self.getruncount(), 3)
+            scheduler.schedule_remove()
+            self.assertEqual(self.getruncount(), 2)
+            self.assertEqual(self.events, ["foo"])
+        t = scheduler.tasklet(nestedTasklet)()
+        t.run()
+
 
 class TestRun(test_utils.SchedulerTestCaseBase):
     def testCallingRunFromNonMainTasklet(self):
