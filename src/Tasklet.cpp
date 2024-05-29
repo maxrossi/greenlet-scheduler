@@ -13,7 +13,7 @@ Tasklet::Tasklet( PyObject* python_object, PyObject* tasklet_exit_exception, boo
 	m_is_main( is_main ),
 	m_transfer_in_progress( false ),
 	m_scheduled( false ),
-	m_alive( false ),
+	m_alive( is_main ),
 	m_blocktrap( false ),
 	m_previous( nullptr ),
 	m_next( nullptr ),
