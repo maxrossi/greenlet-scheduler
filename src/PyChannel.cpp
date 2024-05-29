@@ -234,7 +234,7 @@ static PyMethodDef Channel_methods[] = {
 	{ "send", (PyCFunction)Channel_send, METH_VARARGS, "Send a value over the channel" },
 	{ "receive", (PyCFunction)Channel_receive, METH_NOARGS, "Receive a value over the channel" },
 	{ "send_exception", (PyCFunction)Channel_sendexception, METH_VARARGS, "Send an exception over the channel" },
-	{ "send_throw", (PyCFunction)Channel_sendThrow, METH_VARARGS, "(exc, val, tb) is raised on the first tasklet blocked on channel self." },
+	{ "send_throw", (PyCFunction)Channel_sendThrow, METH_VARARGS | METH_KEYWORDS, "(exc, val, tb) is raised on the first tasklet blocked on channel self." },
 	{ "clear", (PyCFunction)Channel_clearTasklets, METH_NOARGS, "Clear channel, all blocked tasklets will be killed rasing TaskletExit exception" },
 	{ NULL } /* Sentinel */
 };
