@@ -238,7 +238,12 @@ PyObject* Tasklet::switch_implementation()
 
 		schedule_manager->insert_tasklet( this );
 
-		schedule_manager->run( this );
+        if (schedule_manager->run(this) == nullptr)
+        {
+			schedule_manager->get_current_tasklet()->m_paused = false;
+			schedule_manager->decref();
+			return nullptr;
+        }
 
         schedule_manager->get_current_tasklet()->m_paused = false;
 
