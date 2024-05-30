@@ -561,3 +561,73 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 	
 	}
 
+    TEST_F( ChannelCapi, PyChannel_SendThrow_NoValueOrTb )
+	{
+		PyChannelObject* channel = m_api->PyChannel_New( m_api->PyChannelType );
+
+		EXPECT_NE( channel, nullptr );
+
+		// Create test scenario to which calls send_throw through capi
+		EXPECT_EQ( PyRun_SimpleString( "import sys\n"
+									   "def foo(testChannel):\n"
+									   "    schedulertest.channel_send_throw(testChannel, ValueError)\n" ),
+				   0 );
+
+		// Get reference to callable
+		PyObject* foo_callable = PyObject_GetAttrString( m_main_module, "foo" );
+		EXPECT_NE( foo_callable, nullptr );
+		EXPECT_TRUE( PyCallable_Check( foo_callable ) );
+
+		// Create tasklet
+		PyObject* tasklet_args = PyTuple_New( 1 );
+		EXPECT_NE( tasklet_args, nullptr );
+		EXPECT_EQ( PyTuple_SetItem( tasklet_args, 0, foo_callable ), 0 );
+		PyTaskletObject* tasklet = m_api->PyTasklet_New( m_api->PyTaskletType, tasklet_args );
+		EXPECT_NE( tasklet, nullptr );
+
+		// Check type
+		EXPECT_TRUE( m_api->PyTasklet_Check( reinterpret_cast<PyObject*>( tasklet ) ) );
+
+		// Should not be added to queue yet
+		EXPECT_EQ( m_api->PyScheduler_GetRunCount(), 1 );
+
+		// Setup tasklet
+		PyObject* callable_args = PyTuple_New( 1 );
+		EXPECT_NE( callable_args, nullptr );
+		EXPECT_EQ( PyTuple_SetItem( callable_args, 0, reinterpret_cast<PyObject*>( channel ) ), 0 );
+		EXPECT_EQ( m_api->PyTasklet_Setup( tasklet, callable_args, nullptr ), 0 );
+		Py_XDECREF( callable_args );
+
+		// Should be added to queue
+		EXPECT_EQ( m_api->PyScheduler_GetRunCount(), 2 );
+
+		// Run scheduler to run tasklet
+		EXPECT_EQ( m_api->PyScheduler_RunNTasklets( 1 ), Py_None );
+
+		// At this point the tasklet should be blocked on send
+		EXPECT_EQ( m_api->PyChannel_GetBalance( channel ), 1 );
+
+		// Attempt receive which should return an error state
+		EXPECT_EQ( m_api->PyChannel_Receive( channel ), nullptr );
+
+		PyObject* exc = PyErr_GetRaisedException();
+
+		// Error should exist
+		EXPECT_NE( exc, nullptr );
+
+		// Value error expected
+		EXPECT_EQ( PyObject_IsInstance( exc, PyExc_ValueError ), 1 );
+
+		// Clear error
+		PyErr_Clear();
+
+		// Finish send tasklet
+		EXPECT_EQ( m_api->PyScheduler_RunNTasklets( 1 ), Py_None );
+
+		// Expect nothing in the queue
+		EXPECT_EQ( m_api->PyScheduler_GetRunCount(), 1 );
+
+		// Expect nothing blocked on the channel
+		EXPECT_EQ( m_api->PyChannel_GetBalance( channel ), 0 );
+	}
+

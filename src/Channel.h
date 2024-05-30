@@ -44,7 +44,7 @@ public:
 
     PyObject* python_object();
 
-	bool send( PyObject* args, bool exception=false );
+	bool send( PyObject* args, PyObject* exception=nullptr );
 
     PyObject* receive();
 

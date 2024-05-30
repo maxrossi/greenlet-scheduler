@@ -155,12 +155,44 @@ static PyObject*
 static PyObject*
 	Channel_sendexception( PyChannelObject* self, PyObject* args, PyObject* kwds )
 {
-	if(!self->m_impl->send(args, true))
+	
+    if (PyTuple_Size(args) < 1)
+    {
+		PyErr_SetString( PyExc_RuntimeError, "Exception type required" );
+		return nullptr;
+    }
+
+    PyObject* exception = PyTuple_GetItem(args,0);
+
+    if( !PyExceptionClass_Check( exception ) && !PyObject_IsInstance( exception, PyExc_Exception ) )
+    {
+		PyErr_SetString( PyExc_RuntimeError, "Exception type or instance required" );
+		return nullptr;
+    }
+
+    Py_IncRef( exception );
+
+    PyObject* exception_arguments = nullptr;
+
+    if (PyTuple_Size(args) > 1)
+    {
+		exception_arguments = PyTuple_GetSlice( args, 1, PyTuple_Size( args ) );
+    }
+    else
+    {
+		exception_arguments = PyTuple_New( 0 );
+    }
+
+	if( !self->m_impl->send( exception_arguments, exception ) )
 	{
+		Py_DecRef( exception_arguments );
+
 		return NULL;
     }
 
-    Py_IncRef( Py_None );   //TODO is this necessary?
+    Py_DecRef( exception_arguments );
+
+    Py_IncRef( Py_None );
 
 	return Py_None;
 }
@@ -174,16 +206,36 @@ static PyObject*
 	PyObject* value = Py_None;
 	PyObject* tb = Py_None;
 
-	if( !PyArg_ParseTupleAndKeywords( args, kwds, "|OOO", (char**)kwlist, &exception, &value, &tb ) )
+	if( !PyArg_ParseTupleAndKeywords( args, kwds, "O|OO", (char**)kwlist, &exception, &value, &tb ) )
 	{
 		PyErr_SetString( PyExc_RuntimeError, "Failed to parse arguments" );
 		return nullptr;
 	}
 
-    if( !self->m_impl->send( args, true ) )
+	if( !PyExceptionClass_Check( exception ) && !PyObject_IsInstance( exception, PyExc_Exception ) )
 	{
+		PyErr_SetString( PyExc_RuntimeError, "Exception type or instance required" );
+		return nullptr;
+	}
+
+    Py_IncRef( exception );
+
+    PyObject* exception_arguments = PyTuple_New(2);
+
+    PyTuple_SetItem( exception_arguments, 0, value );
+
+	PyTuple_SetItem( exception_arguments, 1, tb );
+	
+    if( !self->m_impl->send( exception_arguments, exception ) )
+	{
+		Py_DecRef( exception_arguments );
+
 		return NULL;
 	}
+    
+    Py_DecRef( exception_arguments );
+
+    Py_IncRef( Py_None );
 
 	return Py_None;
 }

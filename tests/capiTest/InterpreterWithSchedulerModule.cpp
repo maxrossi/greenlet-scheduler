@@ -49,10 +49,10 @@ static PyObject*
 	PyObject* channel = Py_None;
 
 	PyObject* exception = Py_None;
-	PyObject* value = Py_None;
-	PyObject* tb = Py_None;
+	PyObject* value = nullptr;
+	PyObject* tb = nullptr;
 
-	if( !PyArg_ParseTuple( args, "OOOO", &channel, &exception, &value, &tb ) )
+	if( !PyArg_ParseTuple( args, "OO|OO", &channel, &exception, &value, &tb ) )
 	{
 		return NULL;
 	}
@@ -131,11 +131,11 @@ static PyObject*
 {
 	PyObject* channel = Py_None;
 
-	PyObject* klass = Py_None;
+	PyObject* klass = nullptr;
 
-    PyObject* value = Py_None;
+    PyObject* value = nullptr;
 
-	if( !PyArg_ParseTuple( args, "O|OO", &channel, &klass, &value ) )
+	if( !PyArg_ParseTuple( args, "OO|O", &channel, &klass, &value ) )
 	{
 		return NULL;
 	}

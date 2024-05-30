@@ -19,7 +19,7 @@ Tasklet::Tasklet( PyObject* python_object, PyObject* tasklet_exit_exception, boo
 	m_next( nullptr ),
 	m_thread_id( PyThread_get_thread_ident() ),
 	m_transfer_arguments( nullptr ),
-	m_transfer_is_exception( false ),
+	m_transfer_exception( nullptr ),
 	m_channel_blocked_on( nullptr ),
 	m_blocked( false ),
 	m_exception_state( Py_None ),
@@ -635,7 +635,7 @@ void Tasklet::clear_transfer_arguments()
 
 }
 
-void Tasklet::set_transfer_arguments( PyObject* args, bool is_exception )
+void Tasklet::set_transfer_arguments( PyObject* args, PyObject* exception )
 {
     //This should all change with the channel preference change
 	if(m_transfer_arguments != nullptr)
@@ -648,7 +648,7 @@ void Tasklet::set_transfer_arguments( PyObject* args, bool is_exception )
 
 	m_transfer_arguments = args;
 
-    m_transfer_is_exception = is_exception;
+    m_transfer_exception = exception;
 }
 
 bool Tasklet::is_blocked() const
@@ -757,9 +757,9 @@ void Tasklet::set_transfer_in_progress( bool value )
 	m_transfer_in_progress = value;
 }
 
-bool Tasklet::transfer_is_exception() const
+PyObject* Tasklet::transfer_exception() const
 {
-	return m_transfer_is_exception;
+	return m_transfer_exception;
 }
 
 bool Tasklet::throw_exception( PyObject* exception, PyObject* value, PyObject* tb, bool pending )

@@ -50,7 +50,7 @@ PyObject* Channel::python_object()
 	return m_python_object;
 }
 
-bool Channel::send( PyObject* args, bool exception /* = false */)
+bool Channel::send( PyObject* args, PyObject* exception /* = nullptr */)
 {
     PyThread_acquire_lock( m_lock, 1 );
 
@@ -293,27 +293,21 @@ PyObject* Channel::receive()
 
     
     //Process the exception
-	if( current->transfer_is_exception())
+	PyObject* transfer_exception = current->transfer_exception();
+
+	if( transfer_exception )
 	{	
 		PyObject* arguments = current->get_transfer_arguments();
+		
 		current->clear_transfer_arguments();
         
-        if(!PyTuple_Check(arguments))
-		{
-			PyErr_SetString( PyExc_RuntimeError, "This should be checked during send TODO remove this check when it is" ); //TODO
-        }
-		
-        PyObject* exception_type = PyTuple_GetItem( arguments, 0 );
+        PyErr_SetObject( transfer_exception, arguments );
 
-        PyObject* exception_values = PyTuple_GetSlice( arguments, 1, PyTuple_Size( arguments ) );
-		
-        PyErr_SetObject( exception_type, exception_values );
-
-        Py_DecRef( exception_values );
+        Py_DecRef( transfer_exception );
 
         Py_DecRef( arguments );
          
-		current->set_transfer_in_progress( false );  //TODO having two of these sucks
+		current->set_transfer_in_progress( false );
         
         schedule_manager->decref();
        

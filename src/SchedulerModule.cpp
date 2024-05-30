@@ -433,13 +433,32 @@ extern "C"
 
 	static int PyChannel_SendException( PyChannelObject* self, PyObject* klass, PyObject* value )
 	{
-		PyObject* args = PyTuple_New( 2 );
+        if (klass == nullptr)
+        {
+			PyErr_SetString( PyExc_RuntimeError, "Exception type or instance required" );
+			return -1;
+        }
 
-		PyTuple_SetItem( args, 0, klass );
+        if( !PyExceptionClass_Check( klass ) && !PyObject_IsInstance( klass, PyExc_Exception ) )
+		{
+			PyErr_SetString( PyExc_RuntimeError, "Exception type or instance required" );
+			return -1;
+		}
 
-		PyTuple_SetItem( args, 1, value );
+		PyObject* args = nullptr;
+		
+        if (value)
+        {
+			args = PyTuple_New( 1 );
 
-		bool ret = self->m_impl->send( args, true );
+			PyTuple_SetItem( args, 0, value );
+        }
+        else
+        {
+			args = PyTuple_New( 0 );
+        }
+
+		bool ret = self->m_impl->send( args, klass );
 
         Py_DecRef( args );
 
@@ -484,13 +503,39 @@ extern "C"
 
     static int PyChannel_SendThrow( PyChannelObject* self, PyObject* exc, PyObject* val, PyObject* tb )
 	{
-		PyObject* args = PyTuple_New( 3 );
+        if (!exc)
+        {
+			PyErr_SetString( PyExc_RuntimeError, "Exception type or instance required" );
+			return -1;
+        }
 
-        PyTuple_SetItem( args, 0, exc );
-		PyTuple_SetItem( args, 1, val );
-		PyTuple_SetItem( args, 2, tb );
+        if( !PyExceptionClass_Check( exc ) && !PyObject_IsInstance( exc, PyExc_Exception ) )
+		{
+			PyErr_SetString( PyExc_RuntimeError, "Exception type or instance required" );
+			return -1;
+		}
 
-        bool ret = self->m_impl->send( args, true );
+		PyObject* args = PyTuple_New( 2 );
+
+        if (val)
+        {
+			PyTuple_SetItem( args, 0, val );
+        }
+        else
+        {
+			PyTuple_SetItem( args, 0, Py_None );
+        }
+		
+        if (tb)
+        {
+			PyTuple_SetItem( args, 1, tb );
+        }
+        else
+        {
+			PyTuple_SetItem( args, 1, Py_None );
+        }
+
+        bool ret = self->m_impl->send( args, exc );
 
         Py_DecRef( args );
 
