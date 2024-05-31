@@ -133,4 +133,13 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
         )
         set_tests_properties(${PYTHON_TEST} PROPERTIES ENVIRONMENT "PYTHONPATH=${PYTHONPATH_ENV};BUILDFLAVOR=$<LOWER_CASE:$<CONFIG>>")
     endforeach ()
+
+    set(ALL_PYTHON_TEST RunAllPythonTestsInSingleInterpreterSession)
+    add_test(NAME ${ALL_PYTHON_TEST}
+        COMMAND ${PYTHON_EXECUTABLE} -m unittest discover -v
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/python/scheduler/tests
+        COMMAND_EXPAND_LISTS
+    )
+    set_tests_properties(${ALL_PYTHON_TEST} PROPERTIES ENVIRONMENT "PYTHONPATH=${PYTHONPATH_ENV};BUILDFLAVOR=$<LOWER_CASE:$<CONFIG>>")
+
 endif()

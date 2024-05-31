@@ -17,6 +17,7 @@ ScheduleManager::ScheduleManager( PyObject* python_object ) :
     m_scheduler_callback(nullptr),
     m_scheduler_fast_callback(nullptr),
     m_tasklet_limit(-1),
+	m_total_tasklet_run_time_limit(-1),
     m_stop_scheduler(false),
 	m_number_of_tasklets_in_queue(0)
 {
