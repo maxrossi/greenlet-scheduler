@@ -62,11 +62,11 @@ public:
 
     bool yield();
 
-    PyObject* run_n_tasklets( int number_of_tasklets );
+    bool run_n_tasklets( int number_of_tasklets );
 
-    PyObject* run_tasklets_for_time( long long timeout );
+    bool run_tasklets_for_time( long long timeout );
 
-    PyObject* run( Tasklet* start_tasklet = nullptr );
+    bool run( Tasklet* start_tasklet = nullptr );
 
     Tasklet* get_main_tasklet();
 

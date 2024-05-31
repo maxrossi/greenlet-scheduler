@@ -39,8 +39,17 @@ static PyObject*
     s_test_value = ret_val; // Will be -1 if failed (eg tasklet killed)
 
     Py_DecRef( value );
-		
-    return ret_val == 0 ? Py_None : nullptr;
+	
+	if( ret_val == 0 )
+	{
+		Py_IncRef( Py_None );
+
+		return Py_None;
+	}
+	else
+	{
+		return nullptr;
+	}
 }
 
 static PyObject*
@@ -80,7 +89,16 @@ static PyObject*
 
     Py_DecRef( tb );
 
-	return ret_val == 0 ? Py_None : nullptr;
+	if(ret_val == 0)
+	{
+		Py_IncRef( Py_None );
+
+		return Py_None;
+	}
+	else
+	{
+		return nullptr;
+	}
 }
 
 static PyObject*
@@ -142,6 +160,8 @@ static PyObject*
 
     if (s_scheduler_api->PyChannel_SendException(reinterpret_cast<PyChannelObject*>(channel), klass, value) == 0)
     {
+		Py_IncRef( Py_None );
+
 		return Py_None;
     }
     else

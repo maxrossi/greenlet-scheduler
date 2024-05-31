@@ -48,11 +48,11 @@ public:
 
 	bool insert();
 
-    PyObject* switch_implementation();
+    bool switch_implementation();
 
-    PyObject* switch_to();
+    bool switch_to();
 
-    PyObject* run();
+    bool run();
 
     bool kill( bool pending = false );
 
@@ -137,8 +137,6 @@ public:
     bool requires_reschedule();
 
     void set_tagged_for_removal( bool value );
-
-    //void clear_callable();
 
     void set_callable( PyObject* callable );
 

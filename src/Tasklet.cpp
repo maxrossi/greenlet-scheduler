@@ -188,21 +188,21 @@ bool Tasklet::insert()
 	return false;   
 }
 
-PyObject* Tasklet::switch_implementation()
+bool Tasklet::switch_implementation()
 {
 	// Remove the calling tasklet
 	if( !m_alive )
 	{
 		PyErr_SetString( PyExc_RuntimeError, "You cannot run an unbound(dead) tasklet" );
 
-		return nullptr;
+		return false;
 	}
 
 	if( m_blocked )
 	{
 		PyErr_SetString( PyExc_RuntimeError, "Cannot switch to a tasklet that is blocked" );
 
-		return nullptr;
+		return false;
 	}
 
     ScheduleManager* schedule_manager = ScheduleManager::get_scheduler();
@@ -220,7 +220,7 @@ PyObject* Tasklet::switch_implementation()
 
             schedule_manager->decref();
 
-			return Py_None;
+			return true;
         }
 		else
 		{
@@ -228,7 +228,7 @@ PyObject* Tasklet::switch_implementation()
 
             schedule_manager->decref();
 
-			return nullptr;
+			return false;
         } 
 
 	}
@@ -238,11 +238,13 @@ PyObject* Tasklet::switch_implementation()
 
 		schedule_manager->insert_tasklet( this );
 
-        if (schedule_manager->run(this) == nullptr)
+        if (!schedule_manager->run(this))
         {
 			schedule_manager->get_current_tasklet()->m_paused = false;
+
 			schedule_manager->decref();
-			return nullptr;
+
+			return false;
         }
 
         schedule_manager->get_current_tasklet()->m_paused = false;
@@ -251,15 +253,15 @@ PyObject* Tasklet::switch_implementation()
 
     schedule_manager->decref();
 
-	return Py_None;
+	return true;
 
 
 }
 
-PyObject* Tasklet::switch_to( )
+bool Tasklet::switch_to( )
 {
 	
-    PyObject* ret = Py_None;
+    bool ret = true;
 
     bool args_suppled = false;
 	bool kwargs_supplied = false;
@@ -269,7 +271,8 @@ PyObject* Tasklet::switch_to( )
 		if( !PyTuple_Check( m_arguments ) )
 		{
 			PyErr_SetString( PyExc_RuntimeError, "Arguments must be a tuple" );
-			return nullptr;
+
+			return false;
 		}
 
         args_suppled = true;
@@ -281,7 +284,8 @@ PyObject* Tasklet::switch_to( )
 		if( !PyDict_Check( m_kwarguments ) )
 		{
 			PyErr_SetString( PyExc_RuntimeError, "kwargs must be a dict" );
-			return nullptr;
+
+			return false;
 		}
 
 		kwargs_supplied = true;
@@ -298,7 +302,7 @@ PyObject* Tasklet::switch_to( )
 
         schedule_manager->decref();
 
-		return nullptr;
+		return false;
 	}
 
     if( PyThread_get_thread_ident() != m_thread_id)
@@ -318,7 +322,7 @@ PyObject* Tasklet::switch_to( )
 
             schedule_manager->decref();
 
-			return nullptr;
+			return false;
         }
 
 
@@ -332,7 +336,7 @@ PyObject* Tasklet::switch_to( )
 
                 schedule_manager->decref();
 
-				return Py_None;
+				return true;
             }
 			else
 			{
@@ -343,7 +347,7 @@ PyObject* Tasklet::switch_to( )
                 // Inform scheduler to remove this tasklet
                 m_remove = true;
 
-                return nullptr;
+                return false;
             }
 		
         }
@@ -377,7 +381,7 @@ PyObject* Tasklet::switch_to( )
 
             schedule_manager->decref();
 
-            return nullptr;
+            return false;
   
         }
 
@@ -458,20 +462,20 @@ void Tasklet::set_python_exception_state_from_tasklet_exception_state()
 	clear_exception();
 }
 
-PyObject* Tasklet::run()
+bool Tasklet::run()
 {
 	if(!m_alive)
 	{
 		PyErr_SetString( PyExc_RuntimeError, "Cannot run tasklet that is not alive (dead)" );
 
-		return nullptr;
+		return false;
     }
 
     if( m_blocked )
 	{
 		PyErr_SetString( PyExc_RuntimeError, "Cannot run tasklet that is blocked" );
 
-		return nullptr;
+		return false;
 	}
 
     ScheduleManager* schedule_manager = ScheduleManager::get_scheduler();
@@ -479,7 +483,7 @@ PyObject* Tasklet::run()
 	// Run scheduler starting from this tasklet (If it is already in the scheduled)
 	if(m_scheduled)
 	{
-		PyObject* ret = schedule_manager->run( this );
+		bool ret = schedule_manager->run( this );
 
         schedule_manager->decref();
 
@@ -494,7 +498,7 @@ PyObject* Tasklet::run()
 			// Run the scheduler starting at current_tasklet
 			schedule_manager->insert_tasklet_at_beginning( this );
 
-            PyObject* ret = schedule_manager->run( this );
+            bool ret = schedule_manager->run( this );
 
             schedule_manager->decref();
 
@@ -504,7 +508,7 @@ PyObject* Tasklet::run()
 		{
 			schedule_manager->insert_tasklet( this );
 
-            PyObject* ret = schedule_manager->run( this );
+            bool ret = schedule_manager->run( this );
 
             schedule_manager->decref();
 
@@ -514,7 +518,7 @@ PyObject* Tasklet::run()
 
     schedule_manager->decref();
 
-    return Py_None;
+    return true;
 }
 
 bool Tasklet::kill( bool pending /*=false*/ )
@@ -590,9 +594,9 @@ bool Tasklet::kill( bool pending /*=false*/ )
             }
             
 
-			PyObject* result = run();
+			bool result = run();
 
-			if( result == Py_None ) //TODO not keen mixing return types in this class
+			if( result )
 			{
 				schedule_manager->decref();
 
@@ -862,7 +866,7 @@ bool Tasklet::throw_exception( PyObject* exception, PyObject* value, PyObject* t
                 }
 				else if( m_exception_state == m_tasklet_exit_exception )
 				{
-					PyObject* ret = run();
+					bool ret = run();
 
                     schedule_manager->decref();
 

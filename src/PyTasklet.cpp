@@ -54,6 +54,8 @@ static PyObject*
 
             self->m_impl->set_alive( false );
 
+			Py_IncRef( Py_None );
+
 			return Py_None;
 		}
 
@@ -104,6 +106,7 @@ static PyObject*
 			self->m_impl->set_alive( true );
 		}
 
+		Py_IncRef(Py_None);
 
 		return Py_None;
 	}
@@ -256,6 +259,8 @@ static PyObject*
 
     if( !next )
 	{
+		Py_IncRef( Py_None );
+
 		return Py_None;
     }
 	else
@@ -276,6 +281,8 @@ static PyObject*
 
 	if( !previous )
 	{
+		Py_IncRef( Py_None );
+
 		return Py_None;
 	}
 	else
@@ -324,13 +331,31 @@ static PyObject*
 static PyObject*
 	Tasklet_run( PyTaskletObject* self, void* closure )
 {
-	return self->m_impl->run();
+    if (self->m_impl->run())
+    {
+		Py_IncRef( Py_None );
+
+		return Py_None;
+    }
+    else
+    {
+		return nullptr;
+    }
 }
 
 static PyObject*
 	Tasklet_switch( PyTaskletObject* self, void* closure )
 {
-	return self->m_impl->switch_implementation();
+    if (self->m_impl->switch_implementation())
+    {
+		Py_IncRef( Py_None );
+
+        return Py_None;
+    }
+    else
+    {
+		return nullptr;
+    }
 }
 
 static bool
@@ -393,14 +418,23 @@ static PyObject*
 		return nullptr;
     }
 
-    return self->m_impl->throw_exception( exception, value, tb, pending ) ? Py_None : nullptr;
+    if (self->m_impl->throw_exception(exception, value, tb, pending))
+    {
+		Py_IncRef( Py_None );
+
+        return Py_None;
+    }
+    else
+    {
+		return nullptr;
+    }
 
 }
 
 static PyObject*
 	Tasklet_raiseexception( PyTaskletObject* self, PyObject* args, PyObject* kwds )
 {
-	PyObject* exception = Py_None;
+	PyObject* exception = nullptr;
 	PyObject* arguments = Py_None;
 
     if( !PyArg_ParseTuple( args, "O:exception_class|O", &exception, &arguments ) )
@@ -415,7 +449,16 @@ static PyObject*
 		return nullptr;
 	}
 
-	return self->m_impl->throw_exception( exception, arguments, Py_None, false ) ? Py_None : nullptr;
+    if (self->m_impl->throw_exception(exception, arguments, Py_None, false))
+    {
+		Py_IncRef( Py_None );
+
+        return Py_None;
+    }
+    else
+    {
+		return nullptr;
+    }
 }
 
 static PyObject*
@@ -433,6 +476,8 @@ static PyObject*
 
 	if(self->m_impl->kill( pending ))
 	{
+		Py_IncRef( Py_None );
+
 		return Py_None;
     }
 	else
@@ -490,6 +535,8 @@ static PyObject*
 
 		return nullptr;
     }
+
+	Py_IncRef( Py_None );
 
 	return Py_None;
 }

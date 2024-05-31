@@ -109,6 +109,8 @@ static PyObject*
 
     if (!front)
     {
+		Py_IncRef(Py_None);
+
 		return Py_None;
     }
     else
@@ -202,7 +204,7 @@ static PyObject*
 {
 	const char* kwlist[] = { "exc", "val", "tb", NULL };
 
-	PyObject* exception = Py_None;
+	PyObject* exception = nullptr;
 	PyObject* value = Py_None;
 	PyObject* tb = Py_None;
 
@@ -219,6 +221,10 @@ static PyObject*
 	}
 
     Py_IncRef( exception );
+
+	Py_IncRef( value );
+
+	Py_IncRef( tb );
 
     PyObject* exception_arguments = PyTuple_New(2);
 
@@ -265,6 +271,8 @@ static PyObject*
 	Channel_clearTasklets( PyChannelObject* self, PyObject* Py_UNUSED( ignored ) )
 {
 	self->m_impl->clear_blocked( false );
+
+	Py_IncRef( Py_None );
 
     return Py_None;
 }

@@ -43,6 +43,8 @@ void ScheduleManager::create_scheduler_tasklet()
 {
 	PyObject* tasklet_args = PyTuple_New( 2 );
 
+	Py_IncRef( Py_None );
+
 	PyTuple_SetItem( tasklet_args, 0, Py_None );
 
 	PyTuple_SetItem( tasklet_args, 1, Py_True );
@@ -297,12 +299,12 @@ bool ScheduleManager::yield()
 	return true;
 }
 
-PyObject* ScheduleManager::run_tasklets_for_time( long long timeout )
+bool ScheduleManager::run_tasklets_for_time( long long timeout )
 {
 
 	m_total_tasklet_run_time_limit = timeout;
 
-	PyObject* ret = run();
+	bool ret = run();
 
 	m_stop_scheduler = false;
 
@@ -315,11 +317,11 @@ PyObject* ScheduleManager::run_tasklets_for_time( long long timeout )
 	return ret;
 }
 
-PyObject* ScheduleManager::run_n_tasklets( int number_of_tasklets )
+bool ScheduleManager::run_n_tasklets( int number_of_tasklets )
 {
     m_tasklet_limit = number_of_tasklets;
 
-    PyObject* ret = run();
+    bool ret = run();
 
     m_stop_scheduler = false;
 
@@ -328,7 +330,7 @@ PyObject* ScheduleManager::run_n_tasklets( int number_of_tasklets )
     return ret;
 }
 
-PyObject* ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
+bool ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
 {
     Tasklet* base_tasklet = nullptr;
 
@@ -397,7 +399,7 @@ PyObject* ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
 
         if (current_tasklet->set_parent(ScheduleManager::get_current_tasklet()) == -1)
         {
-			return nullptr;
+			return false;
         }
 		
         // If set to true then tasklet will be decreffed at the end of the loop
@@ -489,7 +491,7 @@ PyObject* ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
             // Switch was unsuccessful
 			current_tasklet->clear_parent();
 
-			return nullptr;
+			return false;
         }
 
         // Tasklets created during this run are not run in this loop
@@ -505,9 +507,7 @@ PyObject* ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
 		
 	}
 
-    Py_IncRef( Py_None );
-
-	return Py_None;
+	return true;
 }
 
 Tasklet* ScheduleManager::get_main_tasklet()

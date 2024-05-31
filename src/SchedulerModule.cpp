@@ -34,7 +34,16 @@ static PyObject*
 
 		Channel::set_channel_callback(temp);
 
-		return previous_callback ? previous_callback : Py_None;
+		if( previous_callback )
+		{
+			return previous_callback;
+		}
+		else
+		{
+			Py_IncRef( Py_None );
+
+			return Py_None;
+		}
 	}
 
 	return nullptr;
@@ -131,6 +140,8 @@ static PyObject*
 
 	if( schedule_successful )
 	{
+		Py_IncRef( Py_None );
+
 		return Py_None;
 	}
 	else
@@ -150,6 +161,8 @@ static PyObject*
 
 	if( schedule_remove_successful )
 	{
+		Py_IncRef( Py_None );
+
 		return Py_None;
 	}
 	else
@@ -163,11 +176,20 @@ static PyObject*
 {
 	ScheduleManager* current_scheduler = ScheduleManager::get_scheduler();
 
-    PyObject* ret = current_scheduler->run();
+    bool ret = current_scheduler->run();
 
     current_scheduler->decref();
 
-	return ret;
+    if (ret)
+    {
+		Py_IncRef( Py_None );
+
+        return Py_None;
+    }
+    else
+    {
+		return nullptr;
+    }
 }
 
 static PyObject*
@@ -179,13 +201,20 @@ static PyObject*
 	{
 		ScheduleManager* current_scheduler = ScheduleManager::get_scheduler();
 
-		PyObject* ret = current_scheduler->run_n_tasklets( number_of_tasklets );
-
-        Py_IncRef( ret );
+		bool ret = current_scheduler->run_n_tasklets( number_of_tasklets );
 
         current_scheduler->decref();
 
-		return ret;
+        if (ret)
+        {
+			Py_IncRef( Py_None );
+
+            return Py_None;
+        }
+        else
+        {
+			return nullptr;
+        }
 	}
 	else
 	{
@@ -217,7 +246,16 @@ static PyObject*
 
         current_scheduler->decref();
 
-		return previous_callback ? previous_callback : Py_None;
+		if( previous_callback )
+		{
+			return previous_callback;
+		}
+		else
+		{
+			Py_IncRef( Py_None );
+
+			return Py_None;
+		}
 	}
 
 	return nullptr;
@@ -283,6 +321,8 @@ static PyObject*
 
     current_scheduler->decref();
 
+	Py_IncRef( Py_None );
+
 	return Py_None;
 }
 
@@ -319,6 +359,8 @@ static PyObject*
     }
     else
     {
+		Py_IncRef( Py_None );
+
 		return Py_None;
     }
 }
@@ -368,7 +410,16 @@ extern "C"
 
 	static int PyTasklet_Setup( PyTaskletObject* tasklet, PyObject* args, PyObject* kwds )
 	{
-		return Tasklet_setup( reinterpret_cast<PyObject*>( tasklet ), args, kwds ) == Py_None ? 0 : -1;
+		if(Tasklet_setup( reinterpret_cast<PyObject*>( tasklet ), args, kwds ) == Py_None)
+		{
+			Py_DecRef( Py_None );
+
+			return 0;
+		}
+		else
+		{
+			return -1;
+		}
 	}
 
 	static int PyTasklet_Insert( PyTaskletObject* self )
@@ -523,6 +574,8 @@ extern "C"
         }
         else
         {
+			Py_IncRef( Py_None );
+
 			PyTuple_SetItem( args, 0, Py_None );
         }
 		
@@ -532,6 +585,8 @@ extern "C"
         }
         else
         {
+			Py_IncRef( Py_None );
+			
 			PyTuple_SetItem( args, 1, Py_None );
         }
 
@@ -593,22 +648,40 @@ extern "C"
 	{
 		ScheduleManager* schedule_manager = ScheduleManager::get_scheduler();
 
-		PyObject* ret = schedule_manager->run_tasklets_for_time( timeout );
+		bool ret = schedule_manager->run_tasklets_for_time( timeout );
         
         schedule_manager->decref();
 
-		return ret;
+        if ( ret )
+        {
+			Py_IncRef( Py_None );
+
+            return Py_None;
+        }
+        else
+        {
+			return nullptr;
+        }
 	}
 
     static PyObject* PyScheduler_RunNTasklets( int number_of_tasklets_to_run )
 	{
 		ScheduleManager* schedule_manager = ScheduleManager::get_scheduler();
 
-		PyObject* ret = schedule_manager->run_n_tasklets( number_of_tasklets_to_run );
+		bool ret = schedule_manager->run_n_tasklets( number_of_tasklets_to_run );
 
         schedule_manager->decref();
 
-		return ret;
+        if (ret)
+        {
+			Py_IncRef( Py_None );
+
+            return Py_None;
+        }
+        else
+        {
+			return nullptr;
+        }
 	}
 
 	static int PyScheduler_SetChannelCallback( PyObject* callable )
