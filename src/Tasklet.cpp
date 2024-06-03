@@ -32,9 +32,10 @@ Tasklet::Tasklet( PyObject* python_object, PyObject* tasklet_exit_exception, boo
 	m_tagged_for_removal( false ),
 	m_previous_blocked( nullptr ),
 	m_next_blocked( nullptr ),
-	m_schedule_manager(nullptr),
-	m_remove(false),
-	m_kill_pending(false)
+	m_schedule_manager( nullptr ),
+	m_remove( false ),
+	m_kill_pending( false ),
+	m_switch_count( 0 )
 {
 
     // If tasklet is not a scheduler tasklet then register the tasklet with the scheduler
@@ -348,6 +349,8 @@ PyObject* Tasklet::switch_to( )
 		
         }
 
+        auto parent = schedule_manager->get_current_tasklet();
+
         // Tasklet is on the same thread so can be switched to now
 		schedule_manager->set_current_tasklet( this );
 
@@ -355,7 +358,16 @@ PyObject* Tasklet::switch_to( )
 
         m_first_run = false;
 
+        if (switch_count() > 0)
+        {
+			Py_XDECREF( arguments() );
+			Py_XDECREF( kw_arguments() );
+			dec_switch_count();
+        }
+
+        inc_switch_count();
 		ret = PyGreenlet_Switch( m_greenlet, m_arguments, m_kwarguments );
+		dec_switch_count();
 
         // Clear arguments
 		set_arguments( nullptr );
@@ -408,6 +420,21 @@ PyObject* Tasklet::switch_to( )
     schedule_manager->decref();
 
 	return ret;
+}
+
+int Tasklet::switch_count()
+{
+	return m_switch_count;
+}
+
+void Tasklet::inc_switch_count()
+{
+	m_switch_count++;
+}
+
+void Tasklet::dec_switch_count()
+{
+	m_switch_count--;
 }
 
 void Tasklet::clear_exception()

@@ -144,6 +144,12 @@ public:
 
     bool requires_removal();
 
+    int switch_count();
+
+    void inc_switch_count();
+
+    void dec_switch_count();
+
 private:
 
     void set_exception_state( PyObject* exception, PyObject* arguments = Py_None );
@@ -215,4 +221,6 @@ private:
     ScheduleManager* m_schedule_manager;
 
     bool m_kill_pending;
+
+    int m_switch_count;
 };
