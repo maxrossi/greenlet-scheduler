@@ -4,6 +4,8 @@
 
 #include "ScheduleManager.h"
 
+#include <vector>
+
 Channel::Channel( PyObject* python_object ) :
 	m_python_object( python_object ),
 	m_balance(0),
