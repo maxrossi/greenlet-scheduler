@@ -543,14 +543,22 @@ int Channel::unblock_all_channels()
 {
 	int num_channels_unblocked = 0;
 
-	for( auto iter = s_active_channels.begin(); iter != s_active_channels.end(); iter++ )
+	auto iter = s_active_channels.begin();
+	std::vector<Channel*> channels_to_unblock;
+	while(iter != s_active_channels.end())
 	{
 		Channel* channel = *iter;
-        if (channel->m_balance != 0)
-        {
-			num_channels_unblocked++;
-			channel->clear_blocked( false );
-        }
+		if (channel->m_balance != 0)
+		{
+			channels_to_unblock.push_back(channel);
+		}
+		iter++;
+	}
+
+	for (auto chan : channels_to_unblock)
+	{
+		num_channels_unblocked++;
+		chan->clear_blocked( false );
 	}
 
     return num_channels_unblocked;
