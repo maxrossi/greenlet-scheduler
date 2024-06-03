@@ -349,8 +349,6 @@ PyObject* Tasklet::switch_to( )
 		
         }
 
-        auto parent = schedule_manager->get_current_tasklet();
-
         // Tasklet is on the same thread so can be switched to now
 		schedule_manager->set_current_tasklet( this );
 
