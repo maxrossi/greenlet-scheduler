@@ -634,9 +634,9 @@ extern "C"
 
 		PyObject* current = schedule_manager->get_current_tasklet()->python_object();
 
-        schedule_manager->decref();
-
         Py_IncRef( current );
+
+        schedule_manager->decref();
 
 		return current;
 	}

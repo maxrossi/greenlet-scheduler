@@ -115,9 +115,9 @@ ScheduleManager* ScheduleManager::get_scheduler( long thread_id /* = -1*/ )
 	if( scheduler_find == s_schedulers.end() )
 	{
         // Create new scheduler for the thread
-		PyObject* scheduler_tasklet = PyObject_CallObject( reinterpret_cast<PyObject*>(s_schedule_manager_type), nullptr );
+		PyObject* schedule_manager = PyObject_CallObject( reinterpret_cast<PyObject*>(s_schedule_manager_type), nullptr );
 
-		ScheduleManager* thread_scheduler = reinterpret_cast<PyScheduleManagerObject*>( scheduler_tasklet )->m_impl;
+		ScheduleManager* thread_scheduler = reinterpret_cast<PyScheduleManagerObject*>( schedule_manager )->m_impl;
 		
         // Store scheduler against thread id
 		s_schedulers[scheduler_thread_id] = thread_scheduler;
