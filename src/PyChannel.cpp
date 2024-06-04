@@ -135,12 +135,14 @@ static PyObject*
 {
 	PyObject* value;
 
-	if( PyArg_ParseTuple( args, "O:send_value", &value ) )
+	if( !PyArg_ParseTuple( args, "O:send_value", &value ) )
 	{
-		if( !self->m_impl->send( value ) )
-		{
-			return NULL;
-		}
+		return nullptr;
+	}
+
+	if( !self->m_impl->send( value ) )
+	{
+		return nullptr;
 	}
 
     Py_IncRef( Py_None );
