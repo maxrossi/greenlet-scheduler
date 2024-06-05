@@ -14,7 +14,9 @@ Channel::Channel( PyObject* python_object ) :
 	m_last_blocked_on_send( nullptr ),
 	m_first_blocked_on_send( nullptr ),
 	m_last_blocked_on_receive( nullptr ),
-	m_first_blocked_on_receive( nullptr )
+	m_first_blocked_on_receive( nullptr ),
+	m_closing( false ),
+	m_closed( false )
 {
     // Store weak reference in central store
     // Required just in case we lose all references to channel
@@ -90,6 +92,18 @@ bool Channel::send( PyObject* args, PyObject* exception /* = nullptr */)
 
 			return false;
 		}
+
+        // Ensure channel is open
+        if (m_closed || m_closing)
+        {
+			PyErr_SetString( PyExc_ValueError, "Send/receive operation on a closed channel" );
+
+			PyThread_release_lock( m_lock );
+
+			schedule_manager->decref();
+
+			return false;
+        }
 
 		// Block as there is no tasklet receiving
 		Py_IncRef( current->python_object() );
@@ -238,29 +252,40 @@ PyObject* Channel::receive()
 
 			return nullptr;
 		}
-		else
+
+        // Ensure channel is open
+        if( m_closed || m_closing )
 		{
-			current->block( this );
+			PyErr_SetString( PyExc_ValueError, "Send/receive operation on a closed channel" );
 
 			PyThread_release_lock( m_lock );
 
-			// Continue scheduler
-			if( !schedule_manager->yield() )
-			{
-				// Will enter here is an exception has been thrown on a tasklet
-				remove_tasklet_from_blocked( current );
-				m_balance++;
+			schedule_manager->decref();
 
-				current->unblock();
+			return false;
+		}
+		
+		current->block( this );
 
-                current->decref();
+		PyThread_release_lock( m_lock );
 
-				current->set_transfer_in_progress( false );
+		// Continue scheduler
+		if( !schedule_manager->yield() )
+		{
+			// Will enter here is an exception has been thrown on a tasklet
+			remove_tasklet_from_blocked( current );
 
-                schedule_manager->decref();
+			increment_balance();
 
-				return nullptr;
-			}
+			current->unblock();
+
+            current->decref();
+
+			current->set_transfer_in_progress( false );
+
+            schedule_manager->decref();
+
+			return nullptr;
 		}
 	}
 	else
@@ -434,7 +459,7 @@ void Channel::add_tasklet_to_waiting_to_send( Tasklet* tasklet )
 		m_first_blocked_on_send = tasklet;
     }
 
-    m_balance++;
+    increment_balance();
 }
 
 void Channel::add_tasklet_to_waiting_to_receive( Tasklet* tasklet )
@@ -451,7 +476,7 @@ void Channel::add_tasklet_to_waiting_to_receive( Tasklet* tasklet )
 		m_first_blocked_on_receive = tasklet;
     }
 
-    m_balance--;
+    decrement_balance();
 }
 
 Tasklet* Channel::pop_next_tasklet_blocked_on_send()
@@ -460,8 +485,10 @@ Tasklet* Channel::pop_next_tasklet_blocked_on_send()
     if (m_last_blocked_on_send != nullptr)
     {
 		next = m_last_blocked_on_send;
+
 		remove_tasklet_from_blocked( next );
-		m_balance--;
+
+		decrement_balance();
     }
 	
     return next;
@@ -473,8 +500,10 @@ Tasklet* Channel::pop_next_tasklet_blocked_on_receive()
     if (m_last_blocked_on_receive != nullptr)
     {
 		next = m_last_blocked_on_receive;
+
 		remove_tasklet_from_blocked( next );
-		m_balance++;
+
+		increment_balance();
     }
 
     return next;
@@ -564,4 +593,54 @@ int Channel::unblock_all_channels()
 	}
 
     return num_channels_unblocked;
+}
+
+void Channel::close()
+{
+	m_closing = true;
+
+    update_close_state();
+}
+
+void Channel::open()
+{
+	m_closing = false;
+
+	m_closed = false;
+}
+
+bool Channel::is_closed()
+{
+	return m_closed;
+}
+
+bool Channel::is_closing()
+{
+	return m_closing;
+}
+
+void Channel::increment_balance()
+{
+	m_balance++;
+
+    update_close_state();
+}
+
+void Channel::decrement_balance()
+{
+	m_balance--;
+
+    update_close_state();
+}
+
+void Channel::update_close_state()
+{
+    // If channel is set to close and the balance is zero then set as closed
+
+	if((m_closing) && ( m_balance == 0 ))
+	{
+
+		m_closed = true;
+
+	}
 }

@@ -64,6 +64,18 @@ public:
 
     void clear_blocked(bool pending);
 
+    void close();
+
+    void open();
+
+    bool is_closed();
+
+	bool is_closing(); 
+
+    void increment_balance();
+
+    void decrement_balance();
+
     static int num_active_channels();
 
     static int unblock_all_channels();
@@ -82,6 +94,8 @@ private:
 
     bool channel_switch( Tasklet* caller, Tasklet* other, int dir, int caller_dir );
 
+    void update_close_state();
+
 private:
 
     PyObject* m_python_object;
@@ -89,6 +103,10 @@ private:
     int m_balance;
 
 	int m_preference;
+
+    bool m_closing;
+
+    bool m_closed;
 
     PyThread_type_lock m_lock;
 

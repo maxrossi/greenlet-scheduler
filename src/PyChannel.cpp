@@ -123,10 +123,24 @@ static PyObject*
     }
 }
 
+static PyObject*
+	Channel_closed_get( PyChannelObject* self, void* closure )
+{
+	return self->m_impl->is_closed() ? Py_True : Py_False;
+}
+
+static PyObject*
+	Channel_closing_get( PyChannelObject* self, void* closure )
+{
+	return self->m_impl->is_closing() ? Py_True : Py_False ;
+}
+
 static PyGetSetDef Channel_getsetters[] = {
 	{ "preference", (getter)Channel_preference_get, (setter)Channel_preference_set, "allows for customisation of how the channel actions", NULL },
 	{ "balance", (getter)Channel_balance_get, NULL, "number of tasklets waiting to send (>0) or receive (<0)", NULL },
 	{ "queue", (getter)Channel_queue_get, NULL, "the first tasklet in the chain of tasklets that are blocked on the channel", NULL },
+	{ "closed", (getter)Channel_closed_get, NULL, "The value of this attribute is True when close() has been called and the channel is empty", NULL },
+	{ "closing", (getter)Channel_closing_get, NULL, "The value of this attribute is True when close() has been called", NULL },
 	{ NULL } /* Sentinel */
 };
 
@@ -266,7 +280,19 @@ static PyObject*
     // This will return a nullptr
     // This null then returned here will turn this into a StopIteration error
     // Which makes more sense
-	return Channel_receive( self, nullptr );
+	PyObject* ret = Channel_receive( self, nullptr );
+
+    if (!ret)
+    {
+		PyErr_SetString( PyExc_StopIteration, "Channel is closed" );
+
+        return nullptr;
+    }
+    else
+    {
+		return ret;
+    }
+
 }
 
 static PyObject*
@@ -279,12 +305,34 @@ static PyObject*
     return Py_None;
 }
 
+static PyObject*
+	Channel_close( PyChannelObject* self, PyObject* Py_UNUSED( ignored ) )
+{
+	self->m_impl->close();
+
+	Py_IncRef( Py_None );
+
+	return Py_None;
+}
+
+static PyObject*
+	Channel_open( PyChannelObject* self, PyObject* Py_UNUSED( ignored ) )
+{
+	self->m_impl->open();
+
+	Py_IncRef( Py_None );
+
+	return Py_None;
+}
+
 static PyMethodDef Channel_methods[] = {
 	{ "send", (PyCFunction)Channel_send, METH_VARARGS, "Send a value over the channel" },
 	{ "receive", (PyCFunction)Channel_receive, METH_NOARGS, "Receive a value over the channel" },
 	{ "send_exception", (PyCFunction)Channel_sendexception, METH_VARARGS, "Send an exception over the channel" },
 	{ "send_throw", (PyCFunction)Channel_sendThrow, METH_VARARGS | METH_KEYWORDS, "(exc, val, tb) is raised on the first tasklet blocked on channel self." },
 	{ "clear", (PyCFunction)Channel_clearTasklets, METH_NOARGS, "Clear channel, all blocked tasklets will be killed rasing TaskletExit exception" },
+	{ "close", (PyCFunction)Channel_close, METH_NOARGS, "Prevents the channel queue from growing. If the channel is not empty, the flag closing becomes True. If the channel is empty, the flag closed becomes True." },
+	{ "open", (PyCFunction)Channel_open, METH_NOARGS, "Reopen a channel" },
 	{ NULL } /* Sentinel */
 };
 

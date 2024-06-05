@@ -523,3 +523,67 @@ class TestChannels(test_utils.SchedulerTestCaseBase):
 
         self.assertEqual(count,6)
 
+    def testSendOnClosed(self):
+        c = scheduler.channel()
+        c.close()
+        self.assertRaises(ValueError, c.send, None)
+
+    def testReceiveOnClosed(self):
+        c = scheduler.channel()
+        c.close()
+        self.assertRaises(ValueError, c.receive)
+
+    def testClosing(self):
+        c = scheduler.channel()
+        testSendValue = 101
+
+        def foo():
+            c.send(testSendValue)
+
+        scheduler.tasklet(foo)()
+        scheduler.run()
+
+        self.assertEqual(c.balance,1)
+
+        c.close()
+
+        self.assertFalse(c.closed)
+        self.assertTrue(c.closing)
+
+        self.assertEqual(c.receive(), testSendValue)
+
+        self.assertTrue(c.closed)
+        self.assertTrue(c.closing)
+
+        self.assertRaises(ValueError, c.receive)
+
+    def testOpen(self):
+        testValue = 101
+        c = scheduler.channel()
+        c.close()
+        
+        self.assertTrue(c.closed)
+
+        c.open()
+
+        self.assertFalse(c.closing)
+        self.assertFalse(c.closed)
+
+        def foo():
+            c.send(testValue)
+        
+        scheduler.tasklet(foo)()
+        
+        scheduler.run()
+
+        self.assertEqual(c.receive(), testValue)
+
+
+    def testIteratorOnClosed(self):
+        c = scheduler.channel()
+        c.close()
+        i = iter(c)
+
+        def n():
+            return next(i)
+        self.assertRaises(StopIteration, n)
