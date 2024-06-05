@@ -565,16 +565,3 @@ int Channel::unblock_all_channels()
 
     return num_channels_unblocked;
 }
-
-void Channel::check_cstate()
-{
-	if( refcount() == std::abs( m_balance ) )
-	{
-		// Catch scenario where cstate is not finished but all client facing references
-		// have been destroyed leaving an unfinished channel cleanup
-		// The channel blocked queue must be destroyed
-        // The kills are made pending.
-		clear_blocked( true );
-	}
-	
-}

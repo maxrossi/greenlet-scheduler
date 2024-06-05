@@ -62,8 +62,6 @@ public:
 
     Tasklet* blocked_queue_front();
 
-    void check_cstate();
-
     void clear_blocked(bool pending);
 
     static int num_active_channels();

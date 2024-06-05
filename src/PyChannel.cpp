@@ -279,19 +279,6 @@ static PyObject*
     return Py_None;
 }
 
-static int Channel_traverse( PyChannelObject* self, visitproc visit, void* arg )
-{
-	self->m_impl->check_cstate();
-
-    return 0;
-}
-
-static int
-	Channel_clear( PyChannelObject* self )
-{
-	return 0;
-}
-
 static PyMethodDef Channel_methods[] = {
 	{ "send", (PyCFunction)Channel_send, METH_VARARGS, "Send a value over the channel" },
 	{ "receive", (PyCFunction)Channel_receive, METH_NOARGS, "Receive a value over the channel" },
@@ -323,10 +310,10 @@ static PyTypeObject ChannelType = {
 	0, /*tp_getattro*/
 	0, /*tp_setattro*/
 	0, /*tp_as_buffer*/
-	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
+	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /*tp_flags*/
 	PyDoc_STR( "Channel objects" ), /*tp_doc*/
-	(traverseproc)Channel_traverse, /*tp_traverse*/
-	(inquiry)Channel_clear, /*tp_clear*/
+	0, /*tp_traverse*/
+	0, /*tp_clear*/
 	0, /*tp_richcompare*/
 	offsetof( PyChannelObject, m_weakref_list ), /*tp_weaklistoffset*/
 	(getiterfunc)Channel_iter, /*tp_iter*/
