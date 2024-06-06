@@ -262,7 +262,7 @@ PyObject* Channel::receive()
 
 			schedule_manager->decref();
 
-			return false;
+			return nullptr;
 		}
 		
 		current->block( this );
