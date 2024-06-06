@@ -665,6 +665,12 @@ class TestQueueChannels(TestChannels):
         data, exception = channel.data_queue.popleft()
         self.assertEqual(data, (1, 2, 3), "Channel queue received incorrect data")
 
+        data_to_send = range(3)
+        for i in data_to_send:
+            channel.send(i)
+
+        self.assertEqual(len(channel), len(data_to_send), "len(channel) does not match queue length")
+
     def testBlockingReceive(self):
         def receive(test_channel):
             return test_channel.receive()

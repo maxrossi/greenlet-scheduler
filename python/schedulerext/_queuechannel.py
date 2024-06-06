@@ -83,3 +83,6 @@ class QueueChannel(scheduler.channel):
         if self.data_queue:
             return self.receive()
         raise StopIteration()
+
+    def __len__(self):
+        return len(self.data_queue)
