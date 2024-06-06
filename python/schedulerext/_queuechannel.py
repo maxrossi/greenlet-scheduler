@@ -39,26 +39,30 @@ class QueueChannel(scheduler.channel):
             return len(self.data_queue)
         return super().balance
 
+    @property
+    def closed(self):
+        return self.balance == 0 and self.closing
+
     def send(self, *args):
-        if super().balance >= 0:
+        if super().balance >= 0 and not self.closed:
             self.data_queue.append((*args, False))
         else:
             super().send(*args)
 
     def send_exception(self, *args, **kwargs):
-        if super().balance >= 0:
+        if super().balance >= 0 and not self.closed:
             self.data_queue.append((args, True))
         else:
             super().send_exception(args)
 
     def send_throw(self, exc, value=None, tb=None):
-        if super().balance >= 0:
+        if super().balance >= 0 and not self.closed:
             self.data_queue.append(((exc, value, tb), True))
         else:
             super().send_throw(exc, value, tb)
 
     def receive(self, *args):
-        if not self.data_queue:
+        if not self.data_queue or self.closed:
             return super().receive()
 
         data, is_exception = self.data_queue.popleft()
