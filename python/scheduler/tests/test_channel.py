@@ -164,6 +164,35 @@ class TestChannels(SchedulerTestCaseBase):
 
         self.assertRaises(RuntimeError, test_send)
 
+    def testMainTaskletReceiveDeadlockAfterRunningChildTasklets(self):
+        runOrder = []
+
+        def noop(i):
+            runOrder.append(i)
+
+        for i in range(10):
+            scheduler.tasklet(noop)(i)
+
+        chan = scheduler.channel()
+        self.assertRaisesRegex(RuntimeError, "Deadlock", chan.receive)
+        self.assertEqual([0,1,2,3,4,5,6,7,8,9], runOrder)
+
+    def testMainTaskletSendDeadlockAfterRunningChildTasklets(self):
+        runOrder = []
+
+        def noop(i):
+            runOrder.append(i)
+
+        for i in range(10):
+            scheduler.tasklet(noop)(i)
+
+        def send():
+            chan.send(1)
+
+        chan = scheduler.channel()
+        self.assertRaisesRegex(RuntimeError, "Deadlock", send)
+        self.assertEqual([0,1,2,3,4,5,6,7,8,9], runOrder)
+
     def testInterthreadCommunication(self):
         ''' Test that tasklets in different threads sending over channels to each other work. '''
         import threading

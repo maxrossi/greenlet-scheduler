@@ -281,8 +281,28 @@ bool ScheduleManager::yield()
 
 			return false;
 		}
+		else if( current->is_blocked())
+        {
+			bool success = ScheduleManager::run();
 
-		return ScheduleManager::run();
+            // if the run set an exception in python, we should fail due to that error now
+            if( !success )
+            {
+				return false;
+            }
+
+            // if the main tasklet is still blocked, then this is a deadlock
+            if (current->is_blocked())
+            {
+				PyErr_SetString( PyExc_RuntimeError, "Deadlock: the last runnable tasklet cannot be blocked." );
+
+				return false;
+            }
+
+            return success;
+        }
+        
+		return ScheduleManager::run();    
 	}
 	else
 	{
