@@ -275,14 +275,37 @@ bool ScheduleManager::yield()
 	{
 		auto current = ScheduleManager::get_current_tasklet();
 
+        // if the main tasklet is blocked, and there are no more tasklets to run, then this is a deadlock
 		if (current->is_blocked() && current->next() == nullptr)
 		{
 			PyErr_SetString(PyExc_RuntimeError, "Deadlock: the last runnable tasklet cannot be blocked.");
 
 			return false;
 		}
+		// if the main tasklet is blocked, but we have tasklets to run, we should run them incase any of them unblock us
+		else if( current->is_blocked())
+        {
+			bool success = ScheduleManager::run();
 
-		return ScheduleManager::run();
+            // if the run set an exception in python, we should fail due to that error now
+            if( !success )
+            {
+				return false;
+            }
+
+            // if the main tasklet is still blocked, then this is a deadlock
+            if (current->is_blocked())
+            {
+				PyErr_SetString( PyExc_RuntimeError, "Deadlock: the last runnable tasklet cannot be blocked." );
+
+				return false;
+            }
+
+            return success;
+        }
+        
+        // the main tasklet isn't blocked, it just yielded, so we can just run whatever is in the scheduler queue here
+		return ScheduleManager::run();    
 	}
 	else
 	{
