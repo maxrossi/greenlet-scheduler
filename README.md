@@ -162,9 +162,7 @@ The three scheduled tasklets will run before the exception is thrown. This is be
 1
 2
 3
-Traceback (most recent call last):
-  File "/Users/josephf/Desktop/schedulertest/schedulertest.py", line 42, in <module>
-    channel.receive()
+Traceback (most recent call last): . . .
 RuntimeError: Deadlock: the last runnable tasklet cannot be blocked.
 ```
 
