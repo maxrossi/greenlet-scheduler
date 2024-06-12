@@ -24,7 +24,7 @@ static PyObject*
 }
 
 static int
-	Channel_init( PyChannelObject* self, PyObject* args, PyObject* kwds )
+	Channel_init( PyChannelObject* self, PyObject* Py_UNUSED( args ), PyObject* Py_UNUSED( kwds ) )
 {
 
 	// Allocate the memory for the implementation member
@@ -214,7 +214,7 @@ static PyGetSetDef Channel_getsetters[] = {
 };
 
 static PyObject*
-	Channel_send( PyChannelObject* self, PyObject* args, PyObject* kwds )
+	Channel_send( PyChannelObject* self, PyObject* args, PyObject* Py_UNUSED( kwds ) )
 {
 	// Ensure PyChannelObject is in a valid state
 	if( !PyChannelObject_is_valid( self ) )
@@ -224,7 +224,7 @@ static PyObject*
 
 	PyObject* value;
 
-	if( !PyArg_ParseTuple( args, "O:send_value", &value ) )
+	if( !PyArg_ParseTuple( args, "O:Channel.send", &value ) )
 	{
 		return nullptr;
 	}
@@ -252,7 +252,7 @@ static PyObject*
 }
 
 static PyObject*
-	Channel_sendexception( PyChannelObject* self, PyObject* args, PyObject* kwds )
+	Channel_sendexception( PyChannelObject* self, PyObject* args, PyObject* Py_UNUSED( kwds ) )
 {
 	// Ensure PyChannelObject is in a valid state
 	if( !PyChannelObject_is_valid( self ) )
@@ -316,15 +316,14 @@ static PyObject*
 	PyObject* value = Py_None;
 	PyObject* tb = Py_None;
 
-	if( !PyArg_ParseTupleAndKeywords( args, kwds, "O|OO", (char**)kwlist, &exception, &value, &tb ) )
+	if( !PyArg_ParseTupleAndKeywords( args, kwds, "O|OO:Channel.send_throw", (char**)kwlist, &exception, &value, &tb ) )
 	{
-		PyErr_SetString( PyExc_RuntimeError, "Failed to parse arguments" );
 		return nullptr;
 	}
 
 	if( !PyExceptionClass_Check( exception ) && !PyObject_IsInstance( exception, PyExc_Exception ) )
 	{
-		PyErr_SetString( PyExc_RuntimeError, "Exception type or instance required" );
+		PyErr_SetString( PyExc_TypeError, "Channel.send_throw() argument 'exc' (pos 1) must be an Exception type or instance" );
 		return nullptr;
 	}
 

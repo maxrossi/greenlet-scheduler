@@ -97,9 +97,9 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/SchedulerConfig.cmake DESTINATION .)
 
     if(WIN32)
-        set(ENV{PYTHONPATH} ${BRANCH_ROOT_DIR}/carbon/common/stdlib\;${Python_ROOT}/${CCP_VENDOR_BIN_PATH})
+        set(ENV{PYTHONPATH} ${CMAKE_SOURCE_DIR}/python/\;${BRANCH_ROOT_DIR}/carbon/common/stdlib\;${Python_ROOT}/${CCP_VENDOR_BIN_PATH})
     elseif(APPLE)
-        set(ENV{PYTHONPATH} ${BRANCH_ROOT_DIR}/carbon/common/stdlib:${Python_ROOT}/${CCP_VENDOR_BIN_PATH})
+        set(ENV{PYTHONPATH} ${CMAKE_SOURCE_DIR}/python/:${BRANCH_ROOT_DIR}/carbon/common/stdlib:${Python_ROOT}/${CCP_VENDOR_BIN_PATH})
     endif()
 
     execute_process(COMMAND ${PYTHON_EXECUTABLE} discover.py
@@ -142,4 +142,10 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     )
     set_tests_properties(${ALL_PYTHON_TEST} PROPERTIES ENVIRONMENT "PYTHONPATH=${PYTHONPATH_ENV};BUILDFLAVOR=$<LOWER_CASE:$<CONFIG>>")
 
+
+    # Install scheduler extension package
+    install(DIRECTORY python/schedulerext DESTINATION python
+            FILES_MATCHING
+            PATTERN "*.py"
+    )
 endif()
