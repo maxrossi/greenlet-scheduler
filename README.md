@@ -425,9 +425,9 @@ Currently `channel.send_exception(scheduler.TaskletExit,...` causes an exception
 ## Threads
 
 - There is one Tasklet scheduler queue per python thread.
-- You **can't** move tasklets between threads.
+- You **cannot** move tasklets between threads.
 - Tasklets on different threads **cannot** switch to one another.
-- You **can** send messages over channels between threads.
+- You **can** send messages over channels between tasklets on different threads.
 
 Sending a message to a tasklet on another channel causes that tasklet to be scheduled to run on that thread's scheduler queue.
 
