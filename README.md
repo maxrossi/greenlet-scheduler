@@ -421,3 +421,56 @@ end
 ```
 ### bug [PLAT-6099](https://ccpgames.atlassian.net/browse/PLAT-6099)
 Currently `channel.send_exception(scheduler.TaskletExit,...` causes an exception to be rasied on the sending tasklet.
+
+## Threads
+
+- There is one Tasklet scheduler queue per python thread.
+- You **can't** move tasklets between threads.
+- Tasklets on different threads **cannot** switch to one another.
+- You **can** send messages over channels between threads.
+
+Sending a message to a tasklet on another channel causes that tasklet to be scheduled to run on that thread's scheduler queue.
+
+```
+import scheduler
+import threading
+
+channel = scheduler.channel()
+
+def receiver(chan):
+    r = chan.receive()
+    print("received '{}' from different thread".format(r))
+
+def otherThreadMainTasklet(chan):
+    t = scheduler.tasklet(receiver)(chan)
+    while(t.alive):
+        scheduler.run()
+
+recever_thread = threading.Thread(target=otherThreadMainTasklet, args=(channel,))
+recever_thread.start()
+
+channel.send("Hello from another thread!")
+```
+```
+received 'Hello from another thread!' from different thread
+```
+
+notice how we call `scheduler.run` on the `recever_thread`. This is because **a tasklet on one thread cannot switch to a tasklet on another thread**. The receiving tasklet on `recever_thread` gets put in that thread's scheduler queue once it is unblocked by the send operation, but the python code is responsible for making sure that tasklet then runs.
+
+The rules surrounding blocking on the Main tasklet apply per thread, since each thread has it's own main tasklet
+
+```
+def otherThreadMainTasklet():
+    # we are on the main tasklet
+    channel = scheduler.channel()
+
+    # call receive with nothing sending
+    channel.receive()
+
+other_thread = threading.Thread(target=otherThreadMainTasklet, args=())
+other_thread.start()
+```
+```
+Exception in thread Thread-1 (otherThreadMainTasklet): . . .
+RuntimeError: Deadlock: the last runnable tasklet cannot be blocked.
+```
