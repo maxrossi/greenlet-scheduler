@@ -127,6 +127,50 @@ class TestTasklets(test_utils.SchedulerTestCaseBase):
         scheduler.run()
         self.assertTrue(t.paused)
 
+
+    def test_invalid_tasklet_when_skipping_init(self):
+        
+        class Foo(scheduler.tasklet):
+            def __init__(self, *args, **kwargs):
+                pass 
+            
+        t = Foo()
+
+        self.assertRaises(RuntimeError, t.run)
+
+    def test_invalid_tasklet_when_skipping_new(self):
+        
+        class Foo(scheduler.tasklet):
+            def __new__(cls, *args, **kwargs):
+                pass 
+            
+        t = Foo()
+
+        self.assertEqual(t, None)
+        
+
+    def test_weakref_in_tasklet_new(self):
+
+        import weakref
+
+        tasklets = weakref.WeakKeyDictionary()
+
+        class Foo(scheduler.tasklet):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+            
+            def __new__(cls, *args, **kwargs):
+                t = scheduler.tasklet.__new__(cls, *args, **kwargs)
+                tasklets[t] = True
+                return t
+            
+        t = Foo()
+
+        # Single check to ensure t is valid
+        self.assertFalse(t.alive)
+
+
+
 class TestTaskletThrowBase(object):
 
     def aftercheck(self, s):

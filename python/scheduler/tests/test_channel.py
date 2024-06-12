@@ -587,3 +587,24 @@ class TestChannels(test_utils.SchedulerTestCaseBase):
         def n():
             return next(i)
         self.assertRaises(StopIteration, n)
+
+
+    def test_invalid_channel_when_skipping_init(self):
+        
+        class Foo(scheduler.channel):
+            def __init__(self, *args, **kwargs):
+                pass 
+            
+        c = Foo()
+
+        self.assertRaises(RuntimeError, c.send)
+
+    def test_invalid_channel_when_skipping_new(self):
+        
+        class Foo(scheduler.channel):
+            def __new__(cls, *args, **kwargs):
+                pass 
+            
+        c = Foo()
+
+        self.assertEqual(c, None)

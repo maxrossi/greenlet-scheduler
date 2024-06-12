@@ -4,10 +4,26 @@
 
 #include <new>
 
+static PyObject*
+	ScheduleManager_new( PyTypeObject* type, PyObject* args, PyObject* kwds )
+{
+	PyScheduleManagerObject* self;
+
+	self = (PyScheduleManagerObject*)type->tp_alloc( type, 0 );
+
+	if( self != nullptr )
+	{
+		self->m_impl = nullptr;
+
+		self->m_weakref_list = nullptr;
+	}
+
+	return (PyObject*)self;
+}
+
 static int
 	ScheduleManager_init( PyScheduleManagerObject* self, PyObject* args, PyObject* kwds )
 {
-	self->m_weakref_list = nullptr;
 
 	// Allocate the memory for the implementation member
 	self->m_impl = (ScheduleManager*)PyObject_Malloc( sizeof( ScheduleManager ) );
@@ -47,14 +63,19 @@ static int
 static void
 	ScheduleManager_dealloc( PyScheduleManagerObject* self )
 {
-    // Call destructor
-	self->m_impl->~ScheduleManager();
+	if( self->m_impl )
+	{
+		// Call destructor
+		self->m_impl->~ScheduleManager();
 
-    PyObject_Free( self->m_impl );
-
+		PyObject_Free( self->m_impl );
+	}
+    
     // Handle weakrefs
 	if( self->m_weakref_list != nullptr )
+	{
 		PyObject_ClearWeakRefs( (PyObject*)self );
+	}
 
     Py_TYPE( self )->tp_free( (PyObject*)self );
 }
@@ -104,7 +125,7 @@ static PyTypeObject ScheduleManagerType = {
 	0, /*tp_dictoffset*/
 	(initproc)ScheduleManager_init, /*tp_init*/
 	0, /*tp_alloc*/
-	PyType_GenericNew, /*tp_new*/
+	ScheduleManager_new, /*tp_new*/
 	0, /*tp_free*/
 	0, /*tp_is_gc*/
 };
