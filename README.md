@@ -20,8 +20,6 @@ scheduler.run()
 
 print("end!")
 ```
-
-output
 ```
 hello
 world!
@@ -50,7 +48,6 @@ _tasklet_B = scheduler.tasklet(sender)(channel, "Joe")
 
 scheduler.run()
 ```
-output
 ```
 receiver receiving ...
 channel sending
@@ -96,9 +93,6 @@ scheduler.tasklet(receiver)(channel)
 scheduler.tasklet(sender)(channel, "Joe")
 scheduler.run()
 ```
-
-will result in this out:
-
 ```
 receiver receiving ...
 channel sending
@@ -124,3 +118,213 @@ received Joe
 The difference between prefer neither, and either prefer receive or prefer sender, is that prefer receive and prefer sender do not rely on tasklet order
 the receiver or the sender will be switched to immediately after the channel operation depending on the preference, regardless of which tasklet unblocked the other.
 The behaviour of prefer neither depends on the order.
+
+
+### Blocking the main tasklet
+
+You are technically always running in a tasklet, even if you havent started one. That tasklet is called the `main` tasklet. If you imagine all tasklets organised into a tree of child and parent
+tasklets, the main tasklet is the root node.
+
+It is an exception to block the main tasklet indeffinitely:
+
+```
+import scheduler
+
+# we are on the main tasklet
+channel = scheduler.channel()
+
+# call receive with nothing sending
+channel.receive()
+```
+```
+RuntimeError: Deadlock: the last runnable tasklet cannot be blocked.
+```
+
+If, however, there are other tasklets waiting in the run queue, scheduler will run those tasklets until the main tasklet is unblocked, before throwing the same exception:
+
+```
+def foo(x):
+  print(x)
+
+import scheduler
+
+# we are on the main tasklet
+scheduler.tasklet(foo)("1")
+scheduler.tasklet(foo)("2")
+scheduler.tasklet(foo)("3")
+
+channel = scheduler.channel()
+channel.receive()
+```
+
+The three scheduled tasklets will run before the exception is thrown. This is because any one of those tasklets may have caused main to become unblocked
+```
+1
+2
+3
+Traceback (most recent call last):
+  File "/Users/josephf/Desktop/schedulertest/schedulertest.py", line 42, in <module>
+    channel.receive()
+RuntimeError: Deadlock: the last runnable tasklet cannot be blocked.
+```
+
+In this situation, the scheduler will only run tasklets as long as main is blocked
+
+```
+def foo(x):
+  print(x)
+
+def unblock(chan):
+  chan.send(1)
+
+channel = scheduler.channel()
+
+# we are on the main tasklet
+scheduler.tasklet(foo)("1")
+scheduler.tasklet(foo)("2")
+scheduler.tasklet(unblock)(channel)
+scheduler.tasklet(foo)("3")
+
+
+r = channel.receive()
+
+print("received ", r)
+
+# now we run what is left of the tasklet queue
+scheduler.run()
+```
+```
+1
+2
+received  1
+3
+```
+
+Notice that a call to `scheduler.run` is needed to run the last tasklet.
+
+## Block trap
+
+You can prevent any tasklet from yielding execution to another tasklet by setting `block_trap` to `True`:
+
+```
+import scheduler
+
+def receiver(chan):
+    print("about to call receive ...")
+    chan.receive()
+
+def sender(chan, x):
+    channel.send(x)
+
+channel = scheduler.channel()
+
+unblockableTasklet = scheduler.tasklet(receiver)(channel)
+scheduler.tasklet(sender)(channel, 1)
+
+unblockableTasklet.block_trap = True
+
+scheduler.run()
+```
+```
+about to call receive ...
+Traceback (most recent call last): ...
+
+RuntimeError: Channel cannot block on a tasklet with block_trap set true
+```
+
+Notice that even though there are tasklets queued up scheduled to unblock it, this tasklet cannot block on the channel
+
+Please note that even though stackless [documentation seems to suggest otherwise](https://stackless.readthedocs.io/en/3.7-slp/library/stackless/channels.html#channel.preference), channel preference does not respect `block_trap`, so neither does scheduler's channel preference implementation.
+
+## Exceptoins
+
+You can cause an exception to be raised on a running tasklet:
+
+```
+import _scheduler_debug as scheduler
+
+class CustomError(Exception):
+  pass
+
+channel = scheduler.channel()
+
+def foo(chan):
+    try:
+        print("blocking on send ...")
+        # block on a send, we don't need this to complete
+        chan.send(1)
+    except CustomError as e:
+        print("Exception Raised in foo: ", e)
+
+s = scheduler.tasklet(foo)(channel)
+s.run()
+
+print("raising exception from main")
+s.raise_exception(CustomError("This exception was raised from another tasklet"))
+
+print("end")
+```
+```
+blocking on send ...
+raising exception from main
+Exception Raised in foo:  This exception was raised from another tasklet
+end
+```
+
+You can also send exceptions over channels:
+
+```
+class CustomError(Exception):
+  pass
+
+def sender(chan):
+    print("sending exception over channel")
+    chan.send_exception(CustomError, "this exception was sent over a channel")
+
+def receiver(chan):
+    try:
+        chan.receive()
+    except CustomError as e:
+        print("caught CustomError exception on receiver: ", e)
+
+channel = scheduler.channel()
+
+scheduler.tasklet(sender)(channel)
+scheduler.tasklet(receiver)(channel)
+scheduler.run()
+print("end")
+```
+```
+sending exception over channel
+caught CustomError exception on receiver:  this exception was sent over a channel
+end
+```
+
+Stackless python's `send_throw` is also supported. You can re-throw a previously caught exception on a different tasklet by sending it over a channel
+
+```
+class CustomError(Exception):
+  pass
+
+
+def bar():
+    raise CustomError("send throw example exception")
+
+def f(testChannel):
+    try:
+        bar()
+    except Exception:
+        testChannel.send_throw(*sys.exc_info())
+
+channel = scheduler.channel()
+tasklet = scheduler.tasklet(f)(channel)
+
+try:
+    channel.receive()
+except ValueError e:
+    print("a thrown exception was received")
+```
+```
+a thrown exception was received (CustomError('send throw example exception'), <traceback object at 0x104a48e80>)
+end
+```
