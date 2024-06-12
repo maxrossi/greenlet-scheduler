@@ -68,6 +68,53 @@ sender finished
 
 This is a bug, all scheduled child tasklets ***should*** run before scheduler.run exits.
 
+### Channel Balance
+
+The balance of a channel tells you how many tasklets are either waiting to receive or send on it.
+
+
+A positive balance means that there are that many tasklets blocked on a send operation on that channel
+```
+def sender(chan, x):
+  chan.send(x)
+
+channel = scheduler.channel()
+
+for i in range(10):
+    scheduler.tasklet(sender)(channel, i)
+
+print(channel.balance)
+
+channel.receive()
+
+print(channel.balance)
+```
+```
+10
+9
+```
+
+A Negative balance means that there are that many tasklets (balance * -1) tasklets blocked on a receive operation on that channel
+```
+def receiver(chan):
+  chan.receive()
+
+channel = scheduler.channel()
+
+for i in range(10):
+    scheduler.tasklet(receiver)(channel)
+
+print(channel.balance)
+
+channel.send()
+
+print(channel.balance)
+```
+```
+-10
+-9
+```
+
 ## Channel preference
 
 Notice how in the above example, when the sender sent the value the program ran the receiving tasklet, and scheduled the sending tasklet to run later.
@@ -323,6 +370,54 @@ except ValueError e:
     print("a thrown exception was received")
 ```
 ```
-a thrown exception was received (CustomError('send throw example exception'), <traceback object at 0x104a48e80>)
+a thrown exception was received
 end
 ```
+
+
+### Tasklet Exit
+
+Raising a TaskletExit exception on a tasklet causes that tasklet to be killed. A TaskletExit exception is contained within a Tasklet and does not propagate up.
+
+```
+def bar():
+    print("about to raise")
+    raise scheduler.TaskletExit()
+
+t = scheduler.tasklet(bar)()
+scheduler.run()
+
+print(t.alive)
+print("end")
+```
+```
+about to raise
+False
+end
+```
+
+You can send a TaskletExit exception to a tasklet to kill that tasklet
+
+```
+def bar(chan):
+    chan.receive()
+
+channel = scheduler.channel()
+t = scheduler.tasklet(bar)(channel)
+scheduler.run()
+
+print(channel.balance)
+channel.send_exception(scheduler.TaskletExit, "exit!")
+print(channel.balance)
+
+print(t.alive)
+print("end")
+```
+```
+-1
+0
+False
+end
+```
+### bug [PLAT-6099](https://ccpgames.atlassian.net/browse/PLAT-6099)
+Currently `channel.send_exception(scheduler.TaskletExit,...` causes an exception to be rasied on the sending tasklet.
