@@ -221,6 +221,82 @@ class TestChannels(SchedulerTestCaseBase):
         scheduler_run(slave_func)
         thread.join()
 
+    def testSendingTaskletsRescheduledByChannelAreRun(self):
+        run_order = []
+
+        def sender(chan, x):
+          chan.send(x)
+          run_order.append(2)
+
+        def receiver(chan):
+          r = chan.receive()
+          run_order.append(1)
+
+        channel = scheduler.channel()
+        _tasklet_A = scheduler.tasklet(receiver)(channel)
+        _tasklet_B = scheduler.tasklet(sender)(channel, "Joe")
+
+        scheduler.run()
+
+        self.assertEqual(run_order, [1,2])
+
+        run_order = []
+
+        def sender(chan, x):
+          chan.send(x)
+          run_order.append(2)
+
+        def receiver(chan):
+          r = chan.receive()
+          run_order.append(1)
+
+        channel = scheduler.channel()
+        _tasklet_B = scheduler.tasklet(sender)(channel, "Joe")
+        _tasklet_A = scheduler.tasklet(receiver)(channel)
+
+        scheduler.run()
+
+        self.assertEqual(run_order, [1,2])
+
+    def testReceivingTaskletsRescheduledByChannelAreRun(self):
+        run_order = []
+
+        def sender(chan, x):
+          chan.send(x)
+          run_order.append(1)
+
+        def receiver(chan):
+          r = chan.receive()
+          run_order.append(2)
+
+        channel = scheduler.channel()
+        channel.preference = 1
+        _tasklet_A = scheduler.tasklet(receiver)(channel)
+        _tasklet_B = scheduler.tasklet(sender)(channel, "Joe")
+
+        scheduler.run()
+
+        self.assertEqual(run_order, [1,2])
+
+        run_order = []
+
+        def sender(chan, x):
+          chan.send(x)
+          run_order.append(1)
+
+        def receiver(chan):
+          r = chan.receive()
+          run_order.append(2)
+
+        channel = scheduler.channel()
+        channel.preference = 1
+        _tasklet_B = scheduler.tasklet(sender)(channel, "Joe")
+        _tasklet_A = scheduler.tasklet(receiver)(channel)
+
+        scheduler.run()
+
+        self.assertEqual(run_order, [1,2])
+
     def testSendException(self):
 
         # Function to send the exception

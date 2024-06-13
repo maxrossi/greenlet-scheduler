@@ -405,7 +405,6 @@ bool ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
 		}
 
 		Tasklet* current_tasklet = base_tasklet->next();
-		bool valid_next_tasklet_clobbered_by_reschedule = false;
 
         run_scheduler_callback( current_tasklet->previous(), current_tasklet );
 
@@ -463,11 +462,6 @@ bool ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
 				//Will this get skipped if it happens to be when it will schedule
 				if( current_tasklet->requires_reschedule() )
 				{
-					//Special case, we are here because tasklet scheduled itself
-                    if (current_tasklet->next() != nullptr)
-                    {
-						valid_next_tasklet_clobbered_by_reschedule = true;
-                    }
 					insert_tasklet( current_tasklet );
 					current_tasklet->set_reschedule( false );
 				}
@@ -516,7 +510,7 @@ bool ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
         }
 
         // Tasklets created during this run are not run in this loop
-		if( current_tasklet == end_tasklet || ( current_tasklet->next() == nullptr && end_tasklet == nullptr && !valid_next_tasklet_clobbered_by_reschedule ) )
+		if( current_tasklet == end_tasklet )
 		{
 			run_complete = true;
 		}
