@@ -375,7 +375,7 @@ end
 ```
 
 
-### Tasklet Exit
+### `TaskletExit`
 
 Raising a TaskletExit exception on a tasklet causes that tasklet to be killed. A TaskletExit exception is contained within a Tasklet and does not propagate up.
 
@@ -421,6 +421,153 @@ end
 ```
 ### bug [PLAT-6099](https://ccpgames.atlassian.net/browse/PLAT-6099)
 Currently `channel.send_exception(scheduler.TaskletExit,...` causes an exception to be rasied on the sending tasklet.
+
+## Nesting tasklets & run order
+
+Any tasklet can add another tasklet to the scheduler queue. Calling scheduler.run will ensure that all tasklets currently on the queue, plus any tasklets added to the queue by those tasklets, will be run. Tasklets will run in the order that they were added to the scheduler queue.
+
+```
+def log(s):
+  print(s)
+
+def bar():
+  print("fourth")
+  scheduler.tasklet(log)("fifth")
+
+def foo():
+  print("second")
+  scheduler.tasklet(bar)()
+
+scheduler.tasklet(log)("first")
+scheduler.tasklet(foo)()
+scheduler.tasklet(log)("third")
+scheduler.run()
+```
+```
+first
+second
+third
+fourth
+fifth
+```
+## Switching between tasklets directly with `switch`
+
+You can switch directly to another tasklet, causing that tasklet to run immediately.
+
+```
+def log(s):
+  print(s)
+
+scheduler.tasklet(log)("added first")
+scheduler.tasklet(log)("added second").switch()
+scheduler.run()
+```
+```
+added second
+added first
+```
+
+## `bind`, `setup` & `insert`
+
+You can create a tasklet without giving it a function to run
+
+```
+t = scheduler.tasklet()
+print(t.alive)
+```
+```
+False
+```
+
+In order to run, t must be bound to a function and given arguments
+
+```
+def foo(s):
+    print(s)
+
+t = scheduler.tasklet()
+t.bind(foo, "I am running")
+t.run()
+```
+```
+I am running
+```
+
+Notice that we have to call t.run in order to run t. That is because t isn't yet in the scheduler queue. To insert t into the scheduler queue, we can either call `t.setup` or `t.insert`. With `t.setup`, you can provide args if not already provided in the call to bind.
+
+setup example:
+```
+def foo(s):
+    print(s)
+
+t = scheduler.tasklet()
+t.bind(foo)
+t.setup("I am running")
+
+scheduler.run()
+```
+```
+I am running
+```
+
+insert example
+```
+def foo(s):
+    print(s)
+
+t = scheduler.tasklet()
+t.bind(foo, ("I am running", ))
+t.insert()
+
+scheduler.run()
+```
+```
+I am running
+```
+
+You can check whether a tasklet is in the scheduler queue by checking the `scheduled` member variable 
+
+```
+def foo(s):
+    print(s)
+
+t = scheduler.tasklet()
+t.bind(foo, ("I am running", ))
+print("scheduled: ", t.scheduled)
+t.insert()
+print("scheduled: ", t.scheduled)
+
+scheduler.run()
+```
+```
+scheduled:  False
+scheduled:  True
+I am running
+```
+
+Trying to run an unbound tasklet raises a RuntimeError
+```
+t = scheduler.tasklet()
+t.run()
+```
+```
+RuntimeError: Cannot run tasklet that is not alive (dead)
+```
+
+It is possible to un-bind a tasklet
+```
+def foo(s):
+    print(s)
+
+t = scheduler.tasklet()
+t.bind(foo, ("I am running", ))
+
+t.bind(None)
+t.run()
+```
+```
+RuntimeError: Cannot run tasklet that is not alive (dead)
+```
 
 ## Threads
 
