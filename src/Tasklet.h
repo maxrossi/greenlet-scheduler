@@ -62,7 +62,7 @@ public:
 
     void set_transfer_arguments( PyObject* args, PyObject* exception );
 
-    void block( Channel* channel );
+    void block( Channel* channel, int direction );
 
     void unblock();
 
@@ -142,6 +142,8 @@ public:
 
     bool requires_removal();
 
+    int get_blocked_direction();
+
 private:
 
     void set_exception_state( PyObject* exception, PyObject* arguments = Py_None );
@@ -189,6 +191,8 @@ private:
     Channel* m_channel_blocked_on;
 
 	bool m_blocked;
+
+    int m_blocked_direction;
 
     bool m_has_started;
 

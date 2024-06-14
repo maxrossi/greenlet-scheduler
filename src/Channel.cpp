@@ -110,7 +110,7 @@ bool Channel::send( PyObject* args, PyObject* exception /* = nullptr */)
 
         add_tasklet_to_waiting_to_send( current );
 
-		current->block( this );
+		current->block( this, SENDER );
 
         PyThread_release_lock( m_lock );
 
@@ -265,17 +265,21 @@ PyObject* Channel::receive()
 			return nullptr;
 		}
 		
-		current->block( this );
+		current->block( this, RECEIVER );
 
 		PyThread_release_lock( m_lock );
 
 		// Continue scheduler
 		if( !schedule_manager->yield() )
 		{
-			// Will enter here is an exception has been thrown on a tasklet
-			remove_tasklet_from_blocked( current );
 
-			increment_balance();
+            if (current->is_blocked())
+            {
+				// Will enter here is an exception has been thrown on a tasklet
+				remove_tasklet_from_blocked( current );
+
+				increment_balance();
+            }
 
 			current->unblock();
 
