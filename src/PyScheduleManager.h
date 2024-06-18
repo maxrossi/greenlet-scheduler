@@ -25,4 +25,6 @@ typedef struct PyScheduleManagerObject
 
 	ScheduleManager* m_impl;
 
+    PyObject* m_weakref_list; // TODO: This is apparently the old style, new style crashes
+
 } _PyScheduleManagerObject;
