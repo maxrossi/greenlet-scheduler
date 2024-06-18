@@ -311,12 +311,6 @@ bool Tasklet::switch_to( )
 		schedule_manager->insert_tasklet( this );
 
 		schedule_manager->yield();
-  //      if( !schedule_manager->yield() )
-		//{
-		//	schedule_manager->decref();
-		//	return false;
-		//}
-
     }
 	else
 	{

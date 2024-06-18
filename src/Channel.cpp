@@ -117,13 +117,18 @@ bool Channel::send( PyObject* args, PyObject* exception /* = nullptr */)
          // Continue scheduler
 		if( !schedule_manager->yield() )
 		{
-			current->unblock();
-
 			current->set_transfer_in_progress( false );
-			Tasklet* tasklet = pop_next_tasklet_blocked_on_send();
 
-            Py_DecRef( tasklet->python_object() );
+            if (current->is_blocked())
+            {
+				current->unblock();
 
+				Tasklet* tasklet = pop_next_tasklet_blocked_on_send();
+
+            }
+
+			current->decref();
+            
             schedule_manager->decref();
 
 			return false;
