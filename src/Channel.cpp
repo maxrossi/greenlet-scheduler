@@ -123,7 +123,7 @@ bool Channel::send( PyObject* args, PyObject* exception /* = nullptr */)
             {
 				current->unblock();
 
-				Tasklet* tasklet = pop_next_tasklet_blocked_on_send();
+				pop_next_tasklet_blocked_on_send();
 
             }
 
