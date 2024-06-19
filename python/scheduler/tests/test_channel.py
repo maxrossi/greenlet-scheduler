@@ -700,3 +700,36 @@ class TestChannels(SchedulerTestCaseBase):
         c = Foo()
 
         self.assertEqual(c, None)
+
+    def test_pending_kill_blocked_receive_tasklet(self):
+        def receiver(chan):
+            chan.receive()
+
+        channel = scheduler.channel()
+        t = scheduler.tasklet(receiver)(channel)
+        t.run()
+
+        self.assertEqual(channel.balance, -1)
+        t.kill(pending=True)
+        self.assertEqual(channel.balance, 0)
+
+        self.assertTrue(t.alive)
+        scheduler.run()
+        self.assertFalse(t.alive)
+
+
+    def test_pending_kill_blocked_send_tasklet(self):
+        def sender(chan):
+            chan.send(1)
+        
+        channel = scheduler.channel()
+        t = scheduler.tasklet(sender)(channel)
+        t.run()
+
+        self.assertEqual(channel.balance, 1)
+        t.kill(pending=True)
+        self.assertEqual(channel.balance, 0)
+
+        self.assertTrue(t.alive)
+        scheduler.run()
+        self.assertFalse(t.alive)

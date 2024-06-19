@@ -310,8 +310,7 @@ bool Tasklet::switch_to( )
 
 		schedule_manager->insert_tasklet( this );
 
-        schedule_manager->yield();
-
+		schedule_manager->yield();
     }
 	else
 	{
@@ -571,6 +570,12 @@ bool Tasklet::kill( bool pending /*=false*/ )
 
             schedule_manager->decref();
 
+            if( blocked_store )
+			{
+				block_channel_store->remove_tasklet_from_blocked( this );
+				this->m_blocked_direction = 0;
+			}
+
             return true;
 		}
 		else
@@ -828,6 +833,7 @@ bool Tasklet::throw_exception( PyObject* exception, PyObject* value, PyObject* t
 			if(m_blocked)
 			{
 				Channel* block_channel_store = m_channel_blocked_on;
+				int blocked_direction_store = m_blocked_direction;
 
 				unblock();
 
@@ -982,4 +988,14 @@ void Tasklet::set_callable(PyObject* callable)
 bool Tasklet::requires_removal()
 {
 	return m_remove;
+}
+
+int Tasklet::get_blocked_direction()
+{
+	return m_blocked_direction;
+}
+
+void Tasklet::set_blocked_direction(int direction)
+{
+	m_blocked_direction = direction;
 }
