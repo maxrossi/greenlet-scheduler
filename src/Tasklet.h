@@ -62,7 +62,7 @@ public:
 
     void set_transfer_arguments( PyObject* args, PyObject* exception );
 
-    void block( Channel* channel, int direction );
+    void block( Channel* channel );
 
     void unblock();
 
@@ -143,6 +143,8 @@ public:
     bool requires_removal();
 
     int get_blocked_direction();
+
+    void set_blocked_direction( int direction );
 
 private:
 

@@ -540,7 +540,6 @@ bool Tasklet::kill( bool pending /*=false*/ )
     //Store so condition can be reinstated on failure
     bool blocked_store = m_blocked;
 	Channel* block_channel_store = m_channel_blocked_on;
-	int blocked_direction_store = m_blocked_direction;
 
     if(m_blocked)
 	{
@@ -573,16 +572,8 @@ bool Tasklet::kill( bool pending /*=false*/ )
 
             if( blocked_store )
 			{
-                if (blocked_direction_store == RECEIVER)
-                {
-					block_channel_store->increment_balance();
-                }
-                else if (blocked_direction_store == SENDER)
-                {
-					block_channel_store->decrement_balance();
-                }
-
 				block_channel_store->remove_tasklet_from_blocked( this );
+				this->m_blocked_direction = 0;
 			}
 
             return true;
@@ -631,7 +622,7 @@ bool Tasklet::kill( bool pending /*=false*/ )
 				if( blocked_store )
 				{
 
-					block( block_channel_store, blocked_direction_store );
+					block( block_channel_store );
 				}
 
                 schedule_manager->decref();
@@ -683,13 +674,11 @@ bool Tasklet::is_blocked() const
 	return m_blocked;
 }
 
-void Tasklet::block( Channel* channel, int direction )
+void Tasklet::block( Channel* channel )
 {
 	m_blocked = true;
 
     m_channel_blocked_on = channel;
-
-    m_blocked_direction = direction;
 }
 
 void Tasklet::unblock()
@@ -697,8 +686,6 @@ void Tasklet::unblock()
 	m_blocked = false;
 
 	m_channel_blocked_on = nullptr;
-
-    m_blocked_direction = 0;
 }
 
 void Tasklet::set_alive( bool value )
@@ -859,7 +846,7 @@ bool Tasklet::throw_exception( PyObject* exception, PyObject* value, PyObject* t
 				else
 				{
                     // On failure return to original state
-					block( block_channel_store, blocked_direction_store );
+					block( block_channel_store );
 
                     schedule_manager->decref();
 
@@ -1006,4 +993,9 @@ bool Tasklet::requires_removal()
 int Tasklet::get_blocked_direction()
 {
 	return m_blocked_direction;
+}
+
+void Tasklet::set_blocked_direction(int direction)
+{
+	m_blocked_direction = direction;
 }

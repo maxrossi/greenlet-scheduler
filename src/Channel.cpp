@@ -110,7 +110,7 @@ bool Channel::send( PyObject* args, PyObject* exception /* = nullptr */)
 
         add_tasklet_to_waiting_to_send( current );
 
-		current->block( this, SENDER );
+		current->block( this );
 
         PyThread_release_lock( m_lock );
 
@@ -270,7 +270,7 @@ PyObject* Channel::receive()
 			return nullptr;
 		}
 		
-		current->block( this, RECEIVER );
+		current->block( this );
 
 		PyThread_release_lock( m_lock );
 
@@ -281,8 +281,6 @@ PyObject* Channel::receive()
             if (current->is_blocked())
             {
 				remove_tasklet_from_blocked( current );
-
-				increment_balance();
             }
 
 			current->unblock();
@@ -422,6 +420,16 @@ void Channel::remove_tasklet_from_blocked( Tasklet* tasklet )
     tasklet->set_next_blocked( nullptr );
 	tasklet->set_previous_blocked( nullptr );
 
+    if (tasklet->get_blocked_direction() == SENDER)
+    {
+		decrement_balance();
+    }
+    else if (tasklet->get_blocked_direction() == RECEIVER)
+    {
+		increment_balance();
+    }
+
+    tasklet->set_blocked_direction( 0 );
 
 }
 
@@ -467,6 +475,7 @@ void Channel::add_tasklet_to_waiting_to_send( Tasklet* tasklet )
 		m_first_blocked_on_send = tasklet;
     }
 
+    tasklet->set_blocked_direction( SENDER );
     increment_balance();
 }
 
@@ -484,6 +493,7 @@ void Channel::add_tasklet_to_waiting_to_receive( Tasklet* tasklet )
 		m_first_blocked_on_receive = tasklet;
     }
 
+    tasklet->set_blocked_direction( RECEIVER );
     decrement_balance();
 }
 
@@ -495,8 +505,6 @@ Tasklet* Channel::pop_next_tasklet_blocked_on_send()
 		next = m_last_blocked_on_send;
 
 		remove_tasklet_from_blocked( next );
-
-		decrement_balance();
     }
 	
     return next;
@@ -510,8 +518,6 @@ Tasklet* Channel::pop_next_tasklet_blocked_on_receive()
 		next = m_last_blocked_on_receive;
 
 		remove_tasklet_from_blocked( next );
-
-		increment_balance();
     }
 
     return next;
