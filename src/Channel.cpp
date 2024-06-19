@@ -276,11 +276,10 @@ PyObject* Channel::receive()
 
 		// Continue scheduler
 		if( !schedule_manager->yield() )
+		// Will enter here if an exception has been thrown on a tasklet
 		{
-
             if (current->is_blocked())
             {
-				// Will enter here is an exception has been thrown on a tasklet
 				remove_tasklet_from_blocked( current );
 
 				increment_balance();
