@@ -22,7 +22,7 @@ See example below for a simple scenario.
 
 .. code-block:: python
 
-   c = stackless.channel()
+   c = scheduler.channel()
 
    c.preference = -1
 
@@ -36,10 +36,10 @@ See example below for a simple scenario.
       print("receivingTasklet Received {}".format(c.receive()))
       print("receivingTasklet Finished")
    
-   t1 = stackless.tasklet(sendingTasklet)()  
-   t2 = stackless.tasklet(receivingTasklet)()  
+   t1 = scheduler.tasklet(sendingTasklet)()  
+   t2 = scheduler.tasklet(receivingTasklet)()  
 
-   stackless.run()
+   scheduler.run()
 
    >>>sendingTasklet Started
    >>>receivingTasklet Started
@@ -54,11 +54,11 @@ Explanation of computation:
 3. As the :py:func:`scheduler.channel.preference` is for the receiver (``-1``) execution continues on the receiver (``t2``) which then prints ``receivingTasklet Received value`` and ``receivingTasklet Finished`` before completing.
 4. ``t1`` Continues to execute the remaining instructions after ``c.send("Value")``, which prints ``sendingTasklet Finished`` before completing.
 
-To illustrate that :doc:`../pythonApi/tasklet` order has no effect on the output the example below shows the output is consistent when switching the creation of ``t1`` and ``t2``.
+:doc:`../pythonApi/tasklet` order in the runnable queue has little effect on the output due to which :doc:`../pythonApi/tasklet` is run first. Even if creation of ``t1`` and ``t2`` are switched, the final transfer resolution order is the same.
 
 .. code-block:: python
 
-   c = stackless.channel()
+   c = scheduler.channel()
 
    c.preference = -1
 
@@ -72,13 +72,13 @@ To illustrate that :doc:`../pythonApi/tasklet` order has no effect on the output
       print("receivingTasklet Received {}".format(c.receive()))
       print("receivingTasklet Finished")
    
-   t2 = stackless.tasklet(receivingTasklet)()  
-   t1 = stackless.tasklet(sendingTasklet)()  
+   t2 = scheduler.tasklet(receivingTasklet)()  
+   t1 = scheduler.tasklet(sendingTasklet)()  
 
-   stackless.run()
+   scheduler.run()
 
-   >>>sendingTasklet Started
    >>>receivingTasklet Started
+   >>>sendingTasklet Started
    >>>receivingTasklet Received value
    >>>receivingTasklet Finished
    >>>sendingTasklet Finished
@@ -91,13 +91,13 @@ Prefer sender is set via setting :py:func:`scheduler.channel.preference` to ``1`
 
 On a :doc:`../pythonApi/channel` operation, Prefer sender will continue execution on the sender before receiver.
 
-:doc:`../pythonApi/tasklet` order in the runnable queue has no effect on the output as the :doc:`../pythonApi/tasklet` objects are switched to directly.
+:doc:`../pythonApi/tasklet` order in the runnable queue has only effects which :doc:`../pythonApi/tasklet` is run first, the final transfer resolution order is the same as the :doc:`../pythonApi/tasklet` objects are switched to directly.
 
 See example below for a simple scenario.
 
 .. code-block:: python
 
-   c = stackless.channel()
+   c = scheduler.channel()
 
    c.preference = 1
 
@@ -111,17 +111,17 @@ See example below for a simple scenario.
       print("receivingTasklet Received {}".format(c.receive()))
       print("receivingTasklet Finished")
    
-   t1 = stackless.tasklet(sendingTasklet)()
-   t2 = stackless.tasklet(receivingTasklet)()
+   t1 = scheduler.tasklet(sendingTasklet)()
+   t2 = scheduler.tasklet(receivingTasklet)()
 
-   stackless.run()
+   scheduler.run()
 
    >>>sendingTasklet Started
    >>>receivingTasklet Started
    >>>sendingTasklet Finished
    >>>receivingTasklet Received value
    >>>receivingTasklet Finished
-
+   
 
 Explanation of computation:
 
@@ -130,12 +130,11 @@ Explanation of computation:
 3. As the :py:func:`scheduler.channel.preference` is for the sender (``1``) execution continues on the sender (``t1``) which then prints ``sendingTasklet Finished`` before completing.
 4. ``t2`` Continues to execute the remaining instructions at ``print("receivingTasklet Received {}".format(c.receive()))``, which prints ``receivingTasklet Received value`` and ``receivingTasklet Finished`` before completing.
 
-Just like with prefer receiver, :doc:`../pythonApi/tasklet` order has no effect on the output.
-To illustrate, the example below shows the output is consistent when switching the creation of ``t1`` and ``t2``.
+Just like with prefer receiver, :doc:`../pythonApi/tasklet` order in the runnable queue has little effect on the output due to which :doc:`../pythonApi/tasklet` is run first. Even if creation of ``t1`` and ``t2`` are switched, the final transfer resolution order is the same.
 
 .. code-block:: python
 
-   c = stackless.channel()
+   c = scheduler.channel()
 
    c.preference = 1
 
@@ -149,13 +148,13 @@ To illustrate, the example below shows the output is consistent when switching t
       print("receivingTasklet Received {}".format(c.receive()))
       print("receivingTasklet Finished")
    
-   t2 = stackless.tasklet(receivingTasklet)()
-   t1 = stackless.tasklet(sendingTasklet)()
+   t2 = scheduler.tasklet(receivingTasklet)()
+   t1 = scheduler.tasklet(sendingTasklet)()
 
-   stackless.run()
+   scheduler.run()
 
-   >>>sendingTasklet Started
    >>>receivingTasklet Started
+   >>>sendingTasklet Started
    >>>sendingTasklet Finished
    >>>receivingTasklet Received value
    >>>receivingTasklet Finished
@@ -173,7 +172,7 @@ Unlike prefer receiver and prefer sender :doc:`../pythonApi/tasklet` order in th
 
 .. code-block:: python
 
-   c = stackless.channel()
+   c = scheduler.channel()
 
    c.preference = 0
 
@@ -187,10 +186,10 @@ Unlike prefer receiver and prefer sender :doc:`../pythonApi/tasklet` order in th
       print("receivingTasklet Received {}".format(c.receive()))
       print("receivingTasklet Finished")
    
-   t1 = stackless.tasklet(sendingTasklet)()
-   t2 = stackless.tasklet(receivingTasklet)()
+   t1 = scheduler.tasklet(sendingTasklet)()
+   t2 = scheduler.tasklet(receivingTasklet)()
 
-   stackless.run()
+   scheduler.run()
 
    >>>sendingTasklet Started
    >>>receivingTasklet Started
@@ -215,7 +214,7 @@ Below illustrates how the :doc:`../pythonApi/taslklet` run order *does* change t
 
 .. code-block:: python
 
-   c = stackless.channel()
+   c = scheduler.channel()
 
    c.preference = 0
 
@@ -229,17 +228,16 @@ Below illustrates how the :doc:`../pythonApi/taslklet` run order *does* change t
       print("receivingTasklet Received {}".format(c.receive()))
       print("receivingTasklet Finished")
    
-   t2 = stackless.tasklet(receivingTasklet)()
-   t1 = stackless.tasklet(sendingTasklet)()
+   t2 = scheduler.tasklet(receivingTasklet)()
+   t1 = scheduler.tasklet(sendingTasklet)()
 
-   stackless.run()
+   scheduler.run()
 
    >>>sendingTasklet Started
    >>>receivingTasklet Started
    >>>sendingTasklet Finished
    >>>receivingTasklet Received value
    >>>receivingTasklet Finished
-
 
 
 Suggested Further Reading
