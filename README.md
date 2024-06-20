@@ -31,7 +31,7 @@ Requirements will change once direction is agreed.
 
 To build the documentation turn the CMake option `BUILD_DOCUMENTATION` to `ON`.
 
-Building the INSTALL target will build all documentation and place it in the path specified by `CMAKE_INSTALL_PREFIX`.
+Building the `INSTALL` target will build all documentation and place it in the path specified by `CMAKE_INSTALL_PREFIX`.
 
 Entry point for the documentation is `documentation/index.html`.
 
