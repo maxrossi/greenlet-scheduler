@@ -72,15 +72,15 @@ public:
 
 	bool is_closing(); 
 
-    void increment_balance();
-
-    void decrement_balance();
-
     static int num_active_channels();
 
     static int unblock_all_channels();
 
 private:
+
+    void increment_balance();
+
+	void decrement_balance();
 
     void run_channel_callback( Channel* channel, Tasklet* tasklet, bool sending, bool will_block ) const;
 

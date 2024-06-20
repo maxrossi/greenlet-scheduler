@@ -88,7 +88,7 @@ static PyTypeObject ScheduleManagerType = {
 	/* The ob_type field must be initialized in the module init function
      * to be portable to Windows without using C++. */
 	PyVarObject_HEAD_INIT( NULL, 0 ) "scheduler.ScheduleManager", /*tp_name*/
-	sizeof( PyScheduleManagerObject ) + sizeof( ScheduleManager ), /*tp_basicsize*/
+	sizeof( PyScheduleManagerObject ), /*tp_basicsize*/
 	0, /*tp_itemsize*/
 	/* methods */
 	(destructor)ScheduleManager_dealloc, /*tp_dealloc*/

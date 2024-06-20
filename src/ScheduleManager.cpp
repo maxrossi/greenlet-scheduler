@@ -302,7 +302,7 @@ bool ScheduleManager::yield()
             return success;
         }
         
-		return ScheduleManager::run();    
+		return ScheduleManager::run();
 	}
 	else
 	{

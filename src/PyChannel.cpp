@@ -515,7 +515,7 @@ static PyTypeObject ChannelType = {
 	/* The ob_type field must be initialized in the module init function
      * to be portable to Windows without using C++. */
 	PyVarObject_HEAD_INIT( NULL, 0 ) "scheduler.Channel", /*tp_name*/
-	sizeof( PyChannelObject ) + sizeof( Channel ), /*tp_basicsize*/
+	sizeof( PyChannelObject ), /*tp_basicsize*/
 	0, /*tp_itemsize*/
 	/* methods */
 	(destructor)Channel_dealloc, /*tp_dealloc*/
