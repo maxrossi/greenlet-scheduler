@@ -72,6 +72,60 @@ set_target_properties(Scheduler PROPERTIES OUTPUT_NAME "_scheduler")
 
 # Provide an install target iff this is the top level project only
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+option(BUILD_DOCUMENTATION "Build Documentation" OFF)
+
+    if(BUILD_DOCUMENTATION)
+        # Generate documentation - NOTE: experimental, Binaries only vendored manually for windows currently
+        # Documentation generation off by default
+        # Requires further work to work on TC
+        find_package(Doxygen REQUIRED NO_CMAKE_PATH)
+
+        # Evaluate config file for Doxygen to input project values
+        set(DOXYFILE_IN ${CMAKE_CURRENT_SOURCE_DIR}/doc/Doxyfile.in)
+        set(DOXYFILE_OUT ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
+        set(DOXYGEN_INDEX_FILE ${CMAKE_CURRENT_BINARY_DIR}/xml/index.xml)
+        configure_file(${DOXYFILE_IN} ${DOXYFILE_OUT} @ONLY)
+
+        # Regenerate with source changes
+        add_custom_command(OUTPUT ${DOXYGEN_INDEX_FILE}
+                            DEPENDS ${SRC_FILES}
+                            COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYFILE_OUT}
+                            MAIN_DEPENDENCY ${DOXYFILE_OUT} ${DOXYFILE_IN}
+                            COMMENT "Running Doxygen"
+                            VERBATIM)
+
+        add_custom_target(Doxygen ALL DEPENDS ${DOXYGEN_INDEX_FILE})
+        
+        # Set up sphinx build
+        set(SPHINX_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/doc/source)
+        set(SPHINX_BUILD ${CMAKE_CURRENT_BINARY_DIR}/doc/build)
+
+        # Add sphinx
+
+        # Evaluate config file to resole cmake variables
+        set(SPHINX_CONF_IN ${CMAKE_CURRENT_SOURCE_DIR}/doc/source/conf.py.in)
+        set(SPHINX_CONF_OUT ${CMAKE_CURRENT_BINARY_DIR}/conf.py.partial)
+        configure_file(${SPHINX_CONF_IN} ${SPHINX_CONF_OUT} @ONLY)
+
+        # Generate files per build flavour to resolve generator expressions
+        file (GENERATE
+                OUTPUT "$<CONFIG>/conf.py" 
+                INPUT  ${CMAKE_CURRENT_BINARY_DIR}/conf.py.partial
+            )
+
+        # Run Sphinx against build flavour specific conf file
+        # Pass in Doxygen output
+        add_custom_target(Sphinx ALL
+                  COMMAND cmd /c ${CMAKE_CURRENT_SOURCE_DIR}/doc/RunSphinx.bat ${CMAKE_CURRENT_BINARY_DIR}/docs/xml $<TARGET_FILE_DIR:Scheduler> ${SPHINX_SOURCE} ${SPHINX_BUILD}
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                  DEPENDS ${DOXYGEN_INDEX_FILE}
+                  COMMENT "Generating documentation with Sphinx")
+
+        # Install rule for documentation
+        install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doc/build/ DESTINATION documentation)
+
+    endif()
+
     enable_testing()
 
     # Build test

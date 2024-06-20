@@ -298,34 +298,6 @@ static PyObject*
 	return thread_info_tuple;
 }
 
-//TODO below doesn't work anymore, was rubbish anyway, needs to work per thread
-static PyObject*
-	Scheduler_set_current_tasklet_changed_callback( PyObject* self, PyObject* args, PyObject* kwds )
-{
-	ScheduleManager* current_scheduler = ScheduleManager::get_scheduler();
-
-	PyObject* temp;
-
-	if( PyArg_ParseTuple( args, "O:set_current_tasklet_changed_callback", &temp ) )
-	{
-		if( !PyCallable_Check( temp ) )
-		{
-			PyErr_SetString( PyExc_TypeError, "parameter must be callable" );
-			return NULL;
-		}
-
-		Py_IncRef( temp );
-
-		current_scheduler->set_current_tasklet_changed_callback( temp );
-	}
-
-    current_scheduler->decref();
-
-	Py_IncRef( Py_None );
-
-	return Py_None;
-}
-
 static PyObject*
 	Scheduler_switch_trap( PyObject* self, PyObject* args, PyObject* kwds )
 {
@@ -401,6 +373,12 @@ C Interface
 extern "C"
 {
 	// Tasklet functions
+
+	/// @brief Creates new tasklet.
+	/// @param type python object type derived from PyTaskletType
+	/// @param args tuple containing callable python object
+	/// @return PyTaskletObject On success returns a new tasklet object, returns NULL on failure
+	/// @note Returns a new reference
 	static PyTaskletObject* PyTasklet_New( PyTypeObject* type, PyObject* args )
 	{
 		PyObject* scheduler_tasklet = PyObject_CallObject( reinterpret_cast<PyObject*>( type ), args );
@@ -408,6 +386,19 @@ extern "C"
 		return reinterpret_cast<PyTaskletObject*>( scheduler_tasklet );
 	}
 
+    /// @brief Check if Python object is derived from TaskletType
+	/// @param obj python object to check
+	/// @return 1 if obj is a Tasklet type, otherwise return 0
+	static int PyTasklet_Check( PyObject* obj )
+	{
+		return obj && PyObject_TypeCheck( obj, &TaskletType );
+	}
+
+    /// @brief Make tasklet ready to run by binding parameters to it and inserting into run queue. 
+	/// @param tasklet python object type derived from PyTaskletType
+	/// @param args tuple containing arguments
+    /// @param args tuple containing kwords
+	/// @return 0 on success -1 on failure
 	static int PyTasklet_Setup( PyTaskletObject* tasklet, PyObject* args, PyObject* kwds )
 	{
 		if(Tasklet_setup( reinterpret_cast<PyObject*>( tasklet ), args, kwds ) == Py_None)
@@ -422,42 +413,76 @@ extern "C"
 		}
 	}
 
+    /// @brief Insert tasklet into run queue if not already present.
+	/// @param tasklet to be inserted, python object type derived from PyTaskletType
+	/// @return 0 on success -1 on failure
+    /// @note Raises RuntimeError on failure
 	static int PyTasklet_Insert( PyTaskletObject* self )
 	{
+		/*
+        if (!PyTasklet_Check(reinterpret_cast<PyObject*>(self)))
+        {
+			PyErr_SetString( PyExc_TypeError, "'self' must be derived from type PyTaskletType" );
+			return -1;
+        }
+        */
+
 		return self->m_impl->insert() ? 0 : -1;
 	}
 
+    /// @brief Get tasklet blocktrap status
+	/// @param tasklet to be checked, python object type derived from PyTaskletType
+	/// @return 1 if tasklet cannot be blocked otherwise return 0
 	static int PyTasklet_GetBlockTrap( PyTaskletObject* self )
 	{
 		return self->m_impl->blocktrap() ? 1 : 0;
 	}
 
+    /// @brief Set tasklet blocktrap status
+	/// @param tasklet to be checked, python object type derived from PyTaskletType
+    /// @param value new blocktrap value
+	/// @return 1 if tasklet cannot be blocked otherwise return 0
 	static void PyTasklet_SetBlockTrap( PyTaskletObject* task, int value )
 	{
 		task->m_impl->set_blocktrap( value );
 	}
 
+    /// @brief Check if tasklet is a main tasklet
+	/// @param tasklet to be checked, python object type derived from PyTaskletType
+	/// @return 1 if tasklet is a main tasklet, otherwise return 0
 	static int PyTasklet_IsMain( PyTaskletObject* tasklet )
 	{
 		return tasklet->m_impl->is_main() ? 1 : 0;
 	}
 
-    static int PyTasklet_Check( PyObject* obj )
-	{
-		return obj && PyObject_TypeCheck( obj, &TaskletType );
-	}
-
+    /// @brief Check if tasklet is alive
+	/// @param tasklet to be checked, python object type derived from PyTaskletType
+	/// @return 1 if tasklet is alive, otherwise return 0
     static int PyTasklet_Alive( PyTaskletObject* tasklet )
 	{
 		return tasklet->m_impl->alive() ? 1 : 0;
 	}
 
+    /// @brief Kill a tasklet. Raises TaskletExit on tasklet.
+	/// @param tasklet to be killed, python object type derived from PyTaskletType
+	/// @return Always returns 0
+    /// @todo Change return to reflect the result of the kill command
     static int PyTasklet_Kill( PyTaskletObject* tasklet )
 	{
-		return tasklet->m_impl->kill() ? 0 : 1;
+		bool ret = tasklet->m_impl->kill();
+
+        // This should return result of ret, however to keep with Stackless behaviour
+        // this will return 0 which indicates it was hard switched
+		return 0;
 	}
 
 	// Channel functions
+
+    /// @brief Creates new channel.
+	/// @param type python object type derived from PyChannelType
+    /// @exception Raises TypeError if type is incorrect
+	/// @return PyChannelObject On success, NULL on failure
+	/// @note Returns a new reference
 	static PyChannelObject* PyChannel_New( PyTypeObject* type )
 	{
 		PyTypeObject* channel_type = type;
@@ -472,16 +497,28 @@ extern "C"
 		return reinterpret_cast < PyChannelObject*>(scheduler_channel);
 	}
 
+    /// @brief Send an argument over a channel
+	/// @param self python object type derived from PyChannelType
+	/// @param arg python object to send over channel
+	/// @return 0 On success, -1 on failure
 	static int PyChannel_Send( PyChannelObject* self, PyObject* arg )
 	{
 		return self->m_impl->send( arg ) ? 0 : -1;
 	}
 
+    /// @brief Receive an argument from a channel
+	/// @param self python object type derived from PyChannelType
+	/// @return received PyObject* on success, NULL on failure
 	static PyObject* PyChannel_Receive( PyChannelObject* self )
 	{
 		return self->m_impl->receive();
 	}
 
+    /// @brief Raise an exception on first tasklet waiting to receive on channel
+	/// @param self python object type derived from PyChannelType
+    /// @param klass python exception
+    /// @param value python exception value
+	/// @return 0 on success, -1 on failure
 	static int PyChannel_SendException( PyChannelObject* self, PyObject* klass, PyObject* value )
 	{
         if (klass == nullptr)
@@ -516,11 +553,16 @@ extern "C"
 		return ret ? 0 : -1;
 	}
 
+    /// @brief Get first tasklet from channel blocked queue
+	/// @param self python object type derived from PyChannelType
+	/// @return first tasklet PyObject or NULL if blocked queue is empty
 	static PyObject* PyChannel_GetQueue( PyChannelObject* self )
 	{
 		return Channel_queue_get( self, nullptr );
 	}
 
+    /// @brief Set the channel's preference
+	/// @param self python object type derived from PyChannelType
 	static void PyChannel_SetPreference( PyChannelObject* self, int val )
 	{
 		int sanitised_value = val;
@@ -537,21 +579,36 @@ extern "C"
 		self->m_impl->set_preference( sanitised_value );
 	}
 
+    /// @brief Get the channel's preference
+	/// @param self python object type derived from PyChannelType
+	/// @return The channel's preference
     static int PyChannel_GetPreference( PyChannelObject* self )
 	{
 		return self->m_impl->preference( );
 	}
 
+    /// @brief Set the channel's balance
+	/// @param self python object type derived from PyChannelType
+    /// @return The channel's balance
 	static int PyChannel_GetBalance( PyChannelObject* self )
 	{
 		return self->m_impl->balance();
 	}
 
+    /// @brief Check if Python object is a main tasklet
+	/// @param obj python object to check
+	/// @return 1 if obj is a Tasklet type, otherwise return 0
     static int PyChannel_Check( PyObject* obj )
 	{
 		return obj && PyObject_TypeCheck( obj, &ChannelType );
 	}
 
+    /// @brief Throw an exception on first tasklet waiting to receive on channel
+	/// @param self python object type derived from PyChannelType
+	/// @param exc python exception
+	/// @param val python exception value
+    /// @param tb traceback
+	/// @return 0 on success, -1 on failure
     static int PyChannel_SendThrow( PyChannelObject* self, PyObject* exc, PyObject* val, PyObject* tb )
 	{
         if (!exc)
@@ -599,12 +656,19 @@ extern "C"
 
 	// Scheduler functions
 
-    //Returns new reference
+    /// @brief Get current scheduler
+	/// @return Current scheduler as PyObject
+    /// @note returns a new reference
 	static PyObject* PyScheduler_GetScheduler( )
 	{
 		return ScheduleManager::get_scheduler()->python_object();
 	}
 
+    /// @brief Yield execution of current tasklet. Tasklet is added to end of run queue
+	/// @param retval Py_None if successfull, NULL on failure
+	/// @param remove if set tasklet will not be added to end of run queue
+	/// @return Py_None on success, NULL on failure
+    /// @todo remove retval and just use return type
 	static PyObject* PyScheduler_Schedule( PyObject* retval, int remove )
 	{
 		if(remove == 0)
@@ -617,6 +681,8 @@ extern "C"
         }
 	}
 
+    /// @brief Get number of tasklets in run queue
+	/// @return Number of tasklets in run queue
 	static int PyScheduler_GetRunCount()
 	{
 		ScheduleManager* schedule_manager = ScheduleManager::get_scheduler();
@@ -628,6 +694,9 @@ extern "C"
 		return ret;
 	}
 
+	/// @brief Returns the current tasklet.
+	/// @return PyObject On success returns current tasklet, returns NULL on failure
+	/// @note Returns a new reference
 	static PyObject* PyScheduler_GetCurrent()
 	{
 		ScheduleManager* schedule_manager = ScheduleManager::get_scheduler();
@@ -641,9 +710,11 @@ extern "C"
 		return current;
 	}
 
-	// Note: flags used in game are PY_WATCHDOG_SOFT | PY_WATCHDOG_IGNORE_NESTING | PY_WATCHDOG_TOTALTIMEOUT
-	// Implementation treats these flags as default behaviour
-    // flags field is deprecated. Left in for stub compatibility
+	/// @brief Run scheduler for specified number of nanoseconds
+	/// @param timeout timeout value in nano seconds
+	/// @param flags unused, deprecated
+	/// @return Py_None on success, NULL on failure
+	/// @todo rename and remove deprecated flags parameter
 	static PyObject* PyScheduler_RunWatchdogEx( long long timeout, int flags )
 	{
 		ScheduleManager* schedule_manager = ScheduleManager::get_scheduler();
@@ -664,6 +735,9 @@ extern "C"
         }
 	}
 
+    /// @brief Run scheduler limited to n number of Tasklets
+	/// @param number_of_tasklets_to_run Number of Tasklets to run before exiting
+	/// @return Py_None on success, NULL on failure
     static PyObject* PyScheduler_RunNTasklets( int number_of_tasklets_to_run )
 	{
 		ScheduleManager* schedule_manager = ScheduleManager::get_scheduler();
@@ -684,6 +758,9 @@ extern "C"
         }
 	}
 
+    /// @brief Specify callable to be called on every channel send and receive
+	/// @param callable method to be called, Passing NULL removes handler
+	/// @return 0 on success, -1 on failure
 	static int PyScheduler_SetChannelCallback( PyObject* callable )
 	{
 		if( callable && !PyCallable_Check( callable ) )
@@ -696,6 +773,8 @@ extern "C"
 		return 0;
 	}
 
+    /// @brief Get callable set to be called on every channel send and receive
+	/// @return Callable, Py_None if no callback is set
 	static PyObject* PyScheduler_GetChannelCallback()
 	{
 		PyObject* channel_callback = Channel::channel_callback();
@@ -704,6 +783,9 @@ extern "C"
         
 	}
 
+    /// @brief Specify callable to be called on every schedule operation
+	/// @param callable method to be called, Passing NULL removes handler
+	/// @return 0 on success, -1 on failure
 	static int PyScheduler_SetScheduleCallback( PyObject* callable )
 	{
         if (callable && !PyCallable_Check(callable))
@@ -720,6 +802,8 @@ extern "C"
 		return 0;
 	}
 
+    /// @brief Specify c++ function to be called on every schedule operation
+	/// @param func c++ function
 	static void PyScheduler_SetScheduleFastCallback( schedule_hook_func func )
 	{
 		ScheduleManager* current_scheduler = ScheduleManager::get_scheduler();
@@ -731,28 +815,134 @@ extern "C"
 
 } // extern C
 
-
 static PyMethodDef SchedulerMethods[] = {
-	{ "set_channel_callback", set_channel_callback, METH_VARARGS, "Install a global channel callback" },
-	{ "get_channel_callback", get_channel_callback, METH_VARARGS, "Get the current global channel callback" },
-	{ "enable_softswitch", enable_soft_switch, METH_VARARGS, "Legacy support" },
-    { "getcurrent", (PyCFunction)Scheduler_getcurrent, METH_NOARGS, "Return the currently executing tasklet of this thread" },
-	{ "getmain", (PyCFunction)Scheduler_getmain, METH_NOARGS, "Return the main tasklet of this thread" },
-	{ "getruncount", (PyCFunction)Scheduler_getruncount, METH_NOARGS, "Return the number of currently runnable tasklets from a cached value" },
-	{ "calculateruncount", (PyCFunction)Scheduler_calculateruncount, METH_NOARGS, "Calculates and return the number of currently runnable tasklets" },
-	{ "schedule", (PyCFunction)Scheduler_schedule, METH_NOARGS, "Yield execution of the currently running tasklet" },
-	{ "schedule_remove", (PyCFunction)Scheduler_scheduleremove, METH_NOARGS, "Yield execution of the currently running tasklet and remove" },
-	{ "run", (PyCFunction)Scheduler_run, METH_NOARGS, "Run scheduler" },
-	{ "run_n_tasklets", (PyCFunction)Scheduler_run_n_tasklets, METH_VARARGS, "Run scheduler stopping after n tasklets" },
-	{ "set_schedule_callback", (PyCFunction)Scheduler_set_schedule_callback, METH_VARARGS, "Install a callback for scheduling" },
-	{ "get_schedule_callback", (PyCFunction)Scheduler_get_schedule_callback, METH_NOARGS, "Get the current global schedule callback" },
-	{ "get_thread_info", (PyCFunction)Scheduler_get_thread_info, METH_VARARGS, "Return a tuple containing the threads main tasklet, current tasklet and run-count" },
-	{ "set_current_tasklet_changed_callback", (PyCFunction)Scheduler_set_current_tasklet_changed_callback, METH_VARARGS, "TODO" },
-	{ "switch_trap", (PyCFunction)Scheduler_switch_trap, METH_VARARGS, "When the switch trap level is non-zero, any tasklet switching, e.g. due channel action or explicit, will result in a RuntimeError being raised." },
-	{ "get_schedule_manager", (PyCFunction)Scheduler_get_schedule_manager, METH_NOARGS, "Return the schedule manager from the thread it is called" },
-	{ "get_number_of_active_schedule_managers", (PyCFunction)Scheduler_get_number_of_active_schedule_managers, METH_NOARGS, "Return the number of active schedule managers" },
-	{ "get_number_of_active_channels", (PyCFunction)Scheduler_get_number_of_active_channels, METH_NOARGS, "Return the number of active channels" },
-	{ "unblock_all_channels", (PyCFunction)Scheduler_unblock_all_channels, METH_NOARGS, "Unblock all active channels " },
+
+	{ "set_channel_callback",
+        set_channel_callback, 
+        METH_VARARGS, 
+        "Every send or receive action will result in callable being called. \n\n\
+            :param callable: Callback to call on channel send/receive \n\
+            :type callable: callable or None \n\
+            :return: Previous channel callback. \n\
+            :rtype: int" },
+
+	{ "get_channel_callback",
+        get_channel_callback,
+        METH_VARARGS,
+        "Get the current global channel callback. \n\n\
+            :return: Current channel callback or None. \n\
+            :rtype: PyObject*" },
+
+	{ "enable_softswitch",
+        enable_soft_switch,
+        METH_VARARGS,
+        "Legacy API support. \n\n\
+            :warning: Deprecated" },
+
+    { "getcurrent",
+        (PyCFunction)Scheduler_getcurrent,
+        METH_NOARGS,
+        "Get the current Tasklet. \n\n\
+            :return: Current Tasklet executing Tasklet of this thread \n\
+            :rtype: PyObject*" },
+
+	{ "getmain",
+        (PyCFunction)Scheduler_getmain,
+        METH_NOARGS,
+        "Get the main tasklet of this thread. \n\n\
+            :return: Main Tasklet of this thread \n\
+            :rtype: PyObject*" },
+
+	{ "getruncount",
+        (PyCFunction)Scheduler_getruncount,
+        METH_NOARGS,
+        "Get number of currently runnable tasklets. \n\n\
+            :return: Cached number of runnable tasklets \n\
+            :rtype: Int." },
+
+	{ "calculateruncount",
+        (PyCFunction)Scheduler_calculateruncount,
+        METH_NOARGS, "Calculate number of currently runnable tasklets. \n\n\
+            :return: Calculated number of runnable tasklets \n\
+            :rtype: Int." },
+
+	{ "schedule",
+        (PyCFunction)Scheduler_schedule,
+        METH_NOARGS,
+        "Yield execution of current tasklet. Tasklet is added to end of run queue." },
+
+	{ "schedule_remove",
+        (PyCFunction)Scheduler_scheduleremove,
+        METH_NOARGS,
+        "Yield execution of current tasklet. Tasklet is don't add to end of run queue." },
+
+	{ "run",
+        (PyCFunction)Scheduler_run,
+        METH_NOARGS,
+        "Run scheduler to end of run queue." },
+
+	{ "run_n_tasklets",
+        (PyCFunction)Scheduler_run_n_tasklets,
+        METH_VARARGS,
+        "Run scheduler limited to n number of Tasklets. \n\n\
+            :param int: Number of Tasklets to run before exiting" },
+
+	{ "set_schedule_callback",
+        (PyCFunction)Scheduler_set_schedule_callback,
+        METH_VARARGS,
+        "Specify callable to be called on every schedule operation. \n\n\
+            :param callable: Callable method to be called, Passing NULL removes handler \n\
+            :return: previous schedule callback or None if none previously set \n\
+            :rtype: Callable" },
+
+	{ "get_schedule_callback",
+        (PyCFunction)Scheduler_get_schedule_callback,
+        METH_NOARGS,
+        "Get current schedule callback. \n\n\
+            :return: Callable schedule callback method or None if none set \n\
+            :rtype: Callable" },
+
+	{ "get_thread_info",
+        (PyCFunction)Scheduler_get_thread_info,
+        METH_VARARGS,
+        "Get thread info. \n\n\
+            :return: containing (main tasklet, current tasklet, run count) for the thread \n\
+            :rtype: Tuple" },
+
+	{ "switch_trap",
+        (PyCFunction)Scheduler_switch_trap,
+        METH_VARARGS,
+        "Alter swichtrap level. \n\n\
+            :param Integer: Value to increase switchtrap level by. \n\
+            :return: Previous switchtrap level \n\
+            :rtype: Integer" },
+
+	{ "get_schedule_manager",
+        (PyCFunction)Scheduler_get_schedule_manager,
+        METH_NOARGS,
+        "Get the schedule manager from the thread. \n\n\
+            :return: Schedule Manager for the thread \n\
+            :rtype: ScheduleManagerObject" },
+
+	{ "get_number_of_active_schedule_managers",
+        (PyCFunction)Scheduler_get_number_of_active_schedule_managers,
+        METH_NOARGS,
+        "Get the number of active schedule managers. \n\n\
+            :return: Number of schedule managers \n\
+            :rtype: Integer \n\
+            :note: Value should match active number of threads." },
+
+	{ "get_number_of_active_channels",
+        (PyCFunction)Scheduler_get_number_of_active_channels,
+        METH_NOARGS,
+        "Get the number of active channels. \n\n\
+            :return: Number of active channels \n\
+            :rtype: Integer" },
+
+	{ "unblock_all_channels",
+        (PyCFunction)Scheduler_unblock_all_channels,
+        METH_NOARGS,
+        "Unblock all active channels." },
 	
 	{ NULL, NULL, 0, NULL } /* Sentinel */
 };

@@ -205,11 +205,36 @@ static PyObject*
 }
 
 static PyGetSetDef Channel_getsetters[] = {
-	{ "preference", (getter)Channel_preference_get, (setter)Channel_preference_set, "allows for customisation of how the channel actions", NULL },
-	{ "balance", (getter)Channel_balance_get, NULL, "number of tasklets waiting to send (>0) or receive (<0)", NULL },
-	{ "queue", (getter)Channel_queue_get, NULL, "the first tasklet in the chain of tasklets that are blocked on the channel", NULL },
-	{ "closed", (getter)Channel_closed_get, NULL, "The value of this attribute is True when close() has been called and the channel is empty", NULL },
-	{ "closing", (getter)Channel_closing_get, NULL, "The value of this attribute is True when close() has been called", NULL },
+	{ "preference",
+        (getter)Channel_preference_get,
+        (setter)Channel_preference_set,
+        "allows for customisation of how the channel actions.",
+        NULL },
+
+	{ "balance",
+        (getter)Channel_balance_get,
+        NULL,
+        "number of tasklets waiting to send (>0) or receive (<0).",
+        NULL },
+
+	{ "queue",
+        (getter)Channel_queue_get,
+        NULL,
+        "the first tasklet in the chain of tasklets that are blocked on the channel.",
+        NULL },
+
+	{ "closed",
+        (getter)Channel_closed_get,
+        NULL,
+        "The value of this attribute is True when close() has been called and the channel is empty.",
+        NULL },
+
+	{ "closing",
+        (getter)Channel_closing_get,
+        NULL,
+        "The value of this attribute is True when close() has been called.",
+        NULL },
+
 	{ NULL } /* Sentinel */
 };
 
@@ -375,7 +400,7 @@ static PyObject*
 
     if (!ret)
     {
-		PyErr_SetString( PyExc_StopIteration, "Channel is closed" );
+		PyErr_SetString( PyExc_StopIteration, "Channel is closed" );    //TODO: This is not technically true, requires Stackless investigation
 
         return nullptr;
     }
@@ -435,13 +460,54 @@ static PyObject*
 }
 
 static PyMethodDef Channel_methods[] = {
-	{ "send", (PyCFunction)Channel_send, METH_VARARGS, "Send a value over the channel" },
-	{ "receive", (PyCFunction)Channel_receive, METH_NOARGS, "Receive a value over the channel" },
-	{ "send_exception", (PyCFunction)Channel_sendexception, METH_VARARGS, "Send an exception over the channel" },
-	{ "send_throw", (PyCFunction)Channel_sendThrow, METH_VARARGS | METH_KEYWORDS, "(exc, val, tb) is raised on the first tasklet blocked on channel self." },
-	{ "clear", (PyCFunction)Channel_clearTasklets, METH_NOARGS, "Clear channel, all blocked tasklets will be killed rasing TaskletExit exception" },
-	{ "close", (PyCFunction)Channel_close, METH_NOARGS, "Prevents the channel queue from growing. If the channel is not empty, the flag closing becomes True. If the channel is empty, the flag closed becomes True." },
-	{ "open", (PyCFunction)Channel_open, METH_NOARGS, "Reopen a channel" },
+	{ "send",
+        (PyCFunction)Channel_send,
+        METH_VARARGS,
+        "Send an object over the channel. \n\n\
+            :param value: Value to send \n\
+            :type value: Object" },
+
+	{ "receive",
+        (PyCFunction)Channel_receive,
+        METH_NOARGS,
+        "Receive an object over the channel. \n\n\
+            :return received value" },
+
+	{ "send_exception",
+        (PyCFunction)Channel_sendexception,
+        METH_VARARGS,
+        "Send an exception over the channel. \n\n\
+            :param exc: Python exception \n\
+            :type exc: sub-class of Python exception \n\
+            :param args: Arguments to apply to exception \n\
+            :type args: Tuple" },
+
+	{ "send_throw",
+        (PyCFunction)Channel_sendThrow,
+        METH_VARARGS | METH_KEYWORDS,
+        "Send an exception over the channel. \n\n\
+            :param exc: Python exception \n\
+            :type exc: sub-class of Python exception \n\
+            :param val: Value to apply to exception \n\
+            :type val: Tuple \n\
+            :param tb: Traceback \n\
+            :type tb: Python Traceback object" },
+
+	{ "clear",
+        (PyCFunction)Channel_clearTasklets,
+        METH_NOARGS,
+        "Clear channel, all blocked tasklets will be killed rasing TaskletExit exception." },
+
+	{ "close",
+        (PyCFunction)Channel_close,
+        METH_NOARGS,
+        "Prevents the channel queue from growing. If the channel is not empty, the flag closing becomes True. If the channel is empty, the flag closed becomes True." },
+
+	{ "open",
+        (PyCFunction)Channel_open,
+        METH_NOARGS,
+        "Reopen a channel." },
+
 	{ NULL } /* Sentinel */
 };
 

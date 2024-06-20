@@ -497,6 +497,9 @@ bool ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
 		    // If exception state should lead to removal of tasklet
             if( current_tasklet->requires_removal() )
 			{
+				// Update current tasklet
+				ScheduleManager::set_current_tasklet( current_tasklet->get_tasklet_parent() );
+
 				if( remove_tasklet( current_tasklet ) )
 				{
 					current_tasklet->decref();

@@ -402,16 +402,66 @@ static PyObject*
 }
 
 static PyGetSetDef Tasklet_getsetters[] = {
-	{ "alive", (getter)Tasklet_alive_get, NULL, "True while a tasklet is still running", NULL },
-	{ "blocked", (getter)Tasklet_blocked_get, NULL, "True when a tasklet is blocked on a channel", NULL },
-	{ "scheduled", (getter)Tasklet_scheduled_get, NULL, "True when the tasklet is either in the runnables list or blocked on a channel", NULL },
-	{ "block_trap", (getter)Tasklet_blocktrap_get, (setter)Tasklet_blocktrap_set, "True while this tasklet is within a n atomic block", NULL },
-	{ "is_current", (getter)Tasklet_iscurrent_get, NULL, "True if the tasklet is the current tasklet", NULL },
-	{ "is_main", (getter)Tasklet_ismain_get, NULL, "True if the tasklet is the main tasklet", NULL },
-	{ "thread_id", (getter)Tasklet_threadid_get, NULL, "Id of the thread the tasklet belongs to", NULL },
-	{ "next", (getter)Tasklet_next_get, NULL, "Get next tasklet in scheduler", NULL },
-	{ "prev", (getter)Tasklet_previous_get, NULL, "Get next tasklet in scheduler", NULL },
-	{ "paused", (getter)Tasklet_paused_get, NULL, "This attribute is True when a tasklet is alive, but not scheduled or blocked on a channel", NULL },
+	{ "alive", 
+        (getter)Tasklet_alive_get,
+        NULL,
+        "True while a tasklet is still running.",
+        NULL },
+
+	{ "blocked",
+        (getter)Tasklet_blocked_get,
+        NULL,
+        "True when a tasklet is blocked on a channel.",
+        NULL },
+
+	{ "scheduled",
+        (getter)Tasklet_scheduled_get,
+        NULL,
+        "True when the tasklet is either in the runnables list or blocked on a channel.",
+        NULL },
+
+	{ "block_trap",
+        (getter)Tasklet_blocktrap_get,
+        (setter)Tasklet_blocktrap_set,
+        "True while this tasklet is within a n atomic block.",
+        NULL },
+
+	{ "is_current",
+        (getter)Tasklet_iscurrent_get,
+        NULL,
+        "True if the tasklet is the current tasklet.",
+        NULL },
+
+	{ "is_main",
+        (getter)Tasklet_ismain_get,
+        NULL,
+        "True if the tasklet is the main tasklet.",
+        NULL },
+
+	{ "thread_id",
+        (getter)Tasklet_threadid_get,
+        NULL,
+        "Id of the thread the tasklet belongs to.",
+        NULL },
+
+	{ "next",
+        (getter)Tasklet_next_get,
+        NULL,
+        "Get next tasklet in schedule queue.",
+        NULL },
+
+	{ "prev",
+        (getter)Tasklet_previous_get,
+        NULL,
+        "Get next tasklet in schedule queue.",
+        NULL },
+
+	{ "paused",
+        (getter)Tasklet_paused_get,
+        NULL,
+        "This attribute is True when a tasklet is alive, but not scheduled or blocked on a channel.",
+        NULL },
+
 	{ NULL } /* Sentinel */
 };
 
@@ -704,18 +754,81 @@ static PyObject*
 	}
 }
 
-
 static PyMethodDef Tasklet_methods[] = {
-	{ "insert", (PyCFunction)Tasklet_insert, METH_NOARGS, "Insert a tasklet at the end of the scheduler runnables queue" },
-	{ "remove", (PyCFunction)Tasklet_remove, METH_NOARGS, "Remove a tasklet from the runnables queue" },
-	{ "run", (PyCFunction)Tasklet_run, METH_NOARGS, "run immediately*" },
-	{ "switch", (PyCFunction)Tasklet_switch, METH_NOARGS, "run immediately, pause caller" },
-	{ "throw", (PyCFunction)Tasklet_throw, METH_VARARGS | METH_KEYWORDS, "Raise an exception on the given tasklet" },
-	{ "raise_exception", (PyCFunction)Tasklet_raiseexception, METH_VARARGS, "Raise an exception on the given tasklet" },
-	{ "kill", (PyCFunction)Tasklet_kill, METH_VARARGS | METH_KEYWORDS, "Terminates the tasklet and unblocks it" },
-	{ "set_context", (PyCFunction)Tasklet_setcontext, METH_NOARGS, "Set the Context object to be used while this tasklet runs" },
-	{ "bind", (PyCFunction)Tasklet_bind, METH_VARARGS | METH_KEYWORDS, "binds a callable to a tasklet" },
-	{ "setup", (PyCFunction)Tasklet_setup, METH_VARARGS | METH_KEYWORDS, "inserts a tasklet into the scheduler" },
+	{ "insert",
+        (PyCFunction)Tasklet_insert,
+        METH_NOARGS,
+        "Insert a tasklet at the end of the scheduler runnables queue." },
+
+	{ "remove",
+        (PyCFunction)Tasklet_remove,
+        METH_NOARGS,
+        "Remove a tasklet from the runnables queue." },
+
+	{ "run",
+        (PyCFunction)Tasklet_run,
+        METH_NOARGS,
+        "run immediately if in valid state." },
+
+	{ "switch",
+        (PyCFunction)Tasklet_switch,
+        METH_NOARGS,
+        "Pause calling tasklet and run immediately." },
+
+	{ "throw",
+        (PyCFunction)Tasklet_throw,
+        METH_VARARGS | METH_KEYWORDS,
+        "Raise an exception on the given tasklet. \n\n\
+            :param exc: Exception to raise \n\
+            :type exc: Python Exception: \n\
+            :param tb: Traceback \n\
+            :type tb: Python Exception traceback \n\
+            :param pending: If True then throw will schedule and the caller will continue execution \n\
+            :type pending: Bool \n\
+            :throws: RuntimeError If attempt is made to raise exception on dead Tasklet aside from TaskletExit exceptions." },
+
+	{ "raise_exception",
+        (PyCFunction)Tasklet_raiseexception,
+        METH_VARARGS,
+        "Raise an exception on the given tasklet. \n\n\
+            :param exc_class: Exception to raise \n\
+            :type exc_class: Object sub-class of Exception \n\
+            :param args: Exception arguments \n\
+            :throws: RuntimeError If attempt is made to raise exception on dead Tasklet aside from TaskletExit exceptions." },
+
+	{ "kill",
+        (PyCFunction)Tasklet_kill,
+        METH_VARARGS | METH_KEYWORDS,
+        "Terminate the current tasklet and unblock. \n\n\
+            :param pending: If True then kill will schedule the kill and continue execution\n\
+            :type pending: Bool \n\
+            :throws: TaskletExit on the calling Tasklet" },
+
+	{ "set_context",
+        (PyCFunction)Tasklet_setcontext,
+        METH_NOARGS,
+        "Set the Context object to be used while this tasklet runs." },
+
+	{ "bind",
+        (PyCFunction)Tasklet_bind,
+        METH_VARARGS | METH_KEYWORDS,
+        "binds a callable to a tasklet. \n\n\
+            :param func: Callable to bind to Tasklet \n\
+            :type func: Callable \n\
+            :param args: Arguments that will be passed to callable. \n\
+            :type args: Tuple \n\
+            :param kwargs: Keyword arguments that will be passed ot callable \n\
+            :type kwargs: Tuple" },
+
+	{ "setup",
+        (PyCFunction)Tasklet_setup,
+        METH_VARARGS | METH_KEYWORDS,
+        "Provide Tasklet with arguments to pass to a bound callable. \n\n\
+            :param args: Arguments that will be passed to callable. \n\
+            :type args: Tuple \n\
+            :param kwargs: Keyword arguments that will be passed ot callable \n\
+            :type kwargs: Tuple" },
+
 	{ NULL } /* Sentinel */
 };
 

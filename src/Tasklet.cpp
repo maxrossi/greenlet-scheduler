@@ -172,20 +172,30 @@ void Tasklet::uninitialise()
 
 bool Tasklet::insert()
 {
-	if(!m_blocked && m_alive)
-	{
-		ScheduleManager* schedule_manager = ScheduleManager::get_scheduler();
+    if ( m_blocked )
+    {
+		PyErr_SetString( PyExc_RuntimeError, "Failed to insert tasklet: Cannot insert blocked tasklet" );
 
-		schedule_manager->insert_tasklet( this );
-
-        schedule_manager->decref();
-
-		m_paused = false;
-
-        return true;
+		return false;
     }
 
-	return false;   
+    if ( !m_alive )
+    {
+		PyErr_SetString( PyExc_RuntimeError, "Failed to insert tasklet: Cannot insert dead tasklet" );
+
+		return false;
+    }
+
+	ScheduleManager* schedule_manager = ScheduleManager::get_scheduler();
+
+	schedule_manager->insert_tasklet( this );
+
+    schedule_manager->decref();
+
+	m_paused = false;
+
+    return true;
+ 
 }
 
 bool Tasklet::switch_implementation()
@@ -318,7 +328,7 @@ bool Tasklet::switch_to( )
 
 		if( schedule_manager->is_switch_trapped() )
 		{
-			PyErr_SetString( PyExc_RuntimeError, "Cannot schedule when scheduler switch_trap level is greater than 0" );
+			PyErr_SetString( PyExc_RuntimeError, "Cannot schedule when scheduler switch_trap level is non-zero" );
 
             schedule_manager->decref();
 
@@ -873,29 +883,13 @@ bool Tasklet::throw_exception( PyObject* exception, PyObject* value, PyObject* t
 					}
 
                 }
-				else if( m_exception_state == m_tasklet_exit_exception )
+				else
 				{
 					bool ret = run();
 
                     schedule_manager->decref();
 
 					return ret;
-                }
-				else
-				{
-					// If it tasklet is not blocked then raise error immediately
-					// See test test_tasklet.TestTaskletThrowImmediate.test_new
-					set_python_exception_state_from_tasklet_exception_state();
-
-                    // Remove tasklet from run queue
-					remove();
-
-                    // Remove tasklet reference
-                    decref();
-
-                    schedule_manager->decref();
-
-                    return false;
                 }
             }
 			

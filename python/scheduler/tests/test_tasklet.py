@@ -525,6 +525,46 @@ class TestKill(test_utils.SchedulerTestCaseBase):
     #    return self._test_kill_without_thread_state(1, True)
             
 
+class TestExceptions(test_utils.SchedulerTestCaseBase):
+
+    def test_raise_exception(self):
+
+        taskletExceptHit = [False]
+
+        def foo():
+            try:
+                scheduler.schedule()
+            except TypeError:
+                taskletExceptHit[0] = True
+
+        t = scheduler.tasklet(foo)()
+
+        t.run()
+
+        t.raise_exception(TypeError)
+
+        self.assertTrue(taskletExceptHit[0])
+
+    def test_throw_exception(self):
+
+        taskletExceptHit = [False]
+
+        def foo():
+            try:
+                scheduler.schedule()
+            except TypeError:
+                taskletExceptHit[0] = True
+
+        t = scheduler.tasklet(foo)()
+        
+        t.run()
+
+        t.throw(TypeError)
+
+        self.assertTrue(taskletExceptHit[0])
+
+
+
 class TestBind(test_utils.SchedulerTestCaseBase):
 
     def setUp(self):
