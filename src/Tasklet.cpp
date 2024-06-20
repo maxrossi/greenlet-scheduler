@@ -226,7 +226,11 @@ bool Tasklet::switch_implementation()
 		if( schedule_manager->run( this ) )
 		{
 			// Yeild the tasklets parent as to not continue execution of the rest of this tasklet
-			schedule_manager->yield();
+            if ( !schedule_manager->yield() )
+            {
+				schedule_manager->decref();
+				return false;
+            }
 
             schedule_manager->decref();
 
@@ -320,7 +324,12 @@ bool Tasklet::switch_to( )
 
 		schedule_manager->insert_tasklet( this );
 
-		schedule_manager->yield();
+        if ( !schedule_manager->yield() )
+        {
+			schedule_manager->decref();
+
+            return false;
+        }
     }
 	else
 	{
