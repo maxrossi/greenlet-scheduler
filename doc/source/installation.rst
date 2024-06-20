@@ -3,14 +3,12 @@ Installation
 
 Dependancies
 ------------
-Greenlet
+`Greenlet <https://greenlet.readthedocs.io/en/latest/>`_ module is required in the ``PYTHONPATH``
 
 Installation
 ------------
+Build using CmakeLists provided in the repository root.
 
-To use carbon-scheduler build the cextension
-ensure it is in your interpreters path and import the flavour you want to use.
+Ensure that the desired flavour of the produced carbon-scheduler pyd is present in your ``PYTHONPATH``.
 
-.. code-block:: python
-
-   import _scheduler
+See :doc:`guides` and :doc:`examples` for usage information

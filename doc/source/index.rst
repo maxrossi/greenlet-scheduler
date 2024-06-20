@@ -1,9 +1,9 @@
 carbon-scheduler Documentation
 ==============================
 
-*carbon-scheduler* is a Python cextension which provides channels and a scheduler for Greenlet coroutines.
+*carbon-scheduler* is a Python cextension which provides channels and a scheduler for `Greenlet <https://greenlet.readthedocs.io/en/latest/>`_ coroutines.
 
-Check out the :doc:`installation` section for further installation information
+See :doc:`installation` section for further installation information.
 
 Contents
 --------
@@ -14,6 +14,7 @@ Contents
    installation
    api
    guides
+   examples
    designDocuments
 
 .. note::

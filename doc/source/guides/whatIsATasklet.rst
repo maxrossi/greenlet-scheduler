@@ -84,7 +84,7 @@ Each :doc:`../pythonApi/tasklet` is a wrapper for a `Greenlet <https://greenlet.
 
 :doc:`../pythonApi/channel` and :doc:`../pythonApi/scheduleManager` objects are implemented to further extend scheduling logic.
 
-Functionality is based on the Python 3.7 specification of `Stackless Python <https://stackless.readthedocs.io/en/3.7-slp/c-api/stackless.html>`_.
+Functionality is based on the Python 3.7 specification of `Stackless Python <https://stackless.readthedocs.io/en/3.8-slp/stackless-python.html>`_.
 
 See :doc:`../designDocuments/originalDesignBrief` for further details related to the original project aims.
 
