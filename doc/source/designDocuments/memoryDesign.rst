@@ -37,11 +37,11 @@ Tasklets (Non Main)
 
 Tasklets are also bound to a Python thread.
 
-when a :doc:`../pythonApi/tasklet` is created it stores a strong reference to the :doc:`../pythonApi/tasklet` of the same Python thread.
+when a :doc:`../pythonApi/tasklet` is created it stores a strong reference to the :doc:`../pythonApi/scheduleManager` of the same Python thread.
 
 This is only released when the :doc:`../pythonApi/tasklet` is destroyed.
 
-This means that while a refernce to a :doc:`../pythonApi/tasklet` on a Python thread exits the :doc:`../pythonApi/scheduleManager` will be kept alive.
+This means that while a refernce to a :doc:`../pythonApi/tasklet` on a Python thread exists the :doc:`../pythonApi/scheduleManager` will be kept alive.
 
 The :doc:`../pythonApi/tasklet` can even be outside the :doc:`../pythonApi/scheduleManager` for example after a :py:func:`scheduler.tasklet.schedule_remove`.
 
@@ -53,7 +53,7 @@ Channels
 
 All reference to channels are managed by the user.
 
-Channels hold a store of Tasklets that are 'blocked' on them (see :doc:`../guides/sendingDataBetweenTaskletsUsingChannels).
+Channels hold a store of Tasklets that are 'blocked' on them (see :doc:`../guides/sendingDataBetweenTaskletsUsingChannels`).
 
 When a :doc:`../pythonApi/tasklet` is 'blocked' on a :doc:`../pythonApi/channel` the :doc:`../pythonApi/channel` will hold a strong reference to it to keep it alive.
 
