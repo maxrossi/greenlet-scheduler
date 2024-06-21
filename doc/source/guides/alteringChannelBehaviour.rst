@@ -164,7 +164,7 @@ Just like with prefer receiver, :doc:`../pythonApi/tasklet` order in the runnabl
 Channel Preference neither
 --------------------------
 
-Prefer neither is set via setting :py:func:`scheduler.channel.preference` to ``0`` and is the default behaviour.
+Prefer neither is set via setting :py:func:`scheduler.channel.preference` to ``0``.
 
 On a :doc:`../pythonApi/channel` operation, Prefer neither will continue execution on the current tasklet that called the non-blocking :doc:`../pythonApi/channel` operation (either :py:func:`scheduler.channel.send` or :py:func:`scheduler.channel.receive`).
 
