@@ -1,21 +1,24 @@
 import collections
 import os
 import threading
+import sys
 
-flavor = os.environ.get("BUILDFLAVOR", "release")
-
-if flavor == 'release':
-    import _scheduler as scheduler
-elif flavor == 'debug':
-    import _scheduler_debug as scheduler
-elif flavor == 'trinitydev':
-    import _scheduler_trinitydev as scheduler
-elif flavor == 'internal':
-    import _scheduler_internal as scheduler
+if "scheduler" in sys.modules:
+    import scheduler
 else:
-    scheduler = None
-    raise RuntimeError("Unknown build flavor: {}".format(flavor))
+    flavor = os.environ.get("BUILDFLAVOR", "release")
 
+    if flavor == 'release':
+        import _scheduler as scheduler
+    elif flavor == 'debug':
+        import _scheduler_debug as scheduler
+    elif flavor == 'trinitydev':
+        import _scheduler_trinitydev as scheduler
+    elif flavor == 'internal':
+        import _scheduler_internal as scheduler
+    else:
+        scheduler = None
+        raise RuntimeError("Unknown build flavor: {}".format(flavor))
 
 class QueueChannel(scheduler.channel):
     """
