@@ -247,6 +247,8 @@ PyObject* Channel::receive()
 		//If current tasklet has block_trap set to true then throw runtime error
 		if( current->blocktrap() )
 		{
+			remove_tasklet_from_blocked( current );
+
 			PyErr_SetString( PyExc_RuntimeError, "Channel cannot block on main tasklet with block_trap set true" );
 
 			PyThread_release_lock( m_lock );

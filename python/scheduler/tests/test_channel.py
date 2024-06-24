@@ -733,3 +733,26 @@ class TestChannels(SchedulerTestCaseBase):
         self.assertTrue(t.alive)
         scheduler.run()
         self.assertFalse(t.alive)
+
+    def test_attempting_send_on_block_trapped_tasklet_does_not_change_balance(self):
+        channel = scheduler.channel()
+        old_block_trap = scheduler.getcurrent().block_trap
+        scheduler.getcurrent().block_trap = True
+        try:
+            with self.assertRaises(RuntimeError):
+                channel.send(1)
+        finally:
+            scheduler.getcurrent().block_trap = old_block_trap
+        self.assertEqual(channel.balance, 0)
+
+    def test_attempting_receive_on_block_trapped_tasklet_does_not_change_balance(self):
+        channel = scheduler.channel()
+        old_block_trap = scheduler.getcurrent().block_trap
+        scheduler.getcurrent().block_trap = True
+        try:
+            with self.assertRaises(RuntimeError):
+                channel.receive()
+        finally:
+            scheduler.getcurrent().block_trap = old_block_trap
+        self.assertEqual(channel.balance, 0)
+
