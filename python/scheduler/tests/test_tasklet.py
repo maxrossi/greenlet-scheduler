@@ -876,3 +876,15 @@ class TestTaskletExitException(test_utils.SchedulerTestCaseBase):
         self.assertEqual(self.getruncount(), 1)
 
         self.assertEqual(value[0], True)
+
+    def test_tasklet_cannot_accidentally_catch_taskletexit(self):
+        def task():
+            try:
+                scheduler.schedule()
+            except Exception:
+                self.fail("TaskletExit should not be inherit from Exception")
+
+        t = scheduler.tasklet(task)()
+        t.run()
+        t.kill()
+        self.assertFalse(t.alive)
