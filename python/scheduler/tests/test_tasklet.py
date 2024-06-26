@@ -882,7 +882,7 @@ class TestTaskletExitException(test_utils.SchedulerTestCaseBase):
             try:
                 scheduler.schedule()
             except Exception:
-                self.fail("TaskletExit should not be inherit from Exception")
+                self.fail("TaskletExit should not inherit from Exception")
 
         t = scheduler.tasklet(task)()
         t.run()
