@@ -365,6 +365,7 @@ static PyObject*
 
 void module_destructor( void* )
 {
+	Py_DECREF( ScheduleManager::s_schedule_manager_lock );
 }
 
 /*
@@ -1117,6 +1118,7 @@ PyMODINIT_FUNC
 
 	ScheduleManager::s_schedule_manager_type = &ScheduleManagerType;
 	ScheduleManager::s_tasklet_type = &TaskletType;
+	ScheduleManager::s_schedule_manager_lock = PyThread_allocate_lock();
 
     //Setup initial channel callback static
 	Channel::set_channel_callback(nullptr);

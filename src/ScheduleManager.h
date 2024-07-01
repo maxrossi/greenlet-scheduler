@@ -94,6 +94,8 @@ public:
 
     inline static PyTypeObject* s_schedule_manager_type;
 
+    inline static PyThread_type_lock s_schedule_manager_lock;
+
 private:
 
     PyObject* m_python_object;

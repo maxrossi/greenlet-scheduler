@@ -188,7 +188,7 @@ bool Tasklet::insert()
 
 	ScheduleManager* schedule_manager = ScheduleManager::get_scheduler();
 
-	schedule_manager->insert_tasklet( this );
+    schedule_manager->insert_tasklet( this );
 
     schedule_manager->decref();
 
@@ -250,7 +250,7 @@ bool Tasklet::switch_implementation()
 	{
 		schedule_manager->get_current_tasklet()->m_paused = true;
 
-		schedule_manager->insert_tasklet( this );
+        schedule_manager->insert_tasklet( this );
 
         if (!schedule_manager->run(this))
         {
@@ -322,7 +322,7 @@ bool Tasklet::switch_to( )
     if( PyThread_get_thread_ident() != m_thread_id)
 	{
 
-		schedule_manager->insert_tasklet( this );
+        schedule_manager->insert_tasklet( this );
 
         if ( !schedule_manager->yield() )
         {
@@ -533,7 +533,7 @@ bool Tasklet::run()
 		}
 		else
 		{
-			schedule_manager->insert_tasklet( this );
+            schedule_manager->insert_tasklet( this );
 
             bool ret = schedule_manager->run( this );
 
@@ -583,7 +583,7 @@ bool Tasklet::kill( bool pending /*=false*/ )
 	{
 		if( pending )
 		{
-			schedule_manager->insert_tasklet( this );
+            schedule_manager->insert_tasklet( this );
 
             m_kill_pending = true;
 
@@ -591,8 +591,9 @@ bool Tasklet::kill( bool pending /*=false*/ )
 
             if( blocked_store )
 			{
-				block_channel_store->remove_tasklet_from_blocked( this );
-				this->m_blocked_direction = 0;
+				block_channel_store->unblock_tasklet_from_channel( this );
+
+				set_blocked_direction( 0 );
 			}
 
             return true;
@@ -625,8 +626,8 @@ bool Tasklet::kill( bool pending /*=false*/ )
                 }
 			    
             }
-            
 
+	
 			bool result = run();
 
 			if( result )
@@ -677,7 +678,7 @@ void Tasklet::set_transfer_arguments( PyObject* args, PyObject* exception )
     //This should all change with the channel preference change
 	if(m_transfer_arguments != nullptr)
 	{
-        //TODO need to find a command to force switch thread context imediately
+        //TODO this needs to be converted to an assert
 		PySys_WriteStdout( "TRANSFER ARGS BROKEN %d\n", PyThread_get_thread_ident() );
     }
 
@@ -691,6 +692,11 @@ void Tasklet::set_transfer_arguments( PyObject* args, PyObject* exception )
 bool Tasklet::is_blocked() const
 {
 	return m_blocked;
+}
+
+bool Tasklet::is_on_channel_block_list() const
+{
+	return m_channel_blocked_on != nullptr || m_next_blocked != nullptr || m_previous_blocked != nullptr;
 }
 
 void Tasklet::block( Channel* channel )
@@ -821,7 +827,7 @@ bool Tasklet::throw_exception( PyObject* exception, PyObject* value, PyObject* t
 		{
 			if(m_alive)
 			{
-				schedule_manager->insert_tasklet( this );
+                schedule_manager->insert_tasklet( this );
             }
 			else
 			{

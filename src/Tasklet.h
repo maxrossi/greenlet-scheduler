@@ -68,6 +68,8 @@ public:
 
     bool is_blocked() const;
 
+    bool is_on_channel_block_list() const;
+
     void set_alive( bool value );
 
     bool alive() const;
@@ -194,6 +196,7 @@ private:
 
 	bool m_blocked;
 
+    // TODO should be handled as an enum rather than int
     int m_blocked_direction;
 
     bool m_has_started;

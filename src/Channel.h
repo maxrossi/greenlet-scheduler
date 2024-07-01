@@ -50,7 +50,7 @@ public:
 
     int balance() const;
 
-    void remove_tasklet_from_blocked( Tasklet* tasklet );
+    void unblock_tasklet_from_channel( Tasklet* tasklet );
 
     static PyObject* channel_callback();
 
@@ -75,8 +75,9 @@ public:
     static int num_active_channels();
 
     static int unblock_all_channels();
-
 private:
+
+    void remove_tasklet_from_blocked( Tasklet* tasklet );
 
     void increment_balance();
 

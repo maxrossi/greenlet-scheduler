@@ -756,3 +756,66 @@ class TestChannels(SchedulerTestCaseBase):
             scheduler.getcurrent().block_trap = old_block_trap
         self.assertEqual(channel.balance, 0)
 
+
+    def test_receive_on_channel_that_had_previously_been_blocked_and_continued_after_an_exception_is_raised_on_it(self):
+        
+        testValues = [101,202]
+
+        channel = scheduler.channel()
+
+        def receiver(c):
+            self.assertEqual(c.receive(),testValues[0])
+
+        def blocker(c):
+            try:
+                c.receive()
+            except:
+                pass
+
+            self.assertEqual(c.receive(),testValues[1])
+
+        t = scheduler.tasklet(blocker)(channel)
+
+        scheduler.tasklet(receiver)(channel)
+
+        scheduler.run()
+
+        t.raise_exception(RuntimeError)
+
+        self.assertEqual(channel.balance,-2)
+
+        channel.send(testValues[0])
+
+        channel.send(testValues[1])
+
+
+    def test_send_on_channel_that_had_previously_been_blocked_and_continued_after_an_exception_is_raised_on_it(self):
+        
+        testValues = [101,202]
+
+        channel = scheduler.channel()
+
+        def sender(c):
+            c.send(testValues[0])
+
+        def blocker(c):
+            try:
+                c.send(None)
+            except:
+                pass
+
+            c.send(testValues[1])
+
+        t = scheduler.tasklet(blocker)(channel)
+
+        scheduler.tasklet(sender)(channel)
+
+        scheduler.run()
+
+        t.raise_exception(RuntimeError)
+
+        self.assertEqual(channel.balance,2)
+
+        self.assertEqual(channel.receive(),testValues[0])
+
+        self.assertEqual(channel.receive(),testValues[1])

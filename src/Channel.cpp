@@ -74,9 +74,9 @@ bool Channel::send( PyObject* args, PyObject* exception /* = nullptr */)
 		{
 			PyErr_SetString( PyExc_RuntimeError, "No current tasklet set" );
 
-			PyThread_release_lock( m_lock );
-
             schedule_manager->decref();
+
+            PyThread_release_lock( m_lock );
 
 			return false;
 		}
@@ -86,9 +86,9 @@ bool Channel::send( PyObject* args, PyObject* exception /* = nullptr */)
 		{
 			PyErr_SetString( PyExc_RuntimeError, "Channel cannot block on main tasklet with block_trap set true" );
 
-			PyThread_release_lock( m_lock );
-
             schedule_manager->decref();
+
+            PyThread_release_lock( m_lock );
 
 			return false;
 		}
@@ -98,9 +98,9 @@ bool Channel::send( PyObject* args, PyObject* exception /* = nullptr */)
         {
 			PyErr_SetString( PyExc_ValueError, "Send/receive operation on a closed channel" );
 
-			PyThread_release_lock( m_lock );
-
 			schedule_manager->decref();
+
+            PyThread_release_lock( m_lock );
 
 			return false;
         }
@@ -117,9 +117,11 @@ bool Channel::send( PyObject* args, PyObject* exception /* = nullptr */)
          // Continue scheduler
 		if( !schedule_manager->yield() )
 		{
+			PyThread_acquire_lock( m_lock, 1 );
+
 			current->set_transfer_in_progress( false );
 
-            if (current->is_blocked())
+            if( current->is_on_channel_block_list() )
             {
 				current->unblock();
 
@@ -131,13 +133,15 @@ bool Channel::send( PyObject* args, PyObject* exception /* = nullptr */)
             
             schedule_manager->decref();
 
+            PyThread_release_lock( m_lock );
+
 			return false;
         }
 
 
         PyThread_acquire_lock( m_lock, 1 );
 
-	}
+    }
 
     Tasklet* receiving_tasklet = pop_next_tasklet_blocked_on_receive();
 
@@ -146,7 +150,7 @@ bool Channel::send( PyObject* args, PyObject* exception /* = nullptr */)
     // Store for retrieval from receiving tasklet
 	receiving_tasklet->set_transfer_arguments( args, exception );
 
-    PyThread_release_lock( m_lock );
+	PyThread_release_lock( m_lock );
 
     Tasklet* current_tasklet = schedule_manager->get_current_tasklet();
 
@@ -158,7 +162,7 @@ bool Channel::send( PyObject* args, PyObject* exception /* = nullptr */)
     }
 	
 
-    Py_DecRef( receiving_tasklet->python_object() );
+    receiving_tasklet->decref();
 
 	current->set_transfer_in_progress( false );
 
@@ -175,7 +179,7 @@ bool Channel::channel_switch(Tasklet* caller, Tasklet* other, int dir, int calle
     //if preference is opposit from direction, switch away from caller
 	if( ( -dir == m_preference && dir == caller_dir ) || (dir == m_preference && dir != caller_dir))
     {
-		schedule_manager->insert_tasklet( caller );
+        schedule_manager->insert_tasklet( caller );
         if (!other->switch_to())
         {
 			schedule_manager->decref();
@@ -188,7 +192,7 @@ bool Channel::channel_switch(Tasklet* caller, Tasklet* other, int dir, int calle
     {
 		if( m_preference == PREFER_NEITHER && -caller_dir == dir )
         {
-			schedule_manager->insert_tasklet( caller );
+            schedule_manager->insert_tasklet( caller );
             if (!other->switch_to())
             {
 				schedule_manager->decref();
@@ -204,7 +208,7 @@ bool Channel::channel_switch(Tasklet* caller, Tasklet* other, int dir, int calle
 			}
 			else
 			{
-				schedule_manager->insert_tasklet( other );
+                schedule_manager->insert_tasklet( other );
 			}
         }
     }
@@ -235,6 +239,8 @@ PyObject* Channel::receive()
 
         schedule_manager->decref();
 
+        PyThread_release_lock( m_lock );
+
 		return nullptr;
 	}
 
@@ -251,11 +257,11 @@ PyObject* Channel::receive()
 
 			PyErr_SetString( PyExc_RuntimeError, "Channel cannot block on main tasklet with block_trap set true" );
 
-			PyThread_release_lock( m_lock );
-
             schedule_manager->decref();
 
             current->decref();
+
+            PyThread_release_lock( m_lock );
 
 			return nullptr;
 		}
@@ -265,9 +271,9 @@ PyObject* Channel::receive()
 		{
 			PyErr_SetString( PyExc_ValueError, "Send/receive operation on a closed channel" );
 
-			PyThread_release_lock( m_lock );
-
 			schedule_manager->decref();
+
+            PyThread_release_lock( m_lock );
 
 			return nullptr;
 		}
@@ -280,7 +286,9 @@ PyObject* Channel::receive()
 		if( !schedule_manager->yield() )
 		// Will enter here if an exception has been thrown on a tasklet
 		{
-            if (current->is_blocked())
+			PyThread_acquire_lock( m_lock, 1 );
+
+            if( current->is_on_channel_block_list() )
             {
 				remove_tasklet_from_blocked( current );
             }
@@ -293,6 +301,8 @@ PyObject* Channel::receive()
 
             schedule_manager->decref();
 
+            PyThread_release_lock( m_lock );
+
 			return nullptr;
 		}
 	}
@@ -303,10 +313,10 @@ PyObject* Channel::receive()
 
 		sending_tasklet->unblock();
 
-        PyThread_release_lock( m_lock );
-
         Tasklet* current_tasklet = schedule_manager->get_current_tasklet();
 		
+        PyThread_release_lock( m_lock );
+
 		if(!sending_tasklet->switch_to())
 		{
 			current->decref();
@@ -323,7 +333,7 @@ PyObject* Channel::receive()
 			schedule_manager->set_current_tasklet( current_tasklet );
         }
 
-        Py_DecRef( sending_tasklet->python_object() );
+        sending_tasklet->decref();
 	}
 
     
@@ -364,6 +374,16 @@ PyObject* Channel::receive()
 int Channel::balance() const
 {
 	return m_balance;
+}
+
+void Channel::unblock_tasklet_from_channel( Tasklet* tasklet )
+{
+    // Public exposed remove_tasklet_from_blocked wrapped in lock for thread safety
+	PyThread_acquire_lock( m_lock, 1 );
+
+    remove_tasklet_from_blocked( tasklet );
+
+    PyThread_release_lock( m_lock );
 }
 
 void Channel::remove_tasklet_from_blocked( Tasklet* tasklet )
@@ -432,7 +452,7 @@ void Channel::remove_tasklet_from_blocked( Tasklet* tasklet )
     }
 
     tasklet->set_blocked_direction( 0 );
-
+    
 }
 
 void Channel::run_channel_callback( Channel* channel, Tasklet* tasklet, bool sending, bool will_block ) const
@@ -613,9 +633,13 @@ int Channel::unblock_all_channels()
 
 void Channel::close()
 {
+	PyThread_acquire_lock( m_lock, 1 );
+
 	m_closing = true;
 
     update_close_state();
+
+    PyThread_release_lock( m_lock );
 }
 
 void Channel::open()

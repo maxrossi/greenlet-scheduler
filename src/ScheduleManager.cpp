@@ -102,6 +102,8 @@ ScheduleManager* ScheduleManager::find_scheduler( long thread_id )
 // Returns a new schedule manager reference
 ScheduleManager* ScheduleManager::get_scheduler( long thread_id /* = -1*/ )
 {
+	PyThread_acquire_lock( s_schedule_manager_lock, 1 );
+
 	long scheduler_thread_id = thread_id;
 
     // If thread_id is less than 0 then use the current thread id
@@ -111,6 +113,8 @@ ScheduleManager* ScheduleManager::get_scheduler( long thread_id /* = -1*/ )
     }
 
     auto scheduler_find = s_schedulers.find( scheduler_thread_id );
+
+    ScheduleManager* ret = nullptr;
 
 	if( scheduler_find == s_schedulers.end() )
 	{
@@ -122,15 +126,19 @@ ScheduleManager* ScheduleManager::get_scheduler( long thread_id /* = -1*/ )
         // Store scheduler against thread id
 		s_schedulers[scheduler_thread_id] = thread_scheduler;
 
-        return thread_scheduler;
+        ret = thread_scheduler;
     }
     else
     {
         // Incref and return existing scheduler for the thread
 		scheduler_find->second->incref();
 
-		return scheduler_find->second;
+		ret = scheduler_find->second;
     }
+
+    PyThread_release_lock( s_schedule_manager_lock );
+
+    return ret;
 	
 }
 
@@ -181,7 +189,7 @@ void ScheduleManager::insert_tasklet( Tasklet* tasklet )
 
 		current_scheduler->m_previous_tasklet = tasklet;
 
-		tasklet->unblock();
+		tasklet->unblock();	// TODO should probably not be here and replaced with error path
 
 		tasklet->set_scheduled( true );
 
@@ -520,7 +528,7 @@ bool ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
 
         if( cleanup_current_tasklet )
 		{
-			Py_DecRef( current_tasklet->python_object() );
+			current_tasklet->decref();
         }
 		
 	}
