@@ -1028,7 +1028,7 @@ PyMODINIT_FUNC
 
 	//Exceptions
 	auto exit_exception_string = CONCATENATE_TO_STRING(_scheduler, CCP_BUILD_FLAVOR) + std::string(".TaskletExit");
-	TaskletExit = PyErr_NewException( exit_exception_string.c_str(), NULL, NULL );
+	TaskletExit = PyErr_NewException( exit_exception_string.c_str(), PyExc_SystemExit, nullptr );
 	Py_XINCREF( TaskletExit );
 	if( PyModule_AddObject( m, "TaskletExit", TaskletExit ) < 0 )
 	{
