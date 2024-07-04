@@ -283,15 +283,14 @@ bool ScheduleManager::yield()
 
 	if( ScheduleManager::get_main_tasklet() == ScheduleManager::get_current_tasklet() )
 	{
-		auto current = ScheduleManager::get_current_tasklet();
 
-		if (current->is_blocked() && current->next() == nullptr)
+		if( yielding_tasklet->is_blocked() && yielding_tasklet->next() == nullptr )
 		{
 			PyErr_SetString(PyExc_RuntimeError, "Deadlock: the last runnable tasklet cannot be blocked.");
 
 			return false;
 		}
-		else if( current->is_blocked())
+		else if( yielding_tasklet->is_blocked() )
         {
 			bool success = ScheduleManager::run();
 
@@ -302,7 +301,7 @@ bool ScheduleManager::yield()
             }
 
             // if the main tasklet is still blocked, then this is a deadlock
-            if (current->is_blocked())
+			if( yielding_tasklet->is_blocked() )
             {
 				PyErr_SetString( PyExc_RuntimeError, "Deadlock: the last runnable tasklet cannot be blocked." );
 
@@ -317,9 +316,7 @@ bool ScheduleManager::yield()
 	else
 	{
         //Switch to the parent tasklet - support for nested run and schedule calls
-		Tasklet* current_tasklet = ScheduleManager::get_current_tasklet();
-
-		Tasklet* parent_tasklet = current_tasklet->get_tasklet_parent();
+		Tasklet* parent_tasklet = yielding_tasklet->get_tasklet_parent();
 
         if (!parent_tasklet->switch_to())
 		{
