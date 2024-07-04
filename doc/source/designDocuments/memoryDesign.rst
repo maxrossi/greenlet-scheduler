@@ -1,9 +1,10 @@
 Memory Design
 =============
 
-This document outlines how memory reference counting is designed and show how the custom types interact on the memory level.
+This document outlines how memory reference counting is designed and explains how the custom types interact on the memory level.
 
 There are three custom types offered:
+
 1. :doc:`../pythonApi/scheduleManager`
 2. :doc:`../pythonApi/tasklet`
 3. :doc:`../pythonApi/channel`
@@ -17,9 +18,9 @@ The central component being the :doc:`../pythonApi/scheduleManager`.
 
 :doc:`../pythonApi/scheduleManager` objects are bound to a Python thread.
 
-To match `Stackless Python <https://stackless.readthedocs.io/en/3.8-slp/stackless-python.html>`_ :doc:`../pythonApi/scheduleManager` are created on demand per thread.
+To match `Stackless Python <https://stackless.readthedocs.io/en/3.8-slp/stackless-python.html>`_, :doc:`../pythonApi/scheduleManager` are created on demand per thread.
 
-Therefore if an oporation which requires a :doc:`../pythonApi/scheduleManager` is performed on a Python thread and one isn't already present, one will be created on demand.
+Therefore if an operation which requires a :doc:`../pythonApi/scheduleManager` is performed on a Python thread and one isn't already present, one will be created on demand.
 
 Each :doc:`../pythonApi/scheduleManager` requires its own :doc:`../pythonApi/tasklet`, this is commonly referred to as the Main :doc:`../pythonApi/tasklet`. (see :doc:`../guides/theMainTasklet`).
 
@@ -37,15 +38,18 @@ Tasklets (Non Main)
 
 Tasklets are also bound to a Python thread.
 
-when a :doc:`../pythonApi/tasklet` is created it stores a strong reference to the :doc:`../pythonApi/scheduleManager` of the same Python thread.
+when a :doc:`../pythonApi/tasklet` is created it stores a strong reference to the :doc:`../pythonApi/scheduleManager` of the same Python thread. This is only released when the :doc:`../pythonApi/tasklet` is destroyed.
 
-This is only released when the :doc:`../pythonApi/tasklet` is destroyed.
-
-This means that while a refernce to a :doc:`../pythonApi/tasklet` on a Python thread exists the :doc:`../pythonApi/scheduleManager` will be kept alive.
+This means that while a reference to a :doc:`../pythonApi/tasklet` on a Python thread exists the :doc:`../pythonApi/scheduleManager` will be kept alive.
 
 The :doc:`../pythonApi/tasklet` can even be outside the :doc:`../pythonApi/scheduleManager` for example after a :py:func:`scheduler.tasklet.schedule_remove`.
 
 Once all Tasklets in a thread and all manual references to :doc:`../pythonApi/scheduleManager` are destroyed then the :doc:`../pythonApi/scheduleManager` will automatically clean up.
+
+Tasklets hold a strong reference to their parent. The parent is the :doc:`../pythonApi/tasklet` that started it. Multiple nesting levels are possible. When a :doc:`../pythonApi/tasklet` yields it yields to its parent. By keeping a strong reference to its parent it ensures that this yield location remains valid even if the parent :doc:`../pythonApi/tasklet` has finished.
+
+For more information on :doc:`../pythonApi/tasklet` nesting see :py:func:`scheduler.tasklet.run` and :doc:`../guides/understandingTaskletScheduleOrder`.
+
 
 
 Channels
@@ -55,7 +59,7 @@ All reference to channels are managed by the user.
 
 Channels hold a store of Tasklets that are 'blocked' on them (see :doc:`../guides/sendingDataBetweenTaskletsUsingChannels`).
 
-When a :doc:`../pythonApi/tasklet` is 'blocked' on a :doc:`../pythonApi/channel` the :doc:`../pythonApi/channel` will hold a strong reference to it to keep it alive.
+When a :doc:`../pythonApi/tasklet` is 'blocked' on a :doc:`../pythonApi/channel`, the :doc:`../pythonApi/channel` will hold a strong reference to it to keep it alive.
 
 If a :doc:`../pythonApi/tasklet` is 'unblocked' due to a completed data transfer the strong reference is removed.
 
@@ -63,7 +67,7 @@ If a :doc:`../pythonApi/tasklet` is 'unblocked' due to a completed data transfer
 Greenlet and References
 -----------------------
 
-When a Tasklet has yielded before completing Greenlet will hold references to objects related to the call currently yielded on. Arguments passed to the callable will also only be released on the :doc:`../pythonApi/tasklet` completing.
+When a Tasklet has yielded before completing, Greenlet will hold references to objects related to the call currently yielded on. Arguments passed to the callable will also only be released on the :doc:`../pythonApi/tasklet` completing.
 
 
 Loosing a reference to a objects until module teardown

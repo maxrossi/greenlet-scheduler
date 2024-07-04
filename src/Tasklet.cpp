@@ -53,6 +53,12 @@ Tasklet::~Tasklet()
 		m_schedule_manager->decref(); // Decref tasklets usage
 	}
 
+    // Clearing parent releases a strong reference to it held by the child
+    // This is usually set to null by schedule manager but if it was last on a channel
+    // then it needs clearing at this stage.
+    // TODO when channel switching is done using the scheduler queue this can change.
+    set_parent( nullptr );
+
 	Py_XDECREF( m_callable );
 
 	Py_XDECREF( m_arguments );
@@ -940,16 +946,30 @@ Tasklet* Tasklet::get_tasklet_parent()
 
 int Tasklet::set_parent( Tasklet* parent )
 {
-	int errCode = PyGreenlet_SetParent( this->m_greenlet, parent->m_greenlet );
+	int ret = 0;
 
-    if (errCode == -1)
+	if( parent )
+	{
+		parent->incref();
+
+	    ret = PyGreenlet_SetParent( this->m_greenlet, parent->m_greenlet );
+
+
+	    if( ret == -1 )
+	    {
+		    return ret;
+	    }
+
+    }
+
+    if (m_tasklet_parent)
     {
-		return errCode;
+		m_tasklet_parent->decref();
     }
 
 	m_tasklet_parent = parent;
 
-    return errCode;
+    return ret;
 }
 
 void Tasklet::clear_parent()
