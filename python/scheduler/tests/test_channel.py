@@ -819,3 +819,33 @@ class TestChannels(SchedulerTestCaseBase):
         self.assertEqual(channel.receive(),testValues[0])
 
         self.assertEqual(channel.receive(),testValues[1])
+
+    def test_greenlet_switching_to_blocked_channel(self):
+        channel = scheduler.channel()
+
+        r = []
+
+        def otherBlocker(c):
+            r.append(c.receive())
+
+        def blocker(c):
+            for i in range(10):
+                t = scheduler.tasklet(otherBlocker)(c)
+                t.run()
+
+            r.append(c.receive())
+            
+        t = scheduler.tasklet(blocker)(channel)
+        t.run()
+
+        self.assertEqual(channel.balance, -11)
+
+        for i in range(10):
+            channel.send(i)
+
+        self.assertEqual(channel.balance, -1)
+
+        channel.send(10)
+
+        self.assertEqual(channel.balance, 0)
+        self.assertEqual(r, [0,1,2,3,4,5,6,7,8,9,10])
