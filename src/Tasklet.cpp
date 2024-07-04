@@ -458,6 +458,11 @@ void Tasklet::clear_exception()
     }
 }
 
+bool Tasklet::is_current_tasklet()
+{
+	return PyGreenlet_GetCurrent() == m_greenlet;
+}
+
 void Tasklet::set_exception_state( PyObject* exception, PyObject* arguments /* = Py_None */)
 {
 	clear_exception();
