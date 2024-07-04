@@ -13,7 +13,8 @@ else:
     raise RuntimeError("Unknown build flavor: {}".format(flavor))
 
 import sys
-from test_utils import SchedulerTestCaseBase, block_trap
+from schedulerext import block_trap
+from test_utils import SchedulerTestCaseBase
 
 
 class TestChannels(SchedulerTestCaseBase):
