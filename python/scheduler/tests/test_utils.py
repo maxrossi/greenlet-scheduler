@@ -2,7 +2,6 @@ import unittest
 import sys
 import os
 import gc
-import contextlib
 
 flavor = os.environ.get("BUILDFLAVOR", "release")
 if flavor == 'release':
@@ -70,13 +69,4 @@ class SchedulerTestCaseBase(unittest.TestCase):
 
         return runCount
 
-@contextlib.contextmanager
-def block_trap(trap=True):
-    c = scheduler.getcurrent()
-    old = c.block_trap
-    c.block_trap = trap
 
-    try:
-        yield
-    finally:
-        c.block_trap = old
