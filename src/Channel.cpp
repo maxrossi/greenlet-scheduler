@@ -342,16 +342,26 @@ PyObject* Channel::receive()
 
 	if( transfer_exception )
 	{	
-		PyObject* arguments = current->get_transfer_arguments();
-		
-		current->clear_transfer_arguments();
-        
-        PyErr_SetObject( transfer_exception, arguments );
+        PyObject* arguments = current->get_transfer_arguments();
 
-        Py_DecRef( transfer_exception );
+        // If arguments are Py_None, then we want to set the exception as it is, as it came from send_throw
+        if (arguments == Py_None)
+        {
+            // PyErr_SetRaisedException steals the reference, so no need to decref
+			PyErr_SetRaisedException( transfer_exception );
+        }
+        else
+        {
+			PyErr_SetObject( transfer_exception, arguments );
+
+			Py_DecRef( transfer_exception );
+
+        }
 
         Py_DecRef( arguments );
-         
+
+        current->clear_transfer_arguments();
+
 		current->set_transfer_in_progress( false );
         
         schedule_manager->decref();

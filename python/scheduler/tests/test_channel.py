@@ -349,11 +349,11 @@ class TestChannels(SchedulerTestCaseBase):
         try:
             channel.receive()
         except ValueError:
-            exc, val, _ = sys.exc_info()
-            self.assertEqual(val.args[0].args, (1, 2, 3))
+            _, val, tb = sys.exc_info()
+            self.assertEqual(val.args, (1, 2, 3))
 
             # Check that the traceback is correct
-            l = traceback.extract_tb(val.args[1])
+            l = traceback.extract_tb(tb)
             self.assertEqual(l[-1][2], "bar")
 
     def testBlockingReceiveOnMainTasklet(self):

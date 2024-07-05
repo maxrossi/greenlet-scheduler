@@ -346,32 +346,28 @@ static PyObject*
 		return nullptr;
 	}
 
+    /*
+    * We are keeping this check around only to adhere to the previous stackless implementation
+    * We only rely on the value here, not exception or the tb (traceback) object
+    */
 	if( !PyExceptionClass_Check( exception ) && !PyObject_IsInstance( exception, PyExc_Exception ) )
 	{
 		PyErr_SetString( PyExc_TypeError, "Channel.send_throw() argument 'exc' (pos 1) must be an Exception type or instance" );
 		return nullptr;
 	}
 
-    Py_IncRef( exception );
-
 	Py_IncRef( value );
 
-	Py_IncRef( tb );
+    Py_INCREF( Py_None );
 
-    PyObject* exception_arguments = PyTuple_New(2);
-
-    PyTuple_SetItem( exception_arguments, 0, value );
-
-	PyTuple_SetItem( exception_arguments, 1, tb );
-	
-    if( !self->m_impl->send( exception_arguments, exception ) )
+    if( !self->m_impl->send( Py_None, value ) )
 	{
-		Py_DecRef( exception_arguments );
+		Py_DECREF( Py_None );
 
 		return NULL;
 	}
     
-    Py_DecRef( exception_arguments );
+	Py_DecRef( value );
 
     Py_IncRef( Py_None );
 
