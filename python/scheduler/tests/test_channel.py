@@ -13,7 +13,8 @@ else:
     raise RuntimeError("Unknown build flavor: {}".format(flavor))
 
 import sys
-from test_utils import SchedulerTestCaseBase, block_trap
+from schedulerext import block_trap
+from test_utils import SchedulerTestCaseBase
 
 
 class TestChannels(SchedulerTestCaseBase):
@@ -849,3 +850,28 @@ class TestChannels(SchedulerTestCaseBase):
 
         self.assertEqual(channel.balance, 0)
         self.assertEqual(r, [0,1,2,3,4,5,6,7,8,9,10])
+
+    def test_nested_channel_with_parent_death_running_fine_and_cleaning_up_correctly(self):
+        # If a tasklets parent is dead and then a tasklet attempts to yield to it everything should be fine
+        # At end of test everything should clean away
+        # This test is a possible segfault test (not reliable but should never happen) and a test of the teardown being 100%
+        def n2(chan):
+            chan.receive()
+            chan.receive()
+
+        def n1(chan):
+            t = scheduler.tasklet(n2)(chan)
+            t.run()
+
+        channel = scheduler.channel()
+
+        scheduler.tasklet(n1)(channel)
+
+        scheduler.run()
+
+        # Complete first transfer in n2
+        channel.send(None)
+
+        # Complete second transfer in n2
+        channel.send(None)
+

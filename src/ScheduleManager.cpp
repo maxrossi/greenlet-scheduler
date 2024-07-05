@@ -528,6 +528,8 @@ bool ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
 
 				if( remove_tasklet( current_tasklet ) )
 				{
+					current_tasklet->set_parent( nullptr );
+
 					current_tasklet->decref();
 				}
 			}
@@ -543,6 +545,12 @@ bool ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
 		{
 			run_complete = true;
 		}
+
+        // Same needs to happen in fail case
+        if (!current_tasklet->alive())
+        {
+			current_tasklet->set_parent( nullptr );
+        }
 
         if( cleanup_current_tasklet )
 		{

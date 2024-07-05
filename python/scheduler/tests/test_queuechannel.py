@@ -1,8 +1,8 @@
-from schedulerext import QueueChannel
+from schedulerext import QueueChannel, block_trap
 
 import os
 import sys
-from test_utils import SchedulerTestCaseBase, block_trap
+from test_utils import SchedulerTestCaseBase
 
 flavor = os.environ.get("BUILDFLAVOR", "release")
 if flavor == 'release':
