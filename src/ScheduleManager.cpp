@@ -279,17 +279,18 @@ int ScheduleManager::calculate_tasklet_count()
 // Returns false if exception has been raised on tasklet
 bool ScheduleManager::yield()
 {
+	Tasklet* yielding_tasklet = ScheduleManager::get_current_tasklet();
+
 	if( ScheduleManager::get_main_tasklet() == ScheduleManager::get_current_tasklet() )
 	{
-		auto current = ScheduleManager::get_current_tasklet();
 
-		if (current->is_blocked() && current->next() == nullptr)
+		if( yielding_tasklet->is_blocked() && yielding_tasklet->next() == nullptr )
 		{
 			PyErr_SetString(PyExc_RuntimeError, "Deadlock: the last runnable tasklet cannot be blocked.");
 
 			return false;
 		}
-		else if( current->is_blocked())
+		else if( yielding_tasklet->is_blocked() )
         {
 			bool success = ScheduleManager::run();
 
@@ -300,7 +301,7 @@ bool ScheduleManager::yield()
             }
 
             // if the main tasklet is still blocked, then this is a deadlock
-            if (current->is_blocked())
+			if( yielding_tasklet->is_blocked() )
             {
 				PyErr_SetString( PyExc_RuntimeError, "Deadlock: the last runnable tasklet cannot be blocked." );
 
@@ -315,15 +316,32 @@ bool ScheduleManager::yield()
 	else
 	{
         //Switch to the parent tasklet - support for nested run and schedule calls
-		Tasklet* current_tasklet = ScheduleManager::get_current_tasklet();
-
-		Tasklet* parent_tasklet = current_tasklet->get_tasklet_parent();
+		Tasklet* parent_tasklet = yielding_tasklet->get_tasklet_parent();
 
         if (!parent_tasklet->switch_to())
 		{
 			return false;
 		}
+		
 	}
+
+    // Exit guard. if this tasklet re-enters without being unblocked from a channel operation, 
+    // we need to find a parent tasklet to switch_to().
+    // In theory this can happen multiple times (with multiple children, hence the while loop, not an if statement
+    while (yielding_tasklet->is_blocked())
+    {
+		auto parent_tasklet = yielding_tasklet->get_tasklet_parent();
+		while( parent_tasklet->is_blocked() && !parent_tasklet->is_main() )
+		{
+			parent_tasklet = parent_tasklet->get_tasklet_parent();
+        }
+
+        parent_tasklet->switch_to();
+    }
+
+    // In situations where a child tasklet ended and switched back up to this, 
+    // current_tasklet will be wrong and needs to be set here
+    ScheduleManager::set_current_tasklet( yielding_tasklet );
 
 	return true;
 }
