@@ -357,18 +357,22 @@ static PyObject*
 	}
 
 	Py_IncRef( value );
+	Py_IncRef( tb );
+	Py_IncRef( exception );
 
     Py_INCREF( Py_None );
 
-    if( !self->m_impl->send( Py_None, value ) )
-	{
-		Py_DECREF( Py_None );
+    auto exceptionDataTuple = PyTuple_New( 3 );
+	PyTuple_SetItem( exceptionDataTuple, 0, exception );
+	PyTuple_SetItem( exceptionDataTuple, 1, value );
+	PyTuple_SetItem( exceptionDataTuple, 2, tb );
 
+    if( !self->m_impl->send( Py_None, exceptionDataTuple ) )
+	{
+		Py_DecRef( exceptionDataTuple );
 		return NULL;
 	}
     
-	Py_DecRef( value );
-
     Py_IncRef( Py_None );
 
 	return Py_None;
