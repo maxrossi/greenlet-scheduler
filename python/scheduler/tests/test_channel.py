@@ -320,6 +320,41 @@ class TestChannels(SchedulerTestCaseBase):
         except ValueError as e:
             self.assertEqual(e.args, (1, 2, 3))
 
+    def testSendThrowPrefenceSend(self):
+        import traceback
+
+        channel = scheduler.channel()
+        channel.preference = 1
+
+        run = [False]
+
+        def bar():
+            raise ValueError(1, 2, 3)
+
+        def blocker(c):
+            try:
+                c.receive()
+            except ValueError:
+                _, val, tb = sys.exc_info()
+                self.assertEqual(val.args, (1, 2, 3))
+
+                # Check that the traceback is correct
+                l = traceback.extract_tb(tb)
+                self.assertEqual(l[-1][2], "bar")
+                run[0] = True
+            
+        t = scheduler.tasklet(blocker)(channel)
+        t.run()
+
+        try:
+            bar()
+        except:
+            channel.send_throw(*sys.exc_info())
+
+        scheduler.run()
+
+        self.assertTrue(run[0])
+
     def testSendThrow(self):
         import traceback
 
@@ -336,6 +371,7 @@ class TestChannels(SchedulerTestCaseBase):
 
         # Get the tasklet blocked on the channel.
         channel = scheduler.channel()
+        channel.preference = -1
         tasklet = scheduler.tasklet(f)(channel)
         self.assertEqual(self.getruncount(), 2)
         tasklet.run()
