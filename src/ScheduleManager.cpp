@@ -322,26 +322,7 @@ bool ScheduleManager::yield()
 		{
 			return false;
 		}
-		
 	}
-
-    // Exit guard. if this tasklet re-enters without being unblocked from a channel operation, 
-    // we need to find a parent tasklet to switch_to().
-    // In theory this can happen multiple times (with multiple children, hence the while loop, not an if statement
-    while (yielding_tasklet->is_blocked())
-    {
-		auto parent_tasklet = yielding_tasklet->get_tasklet_parent();
-		while( parent_tasklet->is_blocked() && !parent_tasklet->is_main() )
-		{
-			parent_tasklet = parent_tasklet->get_tasklet_parent();
-        }
-
-        parent_tasklet->switch_to();
-    }
-
-    // In situations where a child tasklet ended and switched back up to this, 
-    // current_tasklet will be wrong and needs to be set here
-    ScheduleManager::set_current_tasklet( yielding_tasklet );
 
 	return true;
 }
