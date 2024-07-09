@@ -485,7 +485,7 @@ static PyMethodDef Channel_methods[] = {
 	{ "send_throw",
         (PyCFunction)Channel_sendThrow,
         METH_VARARGS | METH_KEYWORDS,
-        "Send an exception over the channel. \n\n\
+        "Send an exception over the channel. This function is deprecated! Please use send_exception instead. \n\n\
             :param exc: Python exception \n\
             :type exc: sub-class of Python exception \n\
             :param val: Value to apply to exception \n\
