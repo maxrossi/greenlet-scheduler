@@ -881,3 +881,18 @@ class TestChannels(SchedulerTestCaseBase):
         # Complete second transfer in n2
         channel.send(None)
 
+
+    def test_blocked_tasklet_next_is_none(self):
+
+        def foo(c):
+            c.receive()
+
+        channel = scheduler.channel()
+
+        t = scheduler.tasklet(foo)(channel)
+        scheduler.tasklet(foo)(channel)
+        scheduler.run()
+        self.assertEqual(t.next, None)
+
+        channel.send(None)
+        channel.send(None)
