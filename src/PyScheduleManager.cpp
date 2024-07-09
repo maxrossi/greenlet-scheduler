@@ -1,11 +1,11 @@
 #include "ScheduleManager.h"
 
-#include "PyScheduleManager.h"
-
 #include <new>
 
+#include "PyScheduleManager.h"
+
 static PyObject*
-	ScheduleManager_new( PyTypeObject* type, PyObject* args, PyObject* kwds )
+	ScheduleManagerNew( PyTypeObject* type, PyObject* args, PyObject* kwds )
 {
 	PyScheduleManagerObject* self;
 
@@ -13,22 +13,22 @@ static PyObject*
 
 	if( self != nullptr )
 	{
-		self->m_impl = nullptr;
+		self->m_implementation = nullptr;
 
-		self->m_weakref_list = nullptr;
+		self->m_weakrefList = nullptr;
 	}
 
 	return (PyObject*)self;
 }
 
 static int
-	ScheduleManager_init( PyScheduleManagerObject* self, PyObject* args, PyObject* kwds )
+	ScheduleManagerInit( PyScheduleManagerObject* self, PyObject* args, PyObject* kwds )
 {
 
 	// Allocate the memory for the implementation member
-	self->m_impl = (ScheduleManager*)PyObject_Malloc( sizeof( ScheduleManager ) );
+	self->m_implementation = (ScheduleManager*)PyObject_Malloc( sizeof( ScheduleManager ) );
 
-	if( !self->m_impl )
+	if( !self->m_implementation )
 	{
 		PyErr_SetString( PyExc_RuntimeError, "Failed to allocate memory for implementation object." );
 
@@ -38,11 +38,11 @@ static int
     // Call constructor
 	try
 	{
-		new( self->m_impl ) ScheduleManager( reinterpret_cast<PyObject*>( self ) );
+		new( self->m_implementation ) ScheduleManager( reinterpret_cast<PyObject*>( self ) );
 	}
 	catch( const std::exception& ex )
 	{
-		PyObject_Free( self->m_impl );
+		PyObject_Free( self->m_implementation );
 
 		PyErr_SetString( PyExc_RuntimeError, ex.what() );
 
@@ -50,7 +50,7 @@ static int
 	}
 	catch( ... )
 	{
-		PyObject_Free( self->m_impl );
+		PyObject_Free( self->m_implementation );
 
 		PyErr_SetString( PyExc_RuntimeError, "Failed to construct implementation object." );
 
@@ -63,16 +63,16 @@ static int
 static void
 	ScheduleManager_dealloc( PyScheduleManagerObject* self )
 {
-	if( self->m_impl )
+	if( self->m_implementation )
 	{
 		// Call destructor
-		self->m_impl->~ScheduleManager();
+		self->m_implementation->~ScheduleManager();
 
-		PyObject_Free( self->m_impl );
+		PyObject_Free( self->m_implementation );
 	}
     
     // Handle weakrefs
-	if( self->m_weakref_list != nullptr )
+	if( self->m_weakrefList != nullptr )
 	{
 		PyObject_ClearWeakRefs( (PyObject*)self );
 	}
@@ -111,7 +111,7 @@ static PyTypeObject ScheduleManagerType = {
 	0, /*tp_traverse*/
 	0, /*tp_clear*/
 	0, /*tp_richcompare*/
-	offsetof( PyScheduleManagerObject, m_weakref_list ), /*tp_weaklistoffset*/
+	offsetof( PyScheduleManagerObject, m_weakrefList ), /*tp_weaklistoffset*/
 	0, /*tp_iter*/
 	0, /*tp_iternext*/
 	ScheduleManager_methods, /*tp_methods*/
@@ -123,9 +123,9 @@ static PyTypeObject ScheduleManagerType = {
 	0, /*tp_descr_get*/
 	0, /*tp_descr_set*/
 	0, /*tp_dictoffset*/
-	(initproc)ScheduleManager_init, /*tp_init*/
+	(initproc)ScheduleManagerInit, /*tp_init*/
 	0, /*tp_alloc*/
-	ScheduleManager_new, /*tp_new*/
+	ScheduleManagerNew, /*tp_new*/
 	0, /*tp_free*/
 	0, /*tp_is_gc*/
 };

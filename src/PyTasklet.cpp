@@ -1,16 +1,15 @@
 #include "Tasklet.h"
 
-#include "ScheduleManager.h"
-
-#include "PyTasklet.h"
-
 #include <new>
+
+#include "ScheduleManager.h"
+#include "PyTasklet.h"
 
 static PyObject* TaskletExit;
 
 
 static PyObject*
-	Tasklet_new( PyTypeObject* type, PyObject* args, PyObject* kwds )
+	TaskletNew( PyTypeObject* type, PyObject* args, PyObject* kwds )
 {
 	PyTaskletObject* self;
 
@@ -18,36 +17,36 @@ static PyObject*
 
 	if( self != nullptr )
 	{
-		self->m_impl = nullptr;
+		self->m_implementation = nullptr;
 
-        self->m_weakref_list = nullptr;
+        self->m_weakrefList = nullptr;
 	}
 
 	return (PyObject*)self;
 }
 
 static PyObject*
-	Tasklet_bind( PyTaskletObject* self, PyObject* args, PyObject* kwds )
+	TaskletBind( PyTaskletObject* self, PyObject* args, PyObject* kwds )
 {
 
 	PyObject* callable = nullptr;
-	PyObject* bind_args = nullptr;
-	PyObject* bind_kw_args = nullptr;
+	PyObject* bindArgs = nullptr;
+	PyObject* bindKwArgs = nullptr;
 
-	bool args_supplied = false;
-	bool kwargs_supplied = false;
+	bool argsSupplied = false;
+	bool kwArgsSupplied = false;
 
 	const char* keywords[] = { "callable", "args", "kwargs", NULL };
 
-	if( PyArg_ParseTupleAndKeywords( args, kwds, "|OOO:bind", (char**)keywords, &callable, &bind_args, &bind_kw_args ) )
+	if( PyArg_ParseTupleAndKeywords( args, kwds, "|OOO:bind", (char**)keywords, &callable, &bindArgs, &bindKwArgs ) )
 	{
-		if( callable == Py_None && ( bind_args == nullptr && bind_kw_args == nullptr ) )
+		if( callable == Py_None && ( bindArgs == nullptr && bindKwArgs == nullptr ) )
 		{
-			ScheduleManager* schedule_manager = ScheduleManager::get_scheduler();
+			ScheduleManager* scheduleManager = ScheduleManager::GetScheduler();
 
-			auto current = reinterpret_cast<PyTaskletObject*>( schedule_manager->get_current_tasklet()->python_object() );
+			auto current = reinterpret_cast<PyTaskletObject*>( scheduleManager->GetCurrentTasklet()->PythonObject() );
 
-            schedule_manager->decref();
+            scheduleManager->Decref();
 
 			if( self == current )
 			{
@@ -55,22 +54,22 @@ static PyObject*
 				return nullptr;
 			}
 
-			if( self->m_impl->scheduled() )
+			if( self->m_implementation->IsScheduled() )
 			{
 				PyErr_SetString( PyExc_RuntimeError, "cannot unbind scheduled tasklet" );
 				return nullptr;
 			}
 
             // Clear callable
-			self->m_impl->set_callable( nullptr );
+			self->m_implementation->SetCallable( nullptr );
 
             // Clear arguments
-            self->m_impl->set_arguments( nullptr );
+			self->m_implementation->SetArguments( nullptr );
 
             // Clear greenlet
-            self->m_impl->uninitialise();
+			self->m_implementation->Uninitialise();
 
-            self->m_impl->set_alive( false );
+            self->m_implementation->SetAlive( false );
 
 			Py_IncRef( Py_None );
 
@@ -87,15 +86,15 @@ static PyObject*
 	    {
 		    Py_INCREF( callable );
 		    // Call constructor
-			self->m_impl->set_callable( callable );
+			self->m_implementation->SetCallable( callable );
 	    }
 
-		if( bind_args != nullptr )
+		if( bindArgs != nullptr )
 		{
-			if( bind_args == Py_None )
+			if( bindArgs == Py_None )
 			{
-				bind_args = Py_BuildValue( "()" );
-				if( bind_args == nullptr )
+				bindArgs = Py_BuildValue( "()" );
+				if( bindArgs == nullptr )
 				{
 					PyErr_SetString( PyExc_TypeError, "internal error: Could not build empty tuple in place of PyNone for bind args" );
 					return nullptr;
@@ -103,25 +102,25 @@ static PyObject*
 			}
 			else
 			{
-				Py_INCREF( bind_args );
+				Py_INCREF( bindArgs );
 			}
 
-			self->m_impl->set_arguments( bind_args );
-			args_supplied = true;
+			self->m_implementation->SetArguments( bindArgs );
+			argsSupplied = true;
 		}
 
-		if( bind_kw_args != nullptr )
+		if( bindKwArgs != nullptr )
 		{
-			Py_INCREF( bind_kw_args );
-			self->m_impl->set_kw_arguments( bind_kw_args );
-			kwargs_supplied = true;
+			Py_INCREF( bindKwArgs );
+			self->m_implementation->SetKwArguments( bindKwArgs );
+			kwArgsSupplied = true;
 		}
 
 
-		if( args_supplied || kwargs_supplied )
+		if( argsSupplied || kwArgsSupplied )
 		{
-			self->m_impl->initialise();
-			self->m_impl->set_alive( true );
+			self->m_implementation->Initialise();
+			self->m_implementation->SetAlive( true );
 		}
 
 		Py_IncRef(Py_None);
@@ -133,13 +132,13 @@ static PyObject*
 }
 
 static int
-	Tasklet_init( PyTypeObject* self, PyObject* args, PyObject* kwds )
+	TaskletInit( PyTypeObject* self, PyObject* args, PyObject* kwds )
 {
-	PyTaskletObject* tasklet_object = reinterpret_cast<PyTaskletObject*>( self );
+	PyTaskletObject* taskletObject = reinterpret_cast<PyTaskletObject*>( self );
 
-	tasklet_object->m_impl = (Tasklet*)PyObject_Malloc( sizeof( Tasklet ) );
+	taskletObject->m_implementation = (Tasklet*)PyObject_Malloc( sizeof( Tasklet ) );
 
-	if( !tasklet_object->m_impl )
+	if( !taskletObject->m_implementation )
 	{
 		PyErr_SetString( PyExc_RuntimeError, "Failed to allocate memory for implementation object." );
 
@@ -147,9 +146,9 @@ static int
 	}
 
     PyObject* callable = nullptr;
-	bool is_main = false;
+	bool isMain = false;
 
-    if( !PyArg_ParseTuple( args, "|Op", &callable, &is_main ) )
+    if( !PyArg_ParseTuple( args, "|Op", &callable, &isMain ) )
 	{
 		PyErr_SetString( PyExc_RuntimeError, "Failed while parsing arguments" );
 
@@ -158,11 +157,11 @@ static int
 
     try
 	{
-		new( tasklet_object->m_impl ) Tasklet( reinterpret_cast<PyObject*>( self ), TaskletExit, is_main );
+		new( taskletObject->m_implementation ) Tasklet( reinterpret_cast<PyObject*>( self ), TaskletExit, isMain );
 	}
 	catch( const std::exception& ex )
 	{
-		PyObject_Free( tasklet_object->m_impl );
+		PyObject_Free( taskletObject->m_implementation );
 
 		PyErr_SetString( PyExc_RuntimeError, ex.what() );
 
@@ -170,7 +169,7 @@ static int
 	}
 	catch( ... )
 	{
-		PyObject_Free( tasklet_object->m_impl );
+		PyObject_Free( taskletObject->m_implementation );
 
 		PyErr_SetString( PyExc_RuntimeError, "Failed to construct implementation object." );
 
@@ -179,9 +178,9 @@ static int
 
     // Don't pass args if this is main tasklet
 
-    if (!is_main)
+    if (!isMain)
     {
-        if( Tasklet_bind( tasklet_object, args, kwds ) == nullptr )
+        if( TaskletBind( taskletObject, args, kwds ) == nullptr )
         {
 		    Py_DecRef( args );
 		    return -1;
@@ -192,18 +191,18 @@ static int
 }
 
 static void
-	Tasklet_dealloc( PyTaskletObject* self )
+	TaskletDealloc( PyTaskletObject* self )
 {
     // Call destructor
-    if (self->m_impl)
+	if( self->m_implementation )
     {
-		self->m_impl->~Tasklet();
+		self->m_implementation->~Tasklet();
 
-		PyObject_Free( self->m_impl );
+		PyObject_Free( self->m_implementation );
     }
 	
     // Handle weakrefs
-	if( self->m_weakref_list != nullptr )
+	if( self->m_weakrefList != nullptr )
 	{
 		PyObject_ClearWeakRefs( (PyObject*)self );
 	}
@@ -211,9 +210,9 @@ static void
 	Py_TYPE( self )->tp_free( (PyObject*)self );
 }
 
-static bool PyTaskletObject_is_valid( PyTaskletObject* tasklet )
+static bool PyTaskletObjectIsValid( PyTaskletObject* tasklet )
 {
-    if (!tasklet->m_impl)
+	if( !tasklet->m_implementation )
     {
 		PyErr_SetString( PyExc_RuntimeError, "Tasklet object is not valid. Most likely cause being __init__ not called on base type." );
 
@@ -224,58 +223,58 @@ static bool PyTaskletObject_is_valid( PyTaskletObject* tasklet )
 }
 
 static PyObject*
-	Tasklet_alive_get( PyTaskletObject* self, void* closure )
+	TaskletAliveGet( PyTaskletObject* self, void* closure )
 {
     // Ensure PyTaskletObject is in a valid state
-    if (!PyTaskletObject_is_valid(self))
+    if (!PyTaskletObjectIsValid(self))
     {
 		return nullptr;
     }
 
-	return self->m_impl->alive() ? Py_True : Py_False; 
+	return self->m_implementation->IsAlive() ? Py_True : Py_False;
 }
 
 static PyObject*
-	Tasklet_blocked_get( PyTaskletObject* self, void* closure )
+	TaskletBlockedGet( PyTaskletObject* self, void* closure )
 {
 	// Ensure PyTaskletObject is in a valid state
-	if( !PyTaskletObject_is_valid( self ) )
+	if( !PyTaskletObjectIsValid( self ) )
 	{
 		return nullptr;
 	}
 
-	return self->m_impl->is_blocked() ? Py_True : Py_False;
+	return self->m_implementation->IsBlocked() ? Py_True : Py_False;
 }
 
 static PyObject*
-	Tasklet_scheduled_get( PyTaskletObject* self, void* closure )
+	TaskletScheduledGet( PyTaskletObject* self, void* closure )
 {
 	// Ensure PyTaskletObject is in a valid state
-	if( !PyTaskletObject_is_valid( self ) )
+	if( !PyTaskletObjectIsValid( self ) )
 	{
 		return nullptr;
 	}
 
-	return self->m_impl->scheduled() ? Py_True : Py_False;
+	return self->m_implementation->IsScheduled() ? Py_True : Py_False;
 }
 
 static PyObject*
-	Tasklet_blocktrap_get( PyTaskletObject* self, void* closure )
+	TaskletBlocktrapGet( PyTaskletObject* self, void* closure )
 {
 	// Ensure PyTaskletObject is in a valid state
-	if( !PyTaskletObject_is_valid( self ) )
+	if( !PyTaskletObjectIsValid( self ) )
 	{
 		return nullptr;
 	}
 
-	return self->m_impl->blocktrap() ? Py_True : Py_False;
+	return self->m_implementation->IsBlocktrapped() ? Py_True : Py_False;
 }
 
 static int
-	Tasklet_blocktrap_set( PyTaskletObject* self, PyObject* value, void* closure )
+	TaskletBlocktrapSet( PyTaskletObject* self, PyObject* value, void* closure )
 {
 	// Ensure PyTaskletObject is in a valid state
-	if( !PyTaskletObject_is_valid( self ) )
+	if( !PyTaskletObjectIsValid( self ) )
 	{
 		return -1;
 	}
@@ -286,63 +285,63 @@ static int
 		return -1;
     }
 
-    self->m_impl->set_blocktrap( PyObject_IsTrue( value ) );
+    self->m_implementation->SetBlocktrap( PyObject_IsTrue( value ) );
 
 	return 0;
 }
 
 static PyObject*
-	Tasklet_iscurrent_get( PyTaskletObject* self, void* closure )
+	TaskletIsCurrentGet( PyTaskletObject* self, void* closure )
 {
 	// Ensure PyTaskletObject is in a valid state
-	if( !PyTaskletObject_is_valid( self ) )
+	if( !PyTaskletObjectIsValid( self ) )
 	{
 		return nullptr;
 	}
 
-	ScheduleManager* schedule_manager = ScheduleManager::get_scheduler();
+	ScheduleManager* scheduleManager = ScheduleManager::GetScheduler();
 
-	Tasklet* current_tasklet = schedule_manager->get_current_tasklet();
+	Tasklet* currentTasklet = scheduleManager->GetCurrentTasklet();
 
-    schedule_manager->decref();
+    scheduleManager->Decref();
 
-	return reinterpret_cast<PyObject*>( self ) == current_tasklet->python_object() ? Py_True : Py_False;
+	return reinterpret_cast<PyObject*>( self ) == currentTasklet->PythonObject() ? Py_True : Py_False;
 }
 
 static PyObject*
-	Tasklet_ismain_get( PyTaskletObject* self, void* closure )
+	TaskletIsMainGet( PyTaskletObject* self, void* closure )
 {
 	// Ensure PyTaskletObject is in a valid state
-	if( !PyTaskletObject_is_valid( self ) )
+	if( !PyTaskletObjectIsValid( self ) )
 	{
 		return nullptr;
 	}
 
-	return self->m_impl->is_main() ? Py_True : Py_False;
+	return self->m_implementation->IsMain() ? Py_True : Py_False;
 }
 
 static PyObject*
-	Tasklet_threadid_get( PyTaskletObject* self, void* closure )
+	TaskletThreadIdGet( PyTaskletObject* self, void* closure )
 {
 	// Ensure PyTaskletObject is in a valid state
-	if( !PyTaskletObject_is_valid( self ) )
+	if( !PyTaskletObjectIsValid( self ) )
 	{
 		return nullptr;
 	}
 
-	return PyLong_FromLong( self->m_impl->thread_id() );
+	return PyLong_FromLong( self->m_implementation->ThreadId() );
 }
 
 static PyObject*
-	Tasklet_next_get( PyTaskletObject* self, void* closure )
+	TaskletNextGet( PyTaskletObject* self, void* closure )
 {
 	// Ensure PyTaskletObject is in a valid state
-	if( !PyTaskletObject_is_valid( self ) )
+	if( !PyTaskletObjectIsValid( self ) )
 	{
 		return nullptr;
 	}
 
-	Tasklet* next = self->m_impl->next();
+	Tasklet* next = self->m_implementation->Next();
 
     if( !next )
 	{
@@ -352,25 +351,25 @@ static PyObject*
     }
 	else
 	{
-		PyObject* py_next = next->python_object();
+		PyObject* pyNext = next->PythonObject();
 
-        Py_IncRef( py_next );
+        Py_IncRef( pyNext );
 
-		return py_next;
+		return pyNext;
     }
     
 }
 
 static PyObject*
-	Tasklet_previous_get( PyTaskletObject* self, void* closure )
+	TaskletPreviousGet( PyTaskletObject* self, void* closure )
 {
 	// Ensure PyTaskletObject is in a valid state
-	if( !PyTaskletObject_is_valid( self ) )
+	if( !PyTaskletObjectIsValid( self ) )
 	{
 		return nullptr;
 	}
 
-	Tasklet* previous = self->m_impl->previous();
+	Tasklet* previous = self->m_implementation->Previous();
 
 	if( !previous )
 	{
@@ -380,84 +379,84 @@ static PyObject*
 	}
 	else
 	{
-		PyObject* py_previous = previous->python_object();
+		PyObject* pyPrevious = previous->PythonObject();
 
-        Py_IncRef( py_previous );
+        Py_IncRef( pyPrevious );
 
-		return py_previous;
+		return pyPrevious;
     }
 
 }
 
 static PyObject*
-	Tasklet_paused_get( PyTaskletObject* self, void* closure )
+	TaskletPausedGet( PyTaskletObject* self, void* closure )
 {
 	// Ensure PyTaskletObject is in a valid state
-	if( !PyTaskletObject_is_valid( self ) )
+	if( !PyTaskletObjectIsValid( self ) )
 	{
 		return nullptr;
 	}
 
-	return self->m_impl->is_paused() ? Py_True : Py_False;
+	return self->m_implementation->IsPaused() ? Py_True : Py_False;
 }
 
 static PyGetSetDef Tasklet_getsetters[] = {
 	{ "alive", 
-        (getter)Tasklet_alive_get,
+        (getter)TaskletAliveGet,
         NULL,
         "True while a tasklet is still running.",
         NULL },
 
 	{ "blocked",
-        (getter)Tasklet_blocked_get,
+        (getter)TaskletBlockedGet,
         NULL,
         "True when a tasklet is blocked on a channel.",
         NULL },
 
 	{ "scheduled",
-        (getter)Tasklet_scheduled_get,
+        (getter)TaskletScheduledGet,
         NULL,
         "True when the tasklet is either in the runnables list or blocked on a channel.",
         NULL },
 
 	{ "block_trap",
-        (getter)Tasklet_blocktrap_get,
-        (setter)Tasklet_blocktrap_set,
+        (getter)TaskletBlocktrapGet,
+        (setter)TaskletBlocktrapSet,
         "True while this tasklet is within a n atomic block.",
         NULL },
 
 	{ "is_current",
-        (getter)Tasklet_iscurrent_get,
+        (getter)TaskletIsCurrentGet,
         NULL,
         "True if the tasklet is the current tasklet.",
         NULL },
 
 	{ "is_main",
-        (getter)Tasklet_ismain_get,
+        (getter)TaskletIsMainGet,
         NULL,
         "True if the tasklet is the main tasklet.",
         NULL },
 
 	{ "thread_id",
-        (getter)Tasklet_threadid_get,
+        (getter)TaskletThreadIdGet,
         NULL,
         "Id of the thread the tasklet belongs to.",
         NULL },
 
 	{ "next",
-        (getter)Tasklet_next_get,
+        (getter)TaskletNextGet,
         NULL,
         "Get next tasklet in schedule queue.",
         NULL },
 
 	{ "prev",
-        (getter)Tasklet_previous_get,
+        (getter)TaskletPreviousGet,
         NULL,
         "Get next tasklet in schedule queue.",
         NULL },
 
 	{ "paused",
-        (getter)Tasklet_paused_get,
+        (getter)TaskletPausedGet,
         NULL,
         "This attribute is True when a tasklet is alive, but not scheduled or blocked on a channel.",
         NULL },
@@ -466,39 +465,39 @@ static PyGetSetDef Tasklet_getsetters[] = {
 };
 
 static PyObject*
-	Tasklet_insert( PyTaskletObject* self, PyObject* Py_UNUSED( ignored ) )
+	TaskletInsert( PyTaskletObject* self, PyObject* Py_UNUSED( ignored ) )
 {
 	// Ensure PyTaskletObject is in a valid state
-	if( !PyTaskletObject_is_valid( self ) )
+	if( !PyTaskletObjectIsValid( self ) )
 	{
 		return nullptr;
 	}
 
-	return self->m_impl->insert() ? Py_True : Py_False;
+	return self->m_implementation->Insert() ? Py_True : Py_False;
 }
 
 static PyObject*
-	Tasklet_remove( PyTaskletObject* self, PyObject* Py_UNUSED( ignored ) )
+	TaskletRemove( PyTaskletObject* self, PyObject* Py_UNUSED( ignored ) )
 {
 	// Ensure PyTaskletObject is in a valid state
-	if( !PyTaskletObject_is_valid( self ) )
+	if( !PyTaskletObjectIsValid( self ) )
 	{
 		return nullptr;
 	}
 
-	return self->m_impl->remove() ? Py_True : Py_False;
+	return self->m_implementation->Remove() ? Py_True : Py_False;
 }
 
 static PyObject*
-	Tasklet_run( PyTaskletObject* self, void* closure )
+	TaskletRun( PyTaskletObject* self, void* closure )
 {
 	// Ensure PyTaskletObject is in a valid state
-	if( !PyTaskletObject_is_valid( self ) )
+	if( !PyTaskletObjectIsValid( self ) )
 	{
 		return nullptr;
 	}
 
-    if (self->m_impl->run())
+    if( self->m_implementation->Run() )
     {
 		Py_IncRef( Py_None );
 
@@ -511,15 +510,15 @@ static PyObject*
 }
 
 static PyObject*
-	Tasklet_switch( PyTaskletObject* self, void* closure )
+	TaskletSwitch( PyTaskletObject* self, void* closure )
 {
 	// Ensure PyTaskletObject is in a valid state
-	if( !PyTaskletObject_is_valid( self ) )
+	if( !PyTaskletObjectIsValid( self ) )
 	{
 		return nullptr;
 	}
 
-    if (self->m_impl->switch_implementation())
+    if( self->m_implementation->SwitchImplementation() )
     {
 		Py_IncRef( Py_None );
 
@@ -532,7 +531,7 @@ static PyObject*
 }
 
 static bool
-	check_exception_setup( PyObject* exception, PyObject* arguments )
+	CheckExceptionSetup( PyObject* exception, PyObject* arguments )
 {
 	if( PyObject_IsInstance( exception, PyExc_Exception ) )
 	{
@@ -570,10 +569,10 @@ static bool
 }
 
 static PyObject*
-	Tasklet_throw( PyTaskletObject* self, PyObject* args, PyObject* kwds )
+	TaskletThrow( PyTaskletObject* self, PyObject* args, PyObject* kwds )
 {
 	// Ensure PyTaskletObject is in a valid state
-	if( !PyTaskletObject_is_valid( self ) )
+	if( !PyTaskletObjectIsValid( self ) )
 	{
 		return nullptr;
 	}
@@ -592,12 +591,12 @@ static PyObject*
     }
 
     // Test state validity
-	if( !check_exception_setup( exception, value ) )
+	if( !CheckExceptionSetup( exception, value ) )
 	{
 		return nullptr;
     }
 
-    if (self->m_impl->throw_exception(exception, value, tb, pending))
+    if( self->m_implementation->ThrowException( exception, value, tb, pending ) )
     {
 		Py_IncRef( Py_None );
 
@@ -611,10 +610,10 @@ static PyObject*
 }
 
 static PyObject*
-	Tasklet_raiseexception( PyTaskletObject* self, PyObject* args, PyObject* kwds )
+	TaskletRaiseException( PyTaskletObject* self, PyObject* args, PyObject* kwds )
 {
 	// Ensure PyTaskletObject is in a valid state
-	if( !PyTaskletObject_is_valid( self ) )
+	if( !PyTaskletObjectIsValid( self ) )
 	{
 		return nullptr;
 	}
@@ -629,12 +628,12 @@ static PyObject*
 	}
 
     // Test state validity
-	if( !check_exception_setup( exception, arguments ) )
+	if( !CheckExceptionSetup( exception, arguments ) )
 	{
 		return nullptr;
 	}
 
-    if (self->m_impl->throw_exception(exception, arguments, Py_None, false))
+    if( self->m_implementation->ThrowException( exception, arguments, Py_None, false ) )
     {
 		Py_IncRef( Py_None );
 
@@ -647,10 +646,10 @@ static PyObject*
 }
 
 static PyObject*
-	Tasklet_kill( PyTaskletObject* self, PyObject* args, PyObject* kwds )
+	TaskletKill( PyTaskletObject* self, PyObject* args, PyObject* kwds )
 {
 	// Ensure PyTaskletObject is in a valid state
-	if( !PyTaskletObject_is_valid( self ) )
+	if( !PyTaskletObjectIsValid( self ) )
 	{
 		return nullptr;
 	}
@@ -665,7 +664,7 @@ static PyObject*
 		return nullptr;
     }
 
-	if(self->m_impl->kill( pending ))
+	if( self->m_implementation->Kill( pending ) )
 	{
 		Py_IncRef( Py_None );
 
@@ -679,7 +678,7 @@ static PyObject*
 }
 
 static PyObject*
-	Tasklet_setcontext( PyTaskletObject* self, void* closure )
+	TaskletSetContext( PyTaskletObject* self, void* closure )
 {
 	PyErr_SetString( PyExc_RuntimeError, "Tasklet_setcontext Not yet implemented" ); //TODO
 	return NULL;
@@ -687,12 +686,12 @@ static PyObject*
 
 
 static PyObject*
-    Tasklet_setup( PyObject* callable, PyObject* args, PyObject* kwargs )
+    TaskletSetup( PyObject* callable, PyObject* args, PyObject* kwargs )
 {
 	PyTaskletObject* tasklet = reinterpret_cast<PyTaskletObject*>( callable );
 
     // Ensure PyTaskletObject is in a valid state
-	if( !PyTaskletObject_is_valid( tasklet ) )
+	if( !PyTaskletObjectIsValid( tasklet ) )
 	{
 		return nullptr;
 	}
@@ -701,35 +700,35 @@ static PyObject*
 
     Py_XINCREF( args );
 
-	tasklet->m_impl->set_arguments( args );
+	tasklet->m_implementation->SetArguments( args );
 
     Py_XINCREF( kwargs );
 
-    tasklet->m_impl->set_kw_arguments( kwargs );
+    tasklet->m_implementation->SetKwArguments( kwargs );
 
     //Initialize the tasklet
-    if (!tasklet->m_impl->initialise())
+	if( !tasklet->m_implementation->Initialise() )
     {
-		tasklet->m_impl->set_arguments( nullptr );
+		tasklet->m_implementation->SetArguments( nullptr );
 
-        tasklet->m_impl->set_kw_arguments( nullptr );
+        tasklet->m_implementation->SetKwArguments( nullptr );
 
 		return nullptr;
     }
 
     //Mark alive
-    tasklet->m_impl->set_alive( true );
+	tasklet->m_implementation->SetAlive( true );
 
     //Add to scheduler
-    if (!tasklet->m_impl->insert())
+	if( !tasklet->m_implementation->Insert() )
     {
-		tasklet->m_impl->set_alive( false );
+		tasklet->m_implementation->SetAlive( false );
 
-        tasklet->m_impl->uninitialise();
+        tasklet->m_implementation->Uninitialise();
 
-		tasklet->m_impl->set_arguments( nullptr );
+		tasklet->m_implementation->SetArguments( nullptr );
 
-        tasklet->m_impl->set_kw_arguments( nullptr );
+        tasklet->m_implementation->SetKwArguments( nullptr );
 
 		return nullptr;
     }
@@ -740,9 +739,9 @@ static PyObject*
 }
 
 static PyObject*
-	Tasklet_call( PyObject* callable, PyObject* args, PyObject* kwargs )
+	TaskletCall( PyObject* callable, PyObject* args, PyObject* kwargs )
 {
-	if(!Tasklet_setup( callable, args, kwargs ))
+	if(!TaskletSetup( callable, args, kwargs ))
 	{
 		return nullptr;
     }
@@ -756,27 +755,27 @@ static PyObject*
 
 static PyMethodDef Tasklet_methods[] = {
 	{ "insert",
-        (PyCFunction)Tasklet_insert,
+        (PyCFunction)TaskletInsert,
         METH_NOARGS,
         "Insert a tasklet at the end of the scheduler runnables queue." },
 
 	{ "remove",
-        (PyCFunction)Tasklet_remove,
+        (PyCFunction)TaskletRemove,
         METH_NOARGS,
         "Remove a tasklet from the runnables queue." },
 
 	{ "run",
-        (PyCFunction)Tasklet_run,
+        (PyCFunction)TaskletRun,
         METH_NOARGS,
         "run immediately if in valid state." },
 
 	{ "switch",
-        (PyCFunction)Tasklet_switch,
+        (PyCFunction)TaskletSwitch,
         METH_NOARGS,
         "Pause calling tasklet and run immediately." },
 
 	{ "throw",
-        (PyCFunction)Tasklet_throw,
+        (PyCFunction)TaskletThrow,
         METH_VARARGS | METH_KEYWORDS,
         "Raise an exception on the given tasklet. \n\n\
             :param exc: Exception to raise \n\
@@ -788,7 +787,7 @@ static PyMethodDef Tasklet_methods[] = {
             :throws: RuntimeError If attempt is made to raise exception on dead Tasklet aside from TaskletExit exceptions." },
 
 	{ "raise_exception",
-        (PyCFunction)Tasklet_raiseexception,
+        (PyCFunction)TaskletRaiseException,
         METH_VARARGS,
         "Raise an exception on the given tasklet. \n\n\
             :param exc_class: Exception to raise \n\
@@ -797,7 +796,7 @@ static PyMethodDef Tasklet_methods[] = {
             :throws: RuntimeError If attempt is made to raise exception on dead Tasklet aside from TaskletExit exceptions." },
 
 	{ "kill",
-        (PyCFunction)Tasklet_kill,
+        (PyCFunction)TaskletKill,
         METH_VARARGS | METH_KEYWORDS,
         "Terminate the current tasklet and unblock. \n\n\
             :param pending: If True then kill will schedule the kill and continue execution\n\
@@ -805,12 +804,12 @@ static PyMethodDef Tasklet_methods[] = {
             :throws: TaskletExit on the calling Tasklet" },
 
 	{ "set_context",
-        (PyCFunction)Tasklet_setcontext,
+        (PyCFunction)TaskletSetContext,
         METH_NOARGS,
         "Set the Context object to be used while this tasklet runs." },
 
 	{ "bind",
-        (PyCFunction)Tasklet_bind,
+        (PyCFunction)TaskletBind,
         METH_VARARGS | METH_KEYWORDS,
         "binds a callable to a tasklet. \n\n\
             :param func: Callable to bind to Tasklet \n\
@@ -821,7 +820,7 @@ static PyMethodDef Tasklet_methods[] = {
             :type kwargs: Tuple" },
 
 	{ "setup",
-        (PyCFunction)Tasklet_setup,
+        (PyCFunction)TaskletSetup,
         METH_VARARGS | METH_KEYWORDS,
         "Provide Tasklet with arguments to pass to a bound callable. \n\n\
             :param args: Arguments that will be passed to callable. \n\
@@ -840,7 +839,7 @@ static PyTypeObject TaskletType = {
 	sizeof( PyTaskletObject ), /*tp_basicsize*/
 	0, /*tp_itemsize*/
 	/* methods */
-	(destructor)Tasklet_dealloc, /*tp_dealloc*/
+	(destructor)TaskletDealloc, /*tp_dealloc*/
 	0, /*tp_vectorcall_offset*/
 	0, /*tp_getattr*/
 	0, /*tp_setattr*/
@@ -850,7 +849,7 @@ static PyTypeObject TaskletType = {
 	0, /*tp_as_sequence*/
 	0, /*tp_as_mapping*/
 	0, /*tp_hash*/
-	Tasklet_call, /*tp_call*/
+	TaskletCall, /*tp_call*/
 	0, /*tp_str*/
 	0, /*tp_getattro*/
 	0, /*tp_setattro*/
@@ -860,7 +859,7 @@ static PyTypeObject TaskletType = {
 	0, /*tp_traverse*/
 	0, /*tp_clear*/
 	0, /*tp_richcompare*/
-	offsetof( PyTaskletObject, m_weakref_list ), /*tp_weaklistoffset*/
+	offsetof( PyTaskletObject, m_weakrefList ), /*tp_weaklistoffset*/
 	0, /*tp_iter*/
 	0, /*tp_iternext*/
 	Tasklet_methods, /*tp_methods*/
@@ -871,9 +870,9 @@ static PyTypeObject TaskletType = {
 	0, /*tp_descr_get*/
 	0, /*tp_descr_set*/
 	0, /*tp_dictoffset*/
-	(initproc)Tasklet_init, /*tp_init*/
+	(initproc)TaskletInit, /*tp_init*/
 	0, /*tp_alloc*/
-	Tasklet_new, /*tp_new*/
+	TaskletNew, /*tp_new*/
 	0, /*tp_free*/
 	0, /*tp_is_gc*/
 };

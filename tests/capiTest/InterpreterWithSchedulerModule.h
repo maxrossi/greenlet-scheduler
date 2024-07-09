@@ -16,7 +16,8 @@
 	*************************************************************************
 */
 #pragma once
-
+#ifndef InterpreterWithSchedulerModule_H
+#define InterpreterWithSchedulerModule_H
 
 #include <gtest/gtest.h>
 #include <Scheduler.h>
@@ -27,11 +28,13 @@ struct InterpreterWithSchedulerModule : public ::testing::Test
 
 	void TearDown();
 
-    PyObject* m_scheduler_module;
+    PyObject* m_schedulerModule;
 
-    PyObject* m_main_module;
+    PyObject* m_mainModule;
 
-    PyObject* m_main_scheduler;
+    PyObject* m_mainScheduler;
 
     SchedulerCAPI* m_api;
 };
+
+#endif // InterpreterWithSchedulerModule_H

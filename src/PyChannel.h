@@ -16,6 +16,8 @@
 	*************************************************************************
 */
 #pragma once
+#ifndef PyChannel_H
+#define PyChannel_H
 
 class Channel;
 
@@ -23,8 +25,10 @@ typedef struct PyChannelObject
 {
 	PyObject_HEAD
 
-	Channel* m_impl;
+	Channel* m_implementation;
 
-    PyObject* m_weakref_list; // TODO: This is apparently the old style, new style crashes
+    PyObject* m_weakrefList; // TODO: This is apparently the old style, new style crashes
 
 } _PyChannelObject;
+
+#endif // PyChannel_H

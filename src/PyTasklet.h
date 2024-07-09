@@ -16,6 +16,8 @@
 	*************************************************************************
 */
 #pragma once
+#ifndef PyTasklet_H
+#define PyTasklet_H
 
 class Tasklet;
 
@@ -23,8 +25,10 @@ typedef struct PyTaskletObject
 {
 	PyObject_HEAD
 
-	Tasklet* m_impl;
+	Tasklet* m_implementation;
 
-    PyObject* m_weakref_list;   // TODO: This is apparently the old style, new style crashes
+    PyObject* m_weakrefList;   // TODO: This is apparently the old style, new style crashes
 
 } _PyTaskletObject;
+
+#endif // PyTasklet_H
