@@ -366,7 +366,7 @@ static PyObject*
 	PyTuple_SetItem( exceptionDataTuple, 1, value );
 	PyTuple_SetItem( exceptionDataTuple, 2, tb );
 
-    if( !self->m_impl->send( Py_None, exceptionDataTuple ) )
+    if( !self->m_implementation->Send( Py_None, exceptionDataTuple ) )
 	{
 		Py_DecRef( exceptionDataTuple );
 		return NULL;

@@ -347,17 +347,17 @@ PyObject* Channel::Receive()
         // If arguments are Py_None, then we want to use the exception data as it is set in send_throw
         if (arguments == Py_None)
         {
-            auto exception_type = PyTuple_GetItem( transfer_exception, 0 );
-			auto exception_alue = PyTuple_GetItem( transfer_exception, 1 );
-			auto exception_tb = PyTuple_GetItem( transfer_exception, 2 );
+            auto exceptionType = PyTuple_GetItem( transferException, 0 );
+			auto exceptionValue = PyTuple_GetItem( transferException, 1 );
+			auto exceptionTb = PyTuple_GetItem( transferException, 2 );
 
-            Py_INCREF( exception_type );
-			Py_INCREF( exception_alue );
-			Py_INCREF( exception_tb );
+            Py_INCREF( exceptionType );
+			Py_INCREF( exceptionValue );
+			Py_INCREF( exceptionTb );
 
-            Py_DECREF( transfer_exception );
+            Py_DECREF( transferException );
             
-            PyErr_Restore( exception_type, exception_alue, exception_tb );
+            PyErr_Restore( exceptionType, exceptionValue, exceptionTb );
         }
         else
         {
