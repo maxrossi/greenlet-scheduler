@@ -344,11 +344,20 @@ PyObject* Channel::Receive()
 	{	
         PyObject* arguments = current->GetTransferArguments();
 
-        // If arguments are Py_None, then we want to set the exception as it is, as it came from send_throw
+        // If arguments are Py_None, then we want to use the exception data as it is set in send_throw
         if (arguments == Py_None)
         {
-            // PyErr_SetRaisedException steals the reference, so no need to decref
-			PyErr_SetRaisedException( transferException );
+            auto exception_type = PyTuple_GetItem( transfer_exception, 0 );
+			auto exception_alue = PyTuple_GetItem( transfer_exception, 1 );
+			auto exception_tb = PyTuple_GetItem( transfer_exception, 2 );
+
+            Py_INCREF( exception_type );
+			Py_INCREF( exception_alue );
+			Py_INCREF( exception_tb );
+
+            Py_DECREF( transfer_exception );
+            
+            PyErr_Restore( exception_type, exception_alue, exception_tb );
         }
         else
         {

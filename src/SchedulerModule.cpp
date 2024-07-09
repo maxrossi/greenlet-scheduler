@@ -606,6 +606,7 @@ extern "C"
 		return obj && PyObject_TypeCheck( obj, &ChannelType );
 	}
 
+    /// @deprecated Please use PyChannel_SendException instead
     /// @brief Throw an exception on first tasklet waiting to receive on channel
 	/// @param self python object type derived from PyChannelType
 	/// @param exc python exception
