@@ -54,7 +54,7 @@ PyObject* Channel::python_object()
 	return m_python_object;
 }
 
-bool Channel::send( PyObject* args, PyObject* exception /* = nullptr */)
+bool Channel::send( PyObject* args, PyObject* exception /* = nullptr */, bool send_throw_exception /* = false */ )
 {
     PyThread_acquire_lock( m_lock, 1 );
 
@@ -148,7 +148,7 @@ bool Channel::send( PyObject* args, PyObject* exception /* = nullptr */)
     receiving_tasklet->unblock();
 	
     // Store for retrieval from receiving tasklet
-	receiving_tasklet->set_transfer_arguments( args, exception );
+	receiving_tasklet->set_transfer_arguments( args, exception, send_throw_exception );
 
 	PyThread_release_lock( m_lock );
 
@@ -341,11 +341,11 @@ PyObject* Channel::receive()
 	PyObject* transfer_exception = current->transfer_exception();
 
 	if( transfer_exception )
-	{	
+	{
         PyObject* arguments = current->get_transfer_arguments();
 
         // If arguments are Py_None, then we want to use the exception data as it is set in send_throw
-        if (arguments == Py_None)
+        if (current->transfer_exception_is_from_send_throw())
         {
             auto exception_type = PyTuple_GetItem( transfer_exception, 0 );
 			auto exception_alue = PyTuple_GetItem( transfer_exception, 1 );

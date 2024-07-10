@@ -60,7 +60,7 @@ public:
 
 	void clear_transfer_arguments();
 
-    void set_transfer_arguments( PyObject* args, PyObject* exception );
+    void set_transfer_arguments( PyObject* args, PyObject* exception, bool transfer_exception_is_from_send_throw);
 
     void block( Channel* channel );
 
@@ -117,6 +117,8 @@ public:
     void set_transfer_in_progress( bool value );
 
     PyObject* transfer_exception() const;
+
+    bool transfer_exception_is_from_send_throw() const;
 
     bool throw_exception( PyObject* exception, PyObject* value, PyObject* tb, bool pending );
 
@@ -191,6 +193,8 @@ private:
     PyObject* m_transfer_arguments;
 
     PyObject* m_transfer_exception;
+
+    bool m_transfer_exception_is_from_send_throw;
 
     Channel* m_channel_blocked_on;
 

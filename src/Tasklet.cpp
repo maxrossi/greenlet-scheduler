@@ -34,7 +34,8 @@ Tasklet::Tasklet( PyObject* python_object, PyObject* tasklet_exit_exception, boo
 	m_next_blocked( nullptr ),
 	m_schedule_manager( nullptr ),
 	m_remove( false ),
-	m_kill_pending( false )
+	m_kill_pending( false ),
+	m_transfer_exception_is_from_send_throw( false )
 {
 
     // If tasklet is not a scheduler tasklet then register the tasklet with the scheduler
@@ -679,7 +680,7 @@ void Tasklet::clear_transfer_arguments()
 
 }
 
-void Tasklet::set_transfer_arguments( PyObject* args, PyObject* exception )
+void Tasklet::set_transfer_arguments( PyObject* args, PyObject* exception, bool transfer_exception_is_from_send_throw )
 {
     //This should all change with the channel preference change
 	if(m_transfer_arguments != nullptr)
@@ -693,6 +694,8 @@ void Tasklet::set_transfer_arguments( PyObject* args, PyObject* exception )
 	m_transfer_arguments = args;
 
     m_transfer_exception = exception;
+
+    m_transfer_exception_is_from_send_throw = transfer_exception_is_from_send_throw;
 }
 
 bool Tasklet::is_blocked() const
@@ -1024,7 +1027,12 @@ int Tasklet::get_blocked_direction()
 	return m_blocked_direction;
 }
 
-void Tasklet::set_blocked_direction(int direction)
+void Tasklet::set_blocked_direction( int direction )
 {
 	m_blocked_direction = direction;
+}
+
+bool Tasklet::transfer_exception_is_from_send_throw() const
+{
+	return m_transfer_exception_is_from_send_throw;
 }

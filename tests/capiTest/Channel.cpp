@@ -322,7 +322,7 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 
 	    // Create callable which sends an exception over a channel
 		EXPECT_EQ( PyRun_SimpleString( "def foo():\n"
-									   "   schedulertest.send_exception(channel, ValueError)\n" ),
+									   "   schedulertest.send_exception(channel, ValueError, (1,2,3))\n" ),
 				   0 );
 
 	    // Create a tasklet and run

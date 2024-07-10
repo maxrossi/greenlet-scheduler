@@ -306,10 +306,19 @@ static PyObject*
     if (PyTuple_Size(args) > 1)
     {
 		exception_arguments = PyTuple_GetSlice( args, 1, PyTuple_Size( args ) );
+
+        if (PyTuple_Size(exception_arguments) == 1)
+        {
+			auto var = PyTuple_GetItem( exception_arguments, 0 );
+			Py_IncRef( var );
+			Py_DecRef( exception_arguments );
+			exception_arguments = var;
+        }
     }
     else
     {
-		exception_arguments = PyTuple_New( 0 );
+		Py_IncRef( Py_None );
+		exception_arguments = Py_None;
     }
 
 	if( !self->m_impl->send( exception_arguments, exception ) )
@@ -367,7 +376,7 @@ static PyObject*
 	PyTuple_SetItem( exceptionDataTuple, 1, value );
 	PyTuple_SetItem( exceptionDataTuple, 2, tb );
 
-    if( !self->m_impl->send( Py_None, exceptionDataTuple ) )
+    if( !self->m_impl->send( Py_None, exceptionDataTuple, true ) )
 	{
 		Py_DecRef( exceptionDataTuple );
 		return NULL;
