@@ -229,6 +229,9 @@ bool ScheduleManager::RemoveTasklet( Tasklet* tasklet )
 
     m_numberOfTaskletsInQueue--;
 
+	tasklet->set_next( nullptr );
+	tasklet->set_previous( nullptr );
+
     return true;
 }
 
