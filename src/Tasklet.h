@@ -148,6 +148,8 @@ public:
 
     void SetBlockedDirection( int direction );
 
+    PyGreenlet* get_greenlet();
+
 private:
 
     void SetExceptionState( PyObject* exception, PyObject* arguments = Py_None );
