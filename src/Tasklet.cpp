@@ -34,7 +34,7 @@ Tasklet::Tasklet( PyObject* pythonObject, PyObject* taskletExitException, bool i
 	m_scheduleManager( nullptr ),
 	m_remove( false ),
 	m_killPending( false ),
-	m_transfer_exception_is_from_send_throw( false )
+	m_transferExceptionIsFromSendThrow( false )
 {
 
     // If tasklet is not a scheduler tasklet then register the tasklet with the scheduler
@@ -678,7 +678,7 @@ void Tasklet::ClearTransferArguments()
 
 }
 
-void Tasklet::SetTransferArguments( PyObject* args, PyObject* exception, bool transfer_exception_is_from_send_throw)
+void Tasklet::SetTransferArguments( PyObject* args, PyObject* exception, bool transferExceptionIsFromSendThrow )
 {
     //This should all change with the channel preference change
 	if(m_transferArguments != nullptr)
@@ -692,7 +692,7 @@ void Tasklet::SetTransferArguments( PyObject* args, PyObject* exception, bool tr
 	m_transferArguments = args;
 
     m_transferException = exception;
-	m_transfer_exception_is_from_send_throw = transfer_exception_is_from_send_throw;
+	m_transferExceptionIsFromSendThrow = transferExceptionIsFromSendThrow;
 }
 
 bool Tasklet::IsBlocked() const
@@ -1029,7 +1029,7 @@ PyGreenlet* Tasklet::get_greenlet()
 	return m_greenlet;
 }
 
-bool Tasklet::transfer_exception_is_from_send_throw() const
+bool Tasklet::TransferExceptionIsFromSendThrow() const
 {
-	return m_transfer_exception_is_from_send_throw;
+	return m_transferExceptionIsFromSendThrow;
 }

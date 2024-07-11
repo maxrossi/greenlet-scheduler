@@ -120,7 +120,7 @@ public:
 
     PyObject* TransferException() const;
 
-    bool transfer_exception_is_from_send_throw() const;
+    bool TransferExceptionIsFromSendThrow() const;
 
     bool ThrowException( PyObject* exception, PyObject* value, PyObject* tb, bool pending );
 
@@ -196,7 +196,7 @@ private:
 
     PyObject* m_transferException;
 
-	bool m_transfer_exception_is_from_send_throw;
+	bool m_transferExceptionIsFromSendThrow;
 
     Channel* m_channelBlockedOn;
 
