@@ -16,6 +16,8 @@
 	*************************************************************************
 */
 #pragma once
+#ifndef Tasklet_H
+#define Tasklet_H
 
 #include "stdafx.h"
 
@@ -26,141 +28,141 @@ class Tasklet
 {
 public:
 
-	Tasklet( PyObject* python_object, PyObject* tasklet_exit_exception, bool is_main );
+	Tasklet( PyObject* pythonObject, PyObject* taskletExitException, bool isMain );
 
     ~Tasklet();
 
-    PyObject* python_object();
+    PyObject* PythonObject();
 
-    void incref();
+    void Incref();
 
-	void decref();
+	void Decref();
 
-    int refcount();
+    int ReferenceCount();
 
-	void set_to_current_greenlet();
+	void SetToCurrentGreenlet();
 
-    bool remove();
+    bool Remove();
 
-    bool initialise();
+    bool Initialise();
 
-    void uninitialise();
+    void Uninitialise();
 
-	bool insert();
+	bool Insert();
 
-    bool switch_implementation();
+    bool SwitchImplementation();
 
-    bool switch_to();
+    bool SwitchTo();
 
-    bool run();
+    bool Run();
 
-    bool kill( bool pending = false );
+    bool Kill( bool pending = false );
 
-    PyObject* get_transfer_arguments();
+    PyObject* GetTransferArguments();
 
-	void clear_transfer_arguments();
+	void ClearTransferArguments();
 
-    void set_transfer_arguments( PyObject* args, PyObject* exception, bool transfer_exception_is_from_send_throw);
+	void SetTransferArguments( PyObject * args, PyObject* exception, bool transfer_exception_is_from_send_throw );
 
-    void block( Channel* channel );
+    void Block( Channel* channel );
 
-    void unblock();
+    void Unblock();
 
-    bool is_blocked() const;
+    bool IsBlocked() const;
 
-    bool is_on_channel_block_list() const;
+    bool IsOnChannelBlockList() const;
 
-    void set_alive( bool value );
+    void SetAlive( bool value );
 
-    bool alive() const;
+    bool IsAlive() const;
 
-    bool scheduled() const;
+    bool IsScheduled() const;
 
-    void set_scheduled( bool value );
+    void SetScheduled( bool value );
 
-    bool blocktrap() const;
+    bool IsBlocktrapped() const;
 
-    void set_blocktrap( bool value );
+    void SetBlocktrap( bool value );
 
-    bool is_main() const;
+    bool IsMain() const;
 
-    void set_is_main( bool value );
+    void MarkAsMain( bool value );
 
-    unsigned long thread_id() const;
+    unsigned long ThreadId() const;
 
-	Tasklet* next() const;
+	Tasklet* Next() const;
 
-	void set_next( Tasklet* next );
+	void SetNext( Tasklet* next );
 
-    Tasklet* previous() const;
+    Tasklet* Previous() const;
 
-	void set_previous( Tasklet* previous );
+	void SetPrevious( Tasklet* previous );
 
-    Tasklet* next_blocked() const;
+    Tasklet* NextBlocked() const;
 
-    void set_next_blocked(Tasklet* next);
+    void SetNextBlocked(Tasklet* next);
 
-    Tasklet* previous_blocked() const;
+    Tasklet* PreviousBlocked() const;
 
-    void set_previous_blocked( Tasklet* previous );
+    void SetPreviousBlocked( Tasklet* previous );
 
-    PyObject* arguments() const;
+    PyObject* Arguments() const;
 
-    void set_arguments(PyObject* arguments);
+    void SetArguments(PyObject* arguments);
 
-    PyObject* kw_arguments() const;
+    PyObject* KwArguments() const;
 
-    void set_kw_arguments( PyObject* kwarguments );
+    void SetKwArguments( PyObject* kwarguments );
 
-    bool transfer_in_progress() const;
+    bool TransferInProgress() const;
 
-    void set_transfer_in_progress( bool value );
+    void SetTransferInProgress( bool value );
 
-    PyObject* transfer_exception() const;
+    PyObject* TransferException() const;
 
     bool transfer_exception_is_from_send_throw() const;
 
-    bool throw_exception( PyObject* exception, PyObject* value, PyObject* tb, bool pending );
+    bool ThrowException( PyObject* exception, PyObject* value, PyObject* tb, bool pending );
 
-    void raise_exception( );
+    bool IsPaused();
 
-    bool is_paused();
+    Tasklet* GetParent();
 
-    Tasklet* get_tasklet_parent();
+    int SetParent( Tasklet* parent );
 
-    int set_parent( Tasklet* parent );
+    void ClearParent();
 
-    void clear_parent();
+    bool TaskletExceptionRaised();
 
-    bool tasklet_exception_raised();
+    void ClearTaskletException();
 
-    void clear_tasklet_exception();
+    void SetReschedule( bool value );
 
-    void set_reschedule( bool value );
+    bool RequiresReschedule();
 
-    bool requires_reschedule();
+    void SetTaggedForRemoval( bool value );
 
-    void set_tagged_for_removal( bool value );
+    void SetCallable( PyObject* callable );
 
-    void set_callable( PyObject* callable );
+    bool RequiresRemoval();
 
-    bool requires_removal();
+    int GetBlockedDirection();
 
-    int get_blocked_direction();
+    void SetBlockedDirection( int direction );
 
-    void set_blocked_direction( int direction );
-
-private:
-
-    void set_exception_state( PyObject* exception, PyObject* arguments = Py_None );
-
-	void set_python_exception_state_from_tasklet_exception_state();
-
-    void clear_exception();
+    PyGreenlet* get_greenlet();
 
 private:
 
-    PyObject* m_python_object;
+    void SetExceptionState( PyObject* exception, PyObject* arguments = Py_None );
+
+	void SetPythonExceptionStateFromTaskletExceptionState();
+
+    void ClearException();
+
+private:
+
+    PyObject* m_pythonObject;
 
 	PyGreenlet* m_greenlet;
 
@@ -168,11 +170,11 @@ private:
 
 	PyObject* m_arguments;
 
-    PyObject* m_kwarguments;
+    PyObject* m_kwArguments;
 
-    bool m_is_main;
+    bool m_isMain;
 
-    bool m_transfer_in_progress;;
+    bool m_transferInProgress;;
 
     bool m_scheduled;
 
@@ -184,46 +186,48 @@ private:
 
     Tasklet* m_next;
 
-    Tasklet* m_next_blocked;
+    Tasklet* m_nextBlocked;
 
-	Tasklet* m_previous_blocked;
+	Tasklet* m_previousBlocked;
 
-    unsigned long m_thread_id;
+    unsigned long m_threadId;
 
-    PyObject* m_transfer_arguments;
+    PyObject* m_transferArguments;
 
-    PyObject* m_transfer_exception;
+    PyObject* m_transferException;
 
-    bool m_transfer_exception_is_from_send_throw;
+	bool m_transfer_exception_is_from_send_throw;
 
-    Channel* m_channel_blocked_on;
+    Channel* m_channelBlockedOn;
 
 	bool m_blocked;
 
     // TODO should be handled as an enum rather than int
-    int m_blocked_direction;
+    int m_blockedDirection;
 
-    bool m_has_started;
+    bool m_hasStarted;
 
     bool m_paused;
 
-    bool m_first_run;
+    bool m_firstRun;
 
     bool m_reschedule;
 
     bool m_remove;
 
-    bool m_tagged_for_removal;  // This flag set will ensure that the tasklet doesn't get marked as not alive
+    bool m_taggedForRemoval;  // This flag set will ensure that the tasklet doesn't get marked as not alive
 
-    Tasklet* m_tasklet_parent; // Weak ref
+    Tasklet* m_taskletParent; // Weak ref
 
     //Exception
-    PyObject* m_exception_state;
-	PyObject* m_exception_arguments;
+    PyObject* m_exceptionState;
+	PyObject* m_exceptionArguments;
 
-    PyObject* m_tasklet_exit_exception; //Weak ref
+    PyObject* m_taskletExitException; //Weak ref
 
-    ScheduleManager* m_schedule_manager;
+    ScheduleManager* m_scheduleManager;
 
-    bool m_kill_pending;
+    bool m_killPending;
 };
+
+#endif // Tasklet_H

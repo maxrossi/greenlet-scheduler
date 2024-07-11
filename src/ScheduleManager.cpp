@@ -1,92 +1,90 @@
 #include "ScheduleManager.h"
 
 #include "Tasklet.h"
-
 #include "PyTasklet.h"
-
 #include "PyScheduleManager.h"
 
-ScheduleManager::ScheduleManager( PyObject* python_object ) :
-	m_python_object( python_object ),
-	m_thread_id( PyThread_get_thread_ident() ),
-	m_scheduler_tasklet( nullptr ), // Created in constructor
-	m_current_tasklet( nullptr ),   // Set in constructor
-	m_previous_tasklet( nullptr ),  // Set in constructor
-	m_switch_trap_level(0),
-    m_current_tasklet_changed_callback(nullptr),
-    m_scheduler_callback(nullptr),
-    m_scheduler_fast_callback(nullptr),
-    m_tasklet_limit(-1),
-	m_total_tasklet_run_time_limit(-1),
-    m_stop_scheduler(false),
-	m_number_of_tasklets_in_queue(0)
+ScheduleManager::ScheduleManager( PyObject* pythonObject ) :
+	m_pythonObject( pythonObject ),
+	m_threadId( PyThread_get_thread_ident() ),
+	m_schedulerTasklet( nullptr ), // Created in constructor
+	m_currentTasklet( nullptr ),   // Set in constructor
+	m_previousTasklet( nullptr ),  // Set in constructor
+	m_switchTrapLevel(0),
+    m_currentTaskletChangedCallback(nullptr),
+    m_schedulerCallback(nullptr),
+    m_schedulerFastCallback(nullptr),
+    m_taskletLimit(-1),
+	m_totalTaskletRunTimeLimit(-1),
+    m_stopScheduler(false),
+	m_numberOfTaskletsInQueue(0)
 {
     // Create scheduler tasklet TODO pull out to separate
-	create_scheduler_tasklet();
+	CreateSchedulerTasklet();
 
-    m_current_tasklet = m_scheduler_tasklet;
+    m_currentTasklet = m_schedulerTasklet;
 
-	m_previous_tasklet = m_scheduler_tasklet;
+	m_previousTasklet = m_schedulerTasklet;
 
 }
 
 ScheduleManager::~ScheduleManager()
 {
-	Py_DecRef( m_scheduler_tasklet->python_object() );
+	Py_DecRef( m_schedulerTasklet->PythonObject() );
 
-    Py_XDECREF( m_scheduler_callback );
+    Py_XDECREF( m_schedulerCallback );
 
     // Remove from thread schedulers list
-	s_schedulers.erase( m_thread_id );
+	s_schedulers.erase( m_threadId );
 }
 
-void ScheduleManager::create_scheduler_tasklet()
+void ScheduleManager::CreateSchedulerTasklet()
 {
-	PyObject* tasklet_args = PyTuple_New( 2 );
+	PyObject* taskletArgs = PyTuple_New( 2 );
 
 	Py_IncRef( Py_None );
 
-	PyTuple_SetItem( tasklet_args, 0, Py_None );
+	PyTuple_SetItem( taskletArgs, 0, Py_None );
 
-	PyTuple_SetItem( tasklet_args, 1, Py_True );
+	PyTuple_SetItem( taskletArgs, 1, Py_True );
 
-	PyObject* py_scheduler_tasklet = PyObject_CallObject( reinterpret_cast<PyObject*>( s_tasklet_type ), tasklet_args );
+	PyObject* pySchedulerTasklet = PyObject_CallObject( reinterpret_cast<PyObject*>( s_taskletType ), taskletArgs );
 
-	Py_DecRef( tasklet_args );
+	Py_DecRef( taskletArgs );
 
-	m_scheduler_tasklet = reinterpret_cast<PyTaskletObject*>( py_scheduler_tasklet )->m_impl;
+	m_schedulerTasklet = reinterpret_cast<PyTaskletObject*>( pySchedulerTasklet )->m_implementation;
 
 
-	m_scheduler_tasklet->set_to_current_greenlet();
+	m_schedulerTasklet->SetToCurrentGreenlet();
 
-	m_scheduler_tasklet->set_scheduled( true );
+	m_schedulerTasklet->SetScheduled( true );
 }
 
-PyObject* ScheduleManager::python_object()
+PyObject* ScheduleManager::PythonObject()
 {
-	return m_python_object;
+	return m_pythonObject;
 }
 
-void ScheduleManager::incref()
+void ScheduleManager::Incref()
 {
-	Py_IncRef( m_python_object );
+	Py_IncRef( m_pythonObject );
 }
 
-void ScheduleManager::decref()
+void ScheduleManager::Decref()
 {
-	Py_DecRef( m_python_object );
+	Py_DecRef( m_pythonObject );
 }
 
-int ScheduleManager::num_active_schedule_managers()
+int ScheduleManager::NumberOfActiveScheduleManagers()
 {
 	return s_schedulers.size();
 }
 
 // TODO this and below are very similar and need joinging
 // Doesn't create new reference
-ScheduleManager* ScheduleManager::find_scheduler( long thread_id )
+ScheduleManager* ScheduleManager::FindScheduler( long threadId )
 {
-	auto scheduler_find = s_schedulers.find( thread_id );
+	auto scheduler_find = s_schedulers.find( threadId );
 
     if( scheduler_find == s_schedulers.end() )
 	{
@@ -100,114 +98,115 @@ ScheduleManager* ScheduleManager::find_scheduler( long thread_id )
 }
 
 // Returns a new schedule manager reference
-ScheduleManager* ScheduleManager::get_scheduler( long thread_id /* = -1*/ )
+ScheduleManager* ScheduleManager::GetScheduler( long threadId /* = -1*/ )
 {
-	PyThread_acquire_lock( s_schedule_manager_lock, 1 );
+	PyThread_acquire_lock( s_scheduleManagerLock, 1 );
 
-	long scheduler_thread_id = thread_id;
+	long schedulerThreadId = threadId;
 
     // If thread_id is less than 0 then use the current thread id
-    if(thread_id < 0)
+    if(threadId < 0)
 	{
-		scheduler_thread_id = PyThread_get_thread_ident();
+		schedulerThreadId = PyThread_get_thread_ident();
     }
 
-    auto scheduler_find = s_schedulers.find( scheduler_thread_id );
+    auto schedulerFind = s_schedulers.find( schedulerThreadId );
 
     ScheduleManager* ret = nullptr;
 
-	if( scheduler_find == s_schedulers.end() )
+	if( schedulerFind == s_schedulers.end() )
 	{
         // Create new scheduler for the thread
-		PyObject* schedule_manager = PyObject_CallObject( reinterpret_cast<PyObject*>(s_schedule_manager_type), nullptr );
+		PyObject* scheduleManager = PyObject_CallObject( reinterpret_cast<PyObject*>(s_scheduleManagerType), nullptr );
 
-		ScheduleManager* thread_scheduler = reinterpret_cast<PyScheduleManagerObject*>( schedule_manager )->m_impl;
+		ScheduleManager* threadScheduler = reinterpret_cast<PyScheduleManagerObject*>( scheduleManager )->m_implementation;
 		
         // Store scheduler against thread id
-		s_schedulers[scheduler_thread_id] = thread_scheduler;
+		s_schedulers[schedulerThreadId] = threadScheduler;
 
-        ret = thread_scheduler;
+        ret = threadScheduler;
     }
     else
     {
         // Incref and return existing scheduler for the thread
-		scheduler_find->second->incref();
+		schedulerFind->second->Incref();
 
-		ret = scheduler_find->second;
+		ret = schedulerFind->second;
     }
 
-    PyThread_release_lock( s_schedule_manager_lock );
+    PyThread_release_lock( s_scheduleManagerLock );
 
     return ret;
 	
 }
 
-void ScheduleManager::set_current_tasklet( Tasklet* tasklet )
+void ScheduleManager::SetCurrentTasklet( Tasklet* tasklet )
 {
-	m_current_tasklet = tasklet;
+	m_currentTasklet = tasklet;
 
 }
 
-Tasklet* ScheduleManager::get_current_tasklet()
+Tasklet* ScheduleManager::GetCurrentTasklet()
 {
-	return m_current_tasklet;
+	return m_currentTasklet;
 }
 
-void ScheduleManager::insert_tasklet_at_beginning( Tasklet* tasklet )
+//TODO naming correct here?
+void ScheduleManager::InsertTaskletAtBeginning( Tasklet* tasklet )
 {
-	Py_IncRef( tasklet->python_object() );
+	Py_IncRef( tasklet->PythonObject() );
 
-    ScheduleManager* current_scheduler = get_scheduler( tasklet->thread_id() ); 
+    ScheduleManager* currentScheduler = GetScheduler( tasklet->ThreadId() ); 
 
-    tasklet->set_previous( current_scheduler->m_current_tasklet );
+    tasklet->SetPrevious( currentScheduler->m_currentTasklet );
 
-    tasklet->set_next( current_scheduler->m_current_tasklet->next() );
+    tasklet->SetNext( currentScheduler->m_currentTasklet->Next() );
 
-    current_scheduler->m_current_tasklet->set_next( tasklet );
+    currentScheduler->m_currentTasklet->SetNext( tasklet );
 
-    current_scheduler->decref();
+    currentScheduler->Decref();
 
-    tasklet->set_scheduled( true );
+    tasklet->SetScheduled( true );
 
-    m_number_of_tasklets_in_queue++;
+    m_numberOfTaskletsInQueue++;
 }
 
-void ScheduleManager::insert_tasklet( Tasklet* tasklet )
+void ScheduleManager::InsertTasklet( Tasklet* tasklet )
 {
 
-    ScheduleManager* current_scheduler = get_scheduler( tasklet->thread_id() );
+    ScheduleManager* currentScheduler = GetScheduler( tasklet->ThreadId() );
 
-    if( !tasklet->scheduled() )
+    if( !tasklet->IsScheduled() )
 	{
-		Py_IncRef( tasklet->python_object() );
-		current_scheduler->m_previous_tasklet->set_next( tasklet );
+		Py_IncRef( tasklet->PythonObject() );
+		currentScheduler->m_previousTasklet->SetNext( tasklet );
 
-		tasklet->set_previous( current_scheduler->m_previous_tasklet );
+		tasklet->SetPrevious( currentScheduler->m_previousTasklet );
 
 		// Clear out possible old next
-		tasklet->set_next( nullptr );
+		tasklet->SetNext( nullptr );
 
-		current_scheduler->m_previous_tasklet = tasklet;
+		currentScheduler->m_previousTasklet = tasklet;
 
-		tasklet->unblock();	// TODO should probably not be here and replaced with error path
+		tasklet->Unblock();	// TODO should probably not be here and replaced with error path
 
-		tasklet->set_scheduled( true );
+		tasklet->SetScheduled( true );
 
-        m_number_of_tasklets_in_queue++;
+        m_numberOfTaskletsInQueue++;
     }
 	else
 	{
-		tasklet->set_reschedule( true );
+		tasklet->SetReschedule( true );
 	}
 
-    current_scheduler->decref();
+    currentScheduler->Decref();
 }
 
-bool ScheduleManager::remove_tasklet( Tasklet* tasklet )
+bool ScheduleManager::RemoveTasklet( Tasklet* tasklet )
 {
-	Tasklet* previous = tasklet->previous();
+	Tasklet* previous = tasklet->Previous();
 
-    Tasklet* next = tasklet->next();
+    Tasklet* next = tasklet->Next();
 
     if (previous == next)
     {
@@ -216,63 +215,63 @@ bool ScheduleManager::remove_tasklet( Tasklet* tasklet )
 
     if(previous != nullptr)
 	{
-		previous->set_next( next );
+		previous->SetNext( next );
 	}
     
     if(next != nullptr)
 	{
-		next->set_previous( previous );
+		next->SetPrevious( previous );
     }
     else
     {
-		m_previous_tasklet = previous;
+		m_previousTasklet = previous;
     }
 
-    m_number_of_tasklets_in_queue--;
+    m_numberOfTaskletsInQueue--;
 
-	tasklet->set_next( nullptr );
-	tasklet->set_previous( nullptr );
+	tasklet->SetNext( nullptr );
+	tasklet->SetPrevious( nullptr );
 
     return true;
 }
 
-bool ScheduleManager::schedule( bool remove /* = false */ )
+bool ScheduleManager::Schedule( bool remove /* = false */ )
 {
     // Add Current to the end of chain of runnable tasklets    
-	Tasklet* current_tasklet = ScheduleManager::get_current_tasklet();
+	Tasklet* currentTasklet = ScheduleManager::GetCurrentTasklet();
 
 
     if(remove)
 	{
 		// Set tag for removal flag, this flag will ensure tasklet remains alive after removal
-		current_tasklet->set_tagged_for_removal( true );
+		currentTasklet->SetTaggedForRemoval( true );
     }
 	else
 	{
 		// Set reschedule flag to inform scheduler that this tasklet must be re-inserted
-		current_tasklet->set_reschedule( true );
+		currentTasklet->SetReschedule( true );
     }
     
 
-    return yield();
+    return Yield();
 
 }
 
-int ScheduleManager::get_tasklet_count()
+int ScheduleManager::GetCachedTaskletCount()
 {
-	return m_number_of_tasklets_in_queue + 1;   // +1 is the main tasklet
+	return m_numberOfTaskletsInQueue + 1;   // +1 is the main tasklet
 }
 
-int ScheduleManager::calculate_tasklet_count()
+int ScheduleManager::GetCalculatedTaskletCount()
 {
 	int count = 0;
 
-	Tasklet* current_tasklet = ScheduleManager::get_main_tasklet();
+	Tasklet* currentTasklet = ScheduleManager::GetMainTasklet();
 
-	while( current_tasklet->next() != nullptr )
+	while( currentTasklet->Next() != nullptr )
 	{
 		count++;
-		current_tasklet = current_tasklet->next();
+		currentTasklet = currentTasklet->Next();
 	}
 
 	return count + 1; // +1 is the main tasklet
@@ -280,22 +279,22 @@ int ScheduleManager::calculate_tasklet_count()
 
 // Returns true if tasklet is in a clean state when resumed
 // Returns false if exception has been raised on tasklet
-bool ScheduleManager::yield()
+bool ScheduleManager::Yield()
 {
-	Tasklet* yielding_tasklet = ScheduleManager::get_current_tasklet();
+	Tasklet* yieldingTasklet = ScheduleManager::GetCurrentTasklet();
 
-	if( ScheduleManager::get_main_tasklet() == ScheduleManager::get_current_tasklet() )
+	if( ScheduleManager::GetMainTasklet() == ScheduleManager::GetCurrentTasklet() )
 	{
 
-		if( yielding_tasklet->is_blocked() && yielding_tasklet->next() == nullptr )
+		if( yieldingTasklet->IsBlocked() && yieldingTasklet->Next() == nullptr )
 		{
 			PyErr_SetString(PyExc_RuntimeError, "Deadlock: the last runnable tasklet cannot be blocked.");
 
 			return false;
 		}
-		else if( yielding_tasklet->is_blocked() )
+		else if( yieldingTasklet->IsBlocked() )
         {
-			bool success = ScheduleManager::run();
+			bool success = ScheduleManager::Run();
 
             // if the run set an exception in python, we should fail due to that error now
             if( !success )
@@ -304,7 +303,7 @@ bool ScheduleManager::yield()
             }
 
             // if the main tasklet is still blocked, then this is a deadlock
-			if( yielding_tasklet->is_blocked() )
+			if( yieldingTasklet->IsBlocked() )
             {
 				PyErr_SetString( PyExc_RuntimeError, "Deadlock: the last runnable tasklet cannot be blocked." );
 
@@ -314,14 +313,14 @@ bool ScheduleManager::yield()
             return success;
         }
         
-		return ScheduleManager::run();
+		return ScheduleManager::Run();
 	}
 	else
 	{
         //Switch to the parent tasklet - support for nested run and schedule calls
-		Tasklet* parent_tasklet = yielding_tasklet->get_tasklet_parent();
+		Tasklet* parent_tasklet = yieldingTasklet->GetParent();
 
-        if (!parent_tasklet->switch_to())
+        if (!parent_tasklet->SwitchTo())
 		{
 			return false;
 		}
@@ -330,82 +329,82 @@ bool ScheduleManager::yield()
 	return true;
 }
 
-bool ScheduleManager::run_tasklets_for_time( long long timeout )
+bool ScheduleManager::RunTaskletsForTime( long long timeout )
 {
 
-	m_total_tasklet_run_time_limit = timeout;
+	m_totalTaskletRunTimeLimit = timeout;
 
-	bool ret = run();
+	bool ret = Run();
 
-	m_stop_scheduler = false;
+	m_stopScheduler = false;
 
-	m_tasklet_limit = -1;
+	m_taskletLimit = -1;
 
-    m_total_tasklet_run_time_limit = -1;
+    m_totalTaskletRunTimeLimit = -1;
 
-    m_start_time = std::chrono::steady_clock::now();
+    m_startTime = std::chrono::steady_clock::now();
 
 	return ret;
 }
 
-bool ScheduleManager::run_n_tasklets( int number_of_tasklets )
+bool ScheduleManager::RunNTasklets( int n )
 {
-    m_tasklet_limit = number_of_tasklets;
+    m_taskletLimit = n;
 
-    bool ret = run();
+    bool ret = Run();
 
-    m_stop_scheduler = false;
+    m_stopScheduler = false;
 
-    m_tasklet_limit = -1;
+    m_taskletLimit = -1;
 
     return ret;
 }
 
-bool ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
+bool ScheduleManager::Run( Tasklet* startTasklet /* = nullptr */ )
 {
-    Tasklet* base_tasklet = nullptr;
+    Tasklet* baseTasklet = nullptr;
 
-    Tasklet* end_tasklet = nullptr;
+    Tasklet* endTasklet = nullptr;
 
-	if( start_tasklet )
+	if( startTasklet )
 	{
-		base_tasklet = start_tasklet->previous();
+		baseTasklet = startTasklet->Previous();
 
-        end_tasklet = m_previous_tasklet;
+        endTasklet = m_previousTasklet;
     }
 	else
 	{
-		base_tasklet = get_current_tasklet();
+		baseTasklet = GetCurrentTasklet();
     }
 
-    bool run_complete = false;
+    bool runComplete = false;
 
-    bool run_until_unblocked = false;
+    bool runUntilUnblocked = false;
 
-    if (get_current_tasklet() == get_main_tasklet() && get_current_tasklet()->is_blocked())
+    if (GetCurrentTasklet() == GetMainTasklet() && GetCurrentTasklet()->IsBlocked())
     {
-		run_until_unblocked = true;
+		runUntilUnblocked = true;
     }
 
-    while( ( base_tasklet->next() != nullptr ) && ( !run_complete ) )
+    while( ( baseTasklet->Next() != nullptr ) && ( !runComplete ) )
 	{
 
-        if( m_stop_scheduler )
+        if( m_stopScheduler )
 		{
 			// Switch back to parent now
-			Tasklet* active_tasklet = ScheduleManager::get_current_tasklet();
+			Tasklet* activeTasklet = ScheduleManager::GetCurrentTasklet();
 
-			if( active_tasklet == ScheduleManager::get_main_tasklet() )
+			if( activeTasklet == ScheduleManager::GetMainTasklet() )
 			{
 				break;
 			}
 			else
 			{
-				Tasklet* call_parent = active_tasklet->get_tasklet_parent();
-				if( call_parent->switch_to() )
+				Tasklet* callParent = activeTasklet->GetParent();
+				if( callParent->SwitchTo() )
 				{
 					// Update current tasklet
-					ScheduleManager::set_current_tasklet( active_tasklet );
+					ScheduleManager::SetCurrentTasklet( activeTasklet );
 				}
 				else
 				{
@@ -414,89 +413,88 @@ bool ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
 			}
 		}
 
-		Tasklet* current_tasklet = base_tasklet->next();
+		Tasklet* currentTasklet = baseTasklet->Next();
 
-        run_scheduler_callback( current_tasklet->previous(), current_tasklet );
+        RunSchedulerCallback( currentTasklet->Previous(), currentTasklet );
 
         // Store the parent to the tasklet
 		// Required for nested scheduling calls
 
         bool currentTaskletParentBlocked = false;
-        if (current_tasklet->get_tasklet_parent())
+        if (currentTasklet->GetParent())
         {
-			currentTaskletParentBlocked = current_tasklet->get_tasklet_parent()->is_blocked();
+			currentTaskletParentBlocked = currentTasklet->GetParent()->IsBlocked();
         }
 
-        if (current_tasklet->set_parent(ScheduleManager::get_current_tasklet()) == -1)
+        if (currentTasklet->SetParent(ScheduleManager::GetCurrentTasklet()) == -1)
         {
 			return false;
         }
 		
         // If set to true then tasklet will be decreffed at the end of the loop
-        bool cleanup_current_tasklet = false;
-
+        bool cleanupCurrentTasklet = false;
 
         // If switch returns no error or if the error raised is a tasklet exception raised error
-		if( current_tasklet->switch_to() || current_tasklet->tasklet_exception_raised() )
+		if( currentTasklet->SwitchTo() || currentTasklet->TaskletExceptionRaised() )
 		{
 			//Clear possible tasklet exception to capture
-			current_tasklet->clear_tasklet_exception();
+			currentTasklet->ClearTaskletException();
 
-            if (run_until_unblocked && !get_main_tasklet()->is_blocked())
+            if (runUntilUnblocked && !GetMainTasklet()->IsBlocked())
             {
-				run_complete = true;
+				runComplete = true;
             }
 
 			// Update current tasklet
-			ScheduleManager::set_current_tasklet( current_tasklet->get_tasklet_parent() );
+			ScheduleManager::SetCurrentTasklet( currentTasklet->GetParent() );
             
 
 			//If this is the last tasklet then update previous_tasklet to keep it at the end of the chain
-			if( current_tasklet->next() == nullptr )
+			if( currentTasklet->Next() == nullptr )
 			{
-				m_previous_tasklet = current_tasklet->previous();
+				m_previousTasklet = currentTasklet->Previous();
 			}
 
 			// If running with a tasklet limit then if there are no tasklets left and
 			// then don't move the scheduler forward to keep the stacks required to recreate the scheduler state
-			if( !m_stop_scheduler )
+			if( !m_stopScheduler )
 			{
 				// Remove tasklet from queue
-                if (remove_tasklet(current_tasklet))
+                if (RemoveTasklet(currentTasklet))
                 {
-					cleanup_current_tasklet = true;
+					cleanupCurrentTasklet = true;
                 }
 
-                current_tasklet->set_scheduled( false );
+                currentTasklet->SetScheduled( false );
 
 				//Will this get skipped if it happens to be when it will schedule
-				if( current_tasklet->requires_reschedule() )
+				if( currentTasklet->RequiresReschedule() )
 				{
-					insert_tasklet( current_tasklet );
-					current_tasklet->set_reschedule( false );
+					InsertTasklet( currentTasklet );
+					currentTasklet->SetReschedule( false );
 				}
 
                 // Test Tasklet Run Limit
-				if( m_tasklet_limit > -1 )
+				if( m_taskletLimit > -1 )
 				{
-					if( m_tasklet_limit > 0 )
+					if( m_taskletLimit > 0 )
 					{
-						m_tasklet_limit--;
+						m_taskletLimit--;
 					}
-					if( m_tasklet_limit == 0 )
+					if( m_taskletLimit == 0 )
 					{
-						m_stop_scheduler = true;
+						m_stopScheduler = true;
 					}
 				}
 
                 // Test Total tasklet Run Limit
-                if (m_total_tasklet_run_time_limit > 0)
+                if (m_totalTaskletRunTimeLimit > 0)
                 {
 					std::chrono::steady_clock::time_point current_time = std::chrono::steady_clock::now();
 
-                    if( std::chrono::duration_cast<std::chrono::nanoseconds>( current_time - m_start_time ).count() >= m_total_tasklet_run_time_limit )
+                    if( std::chrono::duration_cast<std::chrono::nanoseconds>( current_time - m_startTime ).count() >= m_totalTaskletRunTimeLimit )
 					{
-						m_stop_scheduler = true;
+						m_stopScheduler = true;
 					}
                 }
                
@@ -505,40 +503,40 @@ bool ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
 		else
 		{
 		    // If exception state should lead to removal of tasklet
-            if( current_tasklet->requires_removal() )
+            if( currentTasklet->RequiresRemoval() )
 			{
 				// Update current tasklet
-				ScheduleManager::set_current_tasklet( current_tasklet->get_tasklet_parent() );
+				ScheduleManager::SetCurrentTasklet( currentTasklet->GetParent() );
 
-				if( remove_tasklet( current_tasklet ) )
+				if( RemoveTasklet( currentTasklet ) )
 				{
-					current_tasklet->set_parent( nullptr );
+					currentTasklet->SetParent( nullptr );
 
-					current_tasklet->decref();
+					currentTasklet->Decref();
 				}
 			}
             
             // Switch was unsuccessful
-			current_tasklet->clear_parent();
+			currentTasklet->ClearParent();
 
 			return false;
         }
 
         // Tasklets created during this run are not run in this loop
-		if( current_tasklet == end_tasklet )
+		if( currentTasklet == endTasklet )
 		{
-			run_complete = true;
+			runComplete = true;
 		}
 
         // Same needs to happen in fail case
-        if (!current_tasklet->alive())
+        if (!currentTasklet->IsAlive())
         {
-			current_tasklet->set_parent( nullptr );
+			currentTasklet->SetParent( nullptr );
         }
 
-        if( cleanup_current_tasklet )
+        if( cleanupCurrentTasklet )
 		{
-			current_tasklet->decref();
+			currentTasklet->Decref();
         }
 		
 	}
@@ -546,92 +544,92 @@ bool ScheduleManager::run( Tasklet* start_tasklet /* = nullptr */ )
 	return true;
 }
 
-Tasklet* ScheduleManager::get_main_tasklet()
+Tasklet* ScheduleManager::GetMainTasklet()
 {
-	return m_scheduler_tasklet;
+	return m_schedulerTasklet;
 }
 
-void ScheduleManager::set_scheduler_fast_callback( schedule_hook_func* func )
+void ScheduleManager::SetSchedulerFastCallback( schedule_hook_func* func )
 {
-	m_scheduler_fast_callback = func;
+	m_schedulerFastCallback = func;
 }
 
-void ScheduleManager::set_scheduler_callback( PyObject* callback )
+void ScheduleManager::SetSchedulerCallback( PyObject* callback )
 {
     //TODO so far this is specific to the thread it was called on
     //Check what stackless does, docs are not clear on this
     //Looks global but imo makes more logical sense as local to thread
 
-    Py_XDECREF( m_scheduler_callback );
+    Py_XDECREF( m_schedulerCallback );
 
     Py_IncRef( callback );
 
-    m_scheduler_callback = callback;
+    m_schedulerCallback = callback;
 }
 
-void ScheduleManager::run_scheduler_callback( Tasklet* prev, Tasklet* next )
+void ScheduleManager::RunSchedulerCallback( Tasklet* previous, Tasklet* next )
 {
     // Run Callback through python
-	if(m_scheduler_callback)
+	if(m_schedulerCallback)
 	{
 		PyObject* args = PyTuple_New( 2 ); // TODO don't create this each time
 
-        PyObject* py_prev = Py_None;
+        PyObject* pyPrevious = Py_None;
 
-        if (prev)
+        if (previous)
         {
-			py_prev = prev->python_object();
+			pyPrevious = previous->PythonObject();
         }
 
-        PyObject* py_next = Py_None;
+        PyObject* pyNext = Py_None;
 
         if (next)
         {
-			py_next = next->python_object();
+			pyNext = next->PythonObject();
         }
 
-        Py_IncRef( py_prev );
+        Py_IncRef( pyPrevious );
 
-		Py_IncRef( py_next );
+		Py_IncRef( pyNext );
 
-        PyTuple_SetItem( args, 0, py_prev );
+        PyTuple_SetItem( args, 0, pyPrevious );
 
-        PyTuple_SetItem( args, 1, py_next );
+        PyTuple_SetItem( args, 1, pyNext );
 
-		PyObject_Call( m_scheduler_callback, args, nullptr );
+		PyObject_Call( m_schedulerCallback, args, nullptr );
 
         Py_DecRef( args );
     }
 
     // Run fast callback bypassing python
-    if (m_scheduler_fast_callback)
+    if (m_schedulerFastCallback)
     {
-		m_scheduler_fast_callback( reinterpret_cast<PyTaskletObject*>(prev->python_object()), reinterpret_cast<PyTaskletObject*>(next->python_object()) );
+		m_schedulerFastCallback( reinterpret_cast<PyTaskletObject*>(previous->PythonObject()), reinterpret_cast<PyTaskletObject*>(next->PythonObject()) );
     }
 }
 
-bool ScheduleManager::is_switch_trapped()
+bool ScheduleManager::IsSwitchTrapped()
 {
-    return m_switch_trap_level != 0;
+    return m_switchTrapLevel != 0;
 }
 
-
-PyObject* ScheduleManager::scheduler_callback()
+PyObject* ScheduleManager::SchedulerCallback()
 {
-	return m_scheduler_callback;
+	return m_schedulerCallback;
 }
 
-void ScheduleManager::set_current_tasklet_changed_callback( PyObject* callback )
+void ScheduleManager::SetCurrentTaskletChangedCallback( PyObject* callback )
 {
-	m_current_tasklet_changed_callback = callback;
+    //TODO xdecref?
+	m_currentTaskletChangedCallback = callback;
 }
 
-int ScheduleManager::switch_trap_level()
+int ScheduleManager::SwitchTrapLevel()
 {
-	return m_switch_trap_level;
+	return m_switchTrapLevel;
 }
 
-void ScheduleManager::set_switch_trap_level( int level )
+void ScheduleManager::SetSwitchTrapLevel( int level )
 {
-	m_switch_trap_level = level;
+	m_switchTrapLevel = level;
 }

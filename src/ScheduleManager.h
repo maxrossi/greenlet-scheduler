@@ -16,8 +16,11 @@
 	*************************************************************************
 */
 #pragma once
+#ifndef ScheduleManager_H
+#define ScheduleManager_H
 
 #include "stdafx.h"
+
 #include <map>
 #include <chrono>
 
@@ -28,104 +31,106 @@ class Tasklet;
 class ScheduleManager
 {
 public:
-	ScheduleManager( PyObject* python_object );
+	ScheduleManager( PyObject* pythonObject );
 
 	~ScheduleManager();
 
-    PyObject* python_object();
+    PyObject* PythonObject();
 
-    void incref();
+    void Incref();
 
-    void decref();
+    void Decref();
 
-    static int num_active_schedule_managers();
+    static int NumberOfActiveScheduleManagers();
 
-    static ScheduleManager* find_scheduler( long thread_id );
+    static ScheduleManager* FindScheduler( long threadId );
 
-    static ScheduleManager* get_scheduler( long thread_id = -1 );
+    static ScheduleManager* GetScheduler( long threadId = -1 );
 
-	void set_current_tasklet( Tasklet* tasklet );
+	void SetCurrentTasklet( Tasklet* tasklet );
 
-	Tasklet* get_current_tasklet();
+	Tasklet* GetCurrentTasklet();
 
-    bool remove_tasklet( Tasklet* tasklet );
+    bool RemoveTasklet( Tasklet* tasklet );
 
-    void insert_tasklet_at_beginning( Tasklet* tasklet );
+    void InsertTaskletAtBeginning( Tasklet* tasklet );
 
-    void insert_tasklet( Tasklet* tasklet );
+    void InsertTasklet( Tasklet* tasklet );
 
-    int get_tasklet_count();
+    int GetCachedTaskletCount();
 
-    int calculate_tasklet_count();
+    int GetCalculatedTaskletCount();
 
-    bool schedule(bool remove = false);
+    bool Schedule(bool remove = false);
 
-    bool yield();
+    bool Yield();
 
-    bool run_n_tasklets( int number_of_tasklets );
+    bool RunNTasklets( int n );
 
-    bool run_tasklets_for_time( long long timeout );
+    bool RunTaskletsForTime( long long timeout );
 
-    bool run( Tasklet* start_tasklet = nullptr );
+    bool Run( Tasklet* startTasklet = nullptr );
 
-    Tasklet* get_main_tasklet();
+    Tasklet* GetMainTasklet();
 
-    void set_scheduler_fast_callback( schedule_hook_func* func );
+    void SetSchedulerFastCallback( schedule_hook_func* func );
 
-    void set_scheduler_callback( PyObject* callback );
+    void SetSchedulerCallback( PyObject* callback );
 
-    void run_scheduler_callback( Tasklet* prev, Tasklet* next );
+    void RunSchedulerCallback( Tasklet* previous, Tasklet* next );
 
-    PyObject* scheduler_callback();
+    PyObject* SchedulerCallback();
 
-    bool is_switch_trapped();
+    bool IsSwitchTrapped();
 
-    void set_current_tasklet_changed_callback( PyObject* callback );
+    void SetCurrentTaskletChangedCallback( PyObject* callback );
 
-    int switch_trap_level();
+    int SwitchTrapLevel();
 
-    void set_switch_trap_level( int level );
+    void SetSwitchTrapLevel( int level );
 
-    void create_scheduler_tasklet();
+    void CreateSchedulerTasklet();
 
 public:
 
-    inline static PyTypeObject* s_tasklet_type;
+    inline static PyTypeObject* s_taskletType;
 
-    inline static PyTypeObject* s_schedule_manager_type;
+    inline static PyTypeObject* s_scheduleManagerType;
 
-    inline static PyThread_type_lock s_schedule_manager_lock;
+    inline static PyThread_type_lock s_scheduleManagerLock;
 
 private:
 
-    PyObject* m_python_object;
+    PyObject* m_pythonObject;
 
-    long m_thread_id;
+    long m_threadId;
 
-    Tasklet* m_scheduler_tasklet;
+    Tasklet* m_schedulerTasklet;
 
-    Tasklet* m_current_tasklet; //Weak ref
+    Tasklet* m_currentTasklet; //Weak ref
 
-    Tasklet* m_previous_tasklet; //Weak ref
+    Tasklet* m_previousTasklet; //Weak ref
 
-    long m_switch_trap_level;
+    long m_switchTrapLevel;
 
-    PyObject* m_current_tasklet_changed_callback;
+    PyObject* m_currentTaskletChangedCallback;
 
-	PyObject* m_scheduler_callback;
+	PyObject* m_schedulerCallback;
 
-    schedule_hook_func* m_scheduler_fast_callback;
+    schedule_hook_func* m_schedulerFastCallback;
 
-    int m_tasklet_limit;
+    int m_taskletLimit;
 
-    long long m_total_tasklet_run_time_limit;
+    long long m_totalTaskletRunTimeLimit;
 
-    std::chrono::steady_clock::time_point m_start_time;
+    std::chrono::steady_clock::time_point m_startTime;
 
-    bool m_stop_scheduler;
+    bool m_stopScheduler;
 
-    int m_number_of_tasklets_in_queue;
+    int m_numberOfTaskletsInQueue;
 
     inline static std::map<long, ScheduleManager*> s_schedulers;    //Each thread has its own scheduler
     
 };
+
+#endif // ScheduleManager_H

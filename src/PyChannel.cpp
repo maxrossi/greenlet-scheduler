@@ -1,13 +1,12 @@
 #include "Channel.h"
 
-#include "Tasklet.h"
-
-#include "PyChannel.h"
-
 #include <new>
 
+#include "Tasklet.h"
+#include "PyChannel.h"
+
 static PyObject*
-	Channel_new( PyTypeObject* type, PyObject* args, PyObject* kwds )
+	ChannelNew( PyTypeObject* type, PyObject* args, PyObject* kwds )
 {
 	PyChannelObject* self;
 
@@ -15,22 +14,22 @@ static PyObject*
 
 	if( self != nullptr )
 	{
-		self->m_impl = nullptr;
+		self->m_implementation = nullptr;
 
-		self->m_weakref_list = nullptr;
+		self->m_weakrefList = nullptr;
 	}
 
 	return (PyObject*)self;
 }
 
 static int
-	Channel_init( PyChannelObject* self, PyObject* Py_UNUSED( args ), PyObject* Py_UNUSED( kwds ) )
+	ChannelInit( PyChannelObject* self, PyObject* Py_UNUSED( args ), PyObject* Py_UNUSED( kwds ) )
 {
 
 	// Allocate the memory for the implementation member
-	self->m_impl = (Channel*)PyObject_Malloc( sizeof( Channel ) );
+	self->m_implementation = (Channel*)PyObject_Malloc( sizeof( Channel ) );
 
-	if( !self->m_impl )
+	if( !self->m_implementation )
 	{
 		PyErr_SetString( PyExc_RuntimeError, "Failed to allocate memory for implementation object." );
 
@@ -40,11 +39,11 @@ static int
     // Call constructor
 	try
 	{
-		new( self->m_impl ) Channel( reinterpret_cast<PyObject*>( self ) );
+		new( self->m_implementation ) Channel( reinterpret_cast<PyObject*>( self ) );
 	}
 	catch( const std::exception& ex )
 	{
-		PyObject_Free( self->m_impl );
+		PyObject_Free( self->m_implementation );
 
 		PyErr_SetString( PyExc_RuntimeError, ex.what() );
 
@@ -52,7 +51,7 @@ static int
 	}
 	catch( ... )
 	{
-		PyObject_Free( self->m_impl );
+		PyObject_Free( self->m_implementation );
 
 		PyErr_SetString( PyExc_RuntimeError, "Failed to construct implementation object." );
 
@@ -63,18 +62,18 @@ static int
 }
 
 static void
-	Channel_dealloc( PyChannelObject* self )
+	ChannelDealloc( PyChannelObject* self )
 {
-    if (self->m_impl)
+	if( self->m_implementation )
     {
 		// Call destructor
-		self->m_impl->~Channel();
+		self->m_implementation->~Channel();
 
-		PyObject_Free( self->m_impl );
+		PyObject_Free( self->m_implementation );
     }
 
     // Handle weakrefs
-    if (self->m_weakref_list != nullptr)
+    if (self->m_weakrefList != nullptr)
     {
 		PyObject_ClearWeakRefs( (PyObject*)self );
     }
@@ -82,9 +81,9 @@ static void
     Py_TYPE( self )->tp_free( (PyObject*)self );
 }
 
-static bool PyChannelObject_is_valid( PyChannelObject* channel )
+static bool PyChannelObjectIsValid( PyChannelObject* channel )
 {
-	if( !channel->m_impl )
+	if( !channel->m_implementation )
 	{
 		PyErr_SetString( PyExc_RuntimeError, "Channel object is not valid. Most likely cause being __init__ not called on base type." );
 
@@ -95,22 +94,22 @@ static bool PyChannelObject_is_valid( PyChannelObject* channel )
 }
 
 static PyObject*
-	Channel_preference_get( PyChannelObject* self, void* closure )
+	ChannelPreferenceGet( PyChannelObject* self, void* closure )
 {
 	// Ensure PyChannelObject is in a valid state
-	if( !PyChannelObject_is_valid( self ) )
+	if( !PyChannelObjectIsValid( self ) )
 	{
 		return nullptr;
 	}
 
-	return PyLong_FromLong( self->m_impl->preference() );
+	return PyLong_FromLong( self->m_implementation->Preference() );
 }
 
 static int
-	Channel_preference_set( PyChannelObject* self, PyObject* value, void* closure ) //TODO just test
+	ChannelPreferenceSet( PyChannelObject* self, PyObject* value, void* closure ) //TODO just test
 {
 	// Ensure PyChannelObject is in a valid state
-	if( !PyChannelObject_is_valid( self ) )
+	if( !PyChannelObjectIsValid( self ) )
 	{
 		return -1;
 	}
@@ -127,42 +126,42 @@ static int
 		return -1;
 	}
 
-    long new_preference = PyLong_AsLong( value );
+    long newPreference = PyLong_AsLong( value );
 
     // Only accept valid values
     // -1   - Prefer receive
     // 0    - Prefer neither
     // 1    - Prefer sender
-    if( ( new_preference > -2 ) && ( new_preference < 2 ) )
+    if( ( newPreference > -2 ) && ( newPreference < 2 ) )
 	{
-		self->m_impl->set_preference( new_preference );
+		self->m_implementation->SetPreference( newPreference );
     }
 
 	return 0;
 }
 
 static PyObject*
-	Channel_balance_get( PyChannelObject* self, void* closure )
+	ChannelBalanceGet( PyChannelObject* self, void* closure )
 {
 	// Ensure PyChannelObject is in a valid state
-	if( !PyChannelObject_is_valid( self ) )
+	if( !PyChannelObjectIsValid( self ) )
 	{
 		return nullptr;
 	}
 
-	return PyLong_FromLong( self->m_impl->balance() );
+	return PyLong_FromLong( self->m_implementation->Balance() );
 }
 
 static PyObject*
-	Channel_queue_get( PyChannelObject* self, void* closure )
+	ChannelQueueGet( PyChannelObject* self, void* closure )
 {
 	// Ensure PyChannelObject is in a valid state
-	if( !PyChannelObject_is_valid( self ) )
+	if( !PyChannelObjectIsValid( self ) )
 	{
 		return nullptr;
 	}
 
-	Tasklet* front = self->m_impl->blocked_queue_front();
+	Tasklet* front = self->m_implementation->BlockedQueueFront();
 
     if (!front)
     {
@@ -172,65 +171,65 @@ static PyObject*
     }
     else
     {
-		PyObject* front_of_queue = front->python_object();
+		PyObject* frontOfQueue = front->PythonObject();
 
-        Py_IncRef( front_of_queue );
+        Py_IncRef( frontOfQueue );
 
-		return front_of_queue;
+		return frontOfQueue;
     }
 }
 
 static PyObject*
-	Channel_closed_get( PyChannelObject* self, void* closure )
+	ChannelClosedGet( PyChannelObject* self, void* closure )
 {
 	// Ensure PyChannelObject is in a valid state
-	if( !PyChannelObject_is_valid( self ) )
+	if( !PyChannelObjectIsValid( self ) )
 	{
 		return nullptr;
 	}
 
-	return self->m_impl->is_closed() ? Py_True : Py_False;
+	return self->m_implementation->IsClosed() ? Py_True : Py_False;
 }
 
 static PyObject*
-	Channel_closing_get( PyChannelObject* self, void* closure )
+	ChannelClosingGet( PyChannelObject* self, void* closure )
 {
 	// Ensure PyChannelObject is in a valid state
-	if( !PyChannelObject_is_valid( self ) )
+	if( !PyChannelObjectIsValid( self ) )
 	{
 		return nullptr;
 	}
 
-	return self->m_impl->is_closing() ? Py_True : Py_False ;
+	return self->m_implementation->IsClosing() ? Py_True : Py_False;
 }
 
 static PyGetSetDef Channel_getsetters[] = {
 	{ "preference",
-        (getter)Channel_preference_get,
-        (setter)Channel_preference_set,
+        (getter)ChannelPreferenceGet,
+        (setter)ChannelPreferenceSet,
         "allows for customisation of how the channel actions.",
         NULL },
 
 	{ "balance",
-        (getter)Channel_balance_get,
+        (getter)ChannelBalanceGet,
         NULL,
         "number of tasklets waiting to send (>0) or receive (<0).",
         NULL },
 
 	{ "queue",
-        (getter)Channel_queue_get,
+        (getter)ChannelQueueGet,
         NULL,
         "the first tasklet in the chain of tasklets that are blocked on the channel.",
         NULL },
 
 	{ "closed",
-        (getter)Channel_closed_get,
+        (getter)ChannelClosedGet,
         NULL,
         "The value of this attribute is True when close() has been called and the channel is empty.",
         NULL },
 
 	{ "closing",
-        (getter)Channel_closing_get,
+        (getter)ChannelClosingGet,
         NULL,
         "The value of this attribute is True when close() has been called.",
         NULL },
@@ -239,10 +238,10 @@ static PyGetSetDef Channel_getsetters[] = {
 };
 
 static PyObject*
-	Channel_send( PyChannelObject* self, PyObject* args, PyObject* Py_UNUSED( kwds ) )
+	ChannelSend( PyChannelObject* self, PyObject* args, PyObject* Py_UNUSED( kwds ) )
 {
 	// Ensure PyChannelObject is in a valid state
-	if( !PyChannelObject_is_valid( self ) )
+	if( !PyChannelObjectIsValid( self ) )
 	{
 		return nullptr;
 	}
@@ -254,7 +253,7 @@ static PyObject*
 		return nullptr;
 	}
 
-	if( !self->m_impl->send( value ) )
+	if( !self->m_implementation->Send( value ) )
 	{
 		return nullptr;
 	}
@@ -265,22 +264,22 @@ static PyObject*
 }
 
 static PyObject*
-	Channel_receive( PyChannelObject* self, PyObject* Py_UNUSED( ignored ) )
+	ChannelReceive( PyChannelObject* self, PyObject* Py_UNUSED( ignored ) )
 {
 	// Ensure PyChannelObject is in a valid state
-	if( !PyChannelObject_is_valid( self ) )
+	if( !PyChannelObjectIsValid( self ) )
 	{
 		return nullptr;
 	}
 
-	return self->m_impl->receive();
+	return self->m_implementation->Receive();
 }
 
 static PyObject*
-	Channel_sendexception( PyChannelObject* self, PyObject* args, PyObject* Py_UNUSED( kwds ) )
+	ChannelSendException( PyChannelObject* self, PyObject* args, PyObject* Py_UNUSED( kwds ) )
 {
 	// Ensure PyChannelObject is in a valid state
-	if( !PyChannelObject_is_valid( self ) )
+	if( !PyChannelObjectIsValid( self ) )
 	{
 		return nullptr;
 	}
@@ -301,34 +300,34 @@ static PyObject*
 
     Py_IncRef( exception );
 
-    PyObject* exception_arguments = nullptr;
+    PyObject* exceptionArguments = nullptr;
 
     if (PyTuple_Size(args) > 1)
     {
-		exception_arguments = PyTuple_GetSlice( args, 1, PyTuple_Size( args ) );
+		exceptionArguments = PyTuple_GetSlice( args, 1, PyTuple_Size( args ) );
 
-        if (PyTuple_Size(exception_arguments) == 1)
+        if( PyTuple_Size( exceptionArguments ) == 1 )
         {
-			auto var = PyTuple_GetItem( exception_arguments, 0 );
+			auto var = PyTuple_GetItem( exceptionArguments, 0 );
 			Py_IncRef( var );
-			Py_DecRef( exception_arguments );
-			exception_arguments = var;
+			Py_DecRef( exceptionArguments );
+			exceptionArguments = var;
         }
     }
     else
     {
 		Py_IncRef( Py_None );
-		exception_arguments = Py_None;
+		exceptionArguments = Py_None;
     }
 
-	if( !self->m_impl->send( exception_arguments, exception ) )
+	if( !self->m_implementation->Send( exceptionArguments, exception ) )
 	{
-		Py_DecRef( exception_arguments );
+		Py_DecRef( exceptionArguments );
 
 		return NULL;
     }
 
-    Py_DecRef( exception_arguments );
+    Py_DecRef( exceptionArguments );
 
     Py_IncRef( Py_None );
 
@@ -336,10 +335,10 @@ static PyObject*
 }
 
 static PyObject*
-	Channel_sendThrow( PyChannelObject* self, PyObject* args, PyObject* kwds )
+	ChannelSendThrow( PyChannelObject* self, PyObject* args, PyObject* kwds )
 {
 	// Ensure PyChannelObject is in a valid state
-	if( !PyChannelObject_is_valid( self ) )
+	if( !PyChannelObjectIsValid( self ) )
 	{
 		return nullptr;
 	}
@@ -376,7 +375,7 @@ static PyObject*
 	PyTuple_SetItem( exceptionDataTuple, 1, value );
 	PyTuple_SetItem( exceptionDataTuple, 2, tb );
 
-    if( !self->m_impl->send( Py_None, exceptionDataTuple, true ) )
+	if( !self->m_implementation->Send( Py_None, exceptionDataTuple, true ) )
 	{
 		Py_DecRef( exceptionDataTuple );
 		return NULL;
@@ -389,7 +388,7 @@ static PyObject*
 
 
 static PyObject*
-	Channel_iter( PyChannelObject* self )
+	ChannelIter( PyChannelObject* self )
 {
 	Py_INCREF( self ); 
 
@@ -397,7 +396,7 @@ static PyObject*
 }
 
 static PyObject*
-	Channel_next( PyChannelObject* self )
+	ChannelNext( PyChannelObject* self )
 {
     // Run receive until unblocked
     // Note: behaviour is slightly different to stackless but probably better
@@ -405,7 +404,7 @@ static PyObject*
     // This will return a nullptr
     // This null then returned here will turn this into a StopIteration error
     // Which makes more sense
-	PyObject* ret = Channel_receive( self, nullptr );
+	PyObject* ret = ChannelReceive( self, nullptr );
 
     if (!ret)
     {
@@ -421,15 +420,15 @@ static PyObject*
 }
 
 static PyObject*
-	Channel_clearTasklets( PyChannelObject* self, PyObject* Py_UNUSED( ignored ) )
+	ChannelClearTasklets( PyChannelObject* self, PyObject* Py_UNUSED( ignored ) )
 {
 	// Ensure PyChannelObject is in a valid state
-	if( !PyChannelObject_is_valid( self ) )
+	if( !PyChannelObjectIsValid( self ) )
 	{
 		return nullptr;
 	}
 
-	self->m_impl->clear_blocked( false );
+	self->m_implementation->ClearBlocked( false );
 
 	Py_IncRef( Py_None );
 
@@ -437,15 +436,15 @@ static PyObject*
 }
 
 static PyObject*
-	Channel_close( PyChannelObject* self, PyObject* Py_UNUSED( ignored ) )
+	ChannelClose( PyChannelObject* self, PyObject* Py_UNUSED( ignored ) )
 {
 	// Ensure PyChannelObject is in a valid state
-	if( !PyChannelObject_is_valid( self ) )
+	if( !PyChannelObjectIsValid( self ) )
 	{
 		return nullptr;
 	}
 
-	self->m_impl->close();
+	self->m_implementation->Close();
 
 	Py_IncRef( Py_None );
 
@@ -453,15 +452,15 @@ static PyObject*
 }
 
 static PyObject*
-	Channel_open( PyChannelObject* self, PyObject* Py_UNUSED( ignored ) )
+	ChannelOpen( PyChannelObject* self, PyObject* Py_UNUSED( ignored ) )
 {
 	// Ensure PyChannelObject is in a valid state
-	if( !PyChannelObject_is_valid( self ) )
+	if( !PyChannelObjectIsValid( self ) )
 	{
 		return nullptr;
 	}
 
-	self->m_impl->open();
+	self->m_implementation->Open();
 
 	Py_IncRef( Py_None );
 
@@ -470,20 +469,20 @@ static PyObject*
 
 static PyMethodDef Channel_methods[] = {
 	{ "send",
-        (PyCFunction)Channel_send,
+        (PyCFunction)ChannelSend,
         METH_VARARGS,
         "Send an object over the channel. \n\n\
             :param value: Value to send \n\
             :type value: Object" },
 
 	{ "receive",
-        (PyCFunction)Channel_receive,
+        (PyCFunction)ChannelReceive,
         METH_NOARGS,
         "Receive an object over the channel. \n\n\
             :return received value" },
 
 	{ "send_exception",
-        (PyCFunction)Channel_sendexception,
+        (PyCFunction)ChannelSendException,
         METH_VARARGS,
         "Send an exception over the channel. \n\n\
             :param exc: Python exception \n\
@@ -492,7 +491,7 @@ static PyMethodDef Channel_methods[] = {
             :type args: Tuple" },
 
 	{ "send_throw",
-        (PyCFunction)Channel_sendThrow,
+        (PyCFunction)ChannelSendThrow,
         METH_VARARGS | METH_KEYWORDS,
         "Send an exception over the channel. This function is deprecated! Please use send_exception instead. \n\n\
             :param exc: Python exception \n\
@@ -503,17 +502,17 @@ static PyMethodDef Channel_methods[] = {
             :type tb: Python Traceback object" },
 
 	{ "clear",
-        (PyCFunction)Channel_clearTasklets,
+        (PyCFunction)ChannelClearTasklets,
         METH_NOARGS,
         "Clear channel, all blocked tasklets will be killed rasing TaskletExit exception." },
 
 	{ "close",
-        (PyCFunction)Channel_close,
+        (PyCFunction)ChannelClose,
         METH_NOARGS,
         "Prevents the channel queue from growing. If the channel is not empty, the flag closing becomes True. If the channel is empty, the flag closed becomes True." },
 
 	{ "open",
-        (PyCFunction)Channel_open,
+        (PyCFunction)ChannelOpen,
         METH_NOARGS,
         "Reopen a channel." },
 
@@ -527,7 +526,7 @@ static PyTypeObject ChannelType = {
 	sizeof( PyChannelObject ), /*tp_basicsize*/
 	0, /*tp_itemsize*/
 	/* methods */
-	(destructor)Channel_dealloc, /*tp_dealloc*/
+	(destructor)ChannelDealloc, /*tp_dealloc*/
 	0, /*tp_vectorcall_offset*/
 	0, /*tp_getattr*/
 	0, /*tp_setattr*/
@@ -547,9 +546,9 @@ static PyTypeObject ChannelType = {
 	0, /*tp_traverse*/
 	0, /*tp_clear*/
 	0, /*tp_richcompare*/
-	offsetof( PyChannelObject, m_weakref_list ), /*tp_weaklistoffset*/
-	(getiterfunc)Channel_iter, /*tp_iter*/
-	(iternextfunc)Channel_next, /*tp_iternext*/
+	offsetof( PyChannelObject, m_weakrefList ), /*tp_weaklistoffset*/
+	(getiterfunc)ChannelIter, /*tp_iter*/
+	(iternextfunc)ChannelNext, /*tp_iternext*/
 	Channel_methods, /*tp_methods*/
 	0, /*tp_members*/
 	Channel_getsetters, /*tp_getset*/
@@ -559,9 +558,9 @@ static PyTypeObject ChannelType = {
 	0, /*tp_descr_get*/
 	0, /*tp_descr_set*/
 	0, /*tp_dictoffset*/
-	(initproc)Channel_init, /*tp_init*/
+	(initproc)ChannelInit, /*tp_init*/
 	0, /*tp_alloc*/
-	Channel_new, /*tp_new*/
+	ChannelNew, /*tp_new*/
 	0, /*tp_free*/
 	0, /*tp_is_gc*/
 };

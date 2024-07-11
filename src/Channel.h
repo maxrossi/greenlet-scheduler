@@ -16,10 +16,11 @@
 	*************************************************************************
 */
 #pragma once
-
-#include <deque>
+#ifndef Channel_H
+#define Channel_H
 
 #include "stdafx.h"
+
 #include <list>
 
 const int SENDER = 1;
@@ -32,74 +33,74 @@ class Channel
 {
 public:
 	
-	Channel( PyObject* python_object );
+	Channel( PyObject* pythonObject );
 
     ~Channel();
 
-    void incref();
+    void Incref();
 
-	void decref();
+	void Decref();
 
-    int refcount();
+    int ReferenceCount();
 
-    PyObject* python_object();
+    PyObject* PythonObject();
 
-	bool send( PyObject* args, PyObject* exception = nullptr, bool send_throw_exception = false );
+	bool Send( PyObject * args, PyObject* exception = nullptr, bool send_throw_exception = false );
 
-    PyObject* receive();
+    PyObject* Receive();
 
-    int balance() const;
+    int Balance() const;
 
-    void unblock_tasklet_from_channel( Tasklet* tasklet );
+    void UnblockTaskletFromChannel( Tasklet* tasklet );
 
-    static PyObject* channel_callback();
+    static PyObject* ChannelCallback();
 
-    static void set_channel_callback(PyObject* callback);
+    static void SetChannelCallback(PyObject* callback);
 
-    int preference() const;
+    int Preference() const;
 
-    void set_preference( int value );
+    void SetPreference( int value );
 
-    Tasklet* blocked_queue_front();
+    Tasklet* BlockedQueueFront();
 
-    void clear_blocked(bool pending);
+    void ClearBlocked(bool pending);
 
-    void close();
+    void Close();
 
-    void open();
+    void Open();
 
-    bool is_closed();
+    bool IsClosed();
 
-	bool is_closing(); 
+	bool IsClosing(); 
 
-    static int num_active_channels();
+    static int NumberOfActiveChannels();
 
-    static int unblock_all_channels();
+    static int UnblockAllActiveChannels();
 private:
 
-    void remove_tasklet_from_blocked( Tasklet* tasklet );
+    void RemoveTaskletFromBlocked( Tasklet* tasklet );
 
-    void increment_balance();
+    void IncrementBalance();
 
-	void decrement_balance();
+	void DecrementBalance();
 
-    void run_channel_callback( Channel* channel, Tasklet* tasklet, bool sending, bool will_block ) const;
+    void RunChannelCallback( Channel* channel, Tasklet* tasklet, bool sending, bool willBlock ) const;
 
-    void add_tasklet_to_waiting_to_send( Tasklet* tasklet );
+    void AddTaskletToWaitingToSend( Tasklet* tasklet );
 
-    void add_tasklet_to_waiting_to_receive( Tasklet* tasklet );
+    void AddTaskletToWaitingToReceive( Tasklet* tasklet );
 
-    Tasklet* pop_next_tasklet_blocked_on_send();
+    Tasklet* PopNextTaskletBlockedOnSend();
 
-    Tasklet* pop_next_tasklet_blocked_on_receive();
+    Tasklet* PopNextTaskletBlockedOnReceive();
 
-    bool channel_switch( Tasklet* caller, Tasklet* other, int dir, int caller_dir );
+    bool ChannelSwitch( Tasklet* caller, Tasklet* other, int dir, int callerDir );
 
-    void update_close_state();
+    void UpdateCloseState();
 
 private:
 
-    PyObject* m_python_object;
+    PyObject* m_pythonObject;
 
     int m_balance;
 
@@ -111,16 +112,18 @@ private:
 
     PyThread_type_lock m_lock;
 
-    inline static PyObject* s_channel_callback; // This is global, not per channel
+    inline static PyObject* s_channelCallback; // This is global, not per channel
 
-    Tasklet* m_first_blocked_on_receive;
+    Tasklet* m_firstBlockedOnReceive;
 
-	Tasklet* m_last_blocked_on_receive;
+	Tasklet* m_lastBlockedOnReceive;
 
-	Tasklet* m_first_blocked_on_send;
+	Tasklet* m_firstBlockedOnSend;
 
-    Tasklet* m_last_blocked_on_send;
+    Tasklet* m_lastBlockedOnSend;
 
-    inline static std::list<Channel*> s_active_channels;
+    inline static std::list<Channel*> s_activeChannels;
     
 };
+
+#endif // Channel_H

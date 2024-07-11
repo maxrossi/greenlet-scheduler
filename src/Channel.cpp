@@ -1,27 +1,27 @@
 #include "Channel.h"
 
-#include "Tasklet.h"
-
-#include "ScheduleManager.h"
-
 #include <vector>
 
-Channel::Channel( PyObject* python_object ) :
-	m_python_object( python_object ),
+#include "Tasklet.h"
+#include "ScheduleManager.h"
+
+
+Channel::Channel( PyObject* pythonObject ) :
+	m_pythonObject( pythonObject ),
 	m_balance(0),
 	m_preference(-1),
 	m_lock( PyThread_allocate_lock() ),
-	m_last_blocked_on_send( nullptr ),
-	m_first_blocked_on_send( nullptr ),
-	m_last_blocked_on_receive( nullptr ),
-	m_first_blocked_on_receive( nullptr ),
+	m_lastBlockedOnSend( nullptr ),
+	m_firstBlockedOnSend( nullptr ),
+	m_lastBlockedOnReceive( nullptr ),
+	m_firstBlockedOnReceive( nullptr ),
 	m_closing( false ),
 	m_closed( false )
 {
     // Store weak reference in central store
     // Required just in case we lose all references to channel
     // The module will then be able to unblock if needed
-    s_active_channels.push_back( this );
+    s_activeChannels.push_back( this );
 }
 
 Channel::~Channel()
@@ -29,44 +29,44 @@ Channel::~Channel()
 	// Destructor will never be called while there are tasklets blocking
 
 	// Remove weak ref from store
-	s_active_channels.remove( this );
+	s_activeChannels.remove( this );
 	
 	Py_DECREF( m_lock );
 }
 
-void Channel::incref()
+void Channel::Incref()
 {
-	Py_IncRef( m_python_object );
+	Py_IncRef( m_pythonObject );
 }
 
-void Channel::decref()
+void Channel::Decref()
 {
-	Py_DecRef( m_python_object );
+	Py_DecRef( m_pythonObject );
 }
 
-int Channel::refcount()
+int Channel::ReferenceCount()
 {
-	return m_python_object->ob_refcnt;
+	return m_pythonObject->ob_refcnt;
 }
 
-PyObject* Channel::python_object()
+PyObject* Channel::PythonObject()
 {
-	return m_python_object;
+	return m_pythonObject;
 }
 
-bool Channel::send( PyObject* args, PyObject* exception /* = nullptr */, bool send_throw_exception /* = false */ )
+bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */, bool send_throw_exception /* = false */)
 {
     PyThread_acquire_lock( m_lock, 1 );
 
-    ScheduleManager* schedule_manager = ScheduleManager::get_scheduler();
+    ScheduleManager* scheduleManager = ScheduleManager::GetScheduler();
 
-    Tasklet* current = schedule_manager->get_current_tasklet(); //TODO naming clean up
+    Tasklet* current = scheduleManager->GetCurrentTasklet(); //TODO naming clean up
 
-	run_channel_callback( this, current, true, m_first_blocked_on_receive == nullptr );  //TODO will_block logic here will change with addition of preference
+	RunChannelCallback( this, current, true, m_firstBlockedOnReceive == nullptr );  //TODO will_block logic here will change with addition of preference
 
-    current->set_transfer_in_progress(true);
+    current->SetTransferInProgress(true);
 	int direction = SENDER;
-	if( m_first_blocked_on_receive == nullptr )
+	if( m_firstBlockedOnReceive == nullptr )
 	{
 		direction = RECEIVER;
 		// Block as there is no tasklet sending
@@ -74,7 +74,7 @@ bool Channel::send( PyObject* args, PyObject* exception /* = nullptr */, bool se
 		{
 			PyErr_SetString( PyExc_RuntimeError, "No current tasklet set" );
 
-            schedule_manager->decref();
+            scheduleManager->Decref();
 
             PyThread_release_lock( m_lock );
 
@@ -82,11 +82,11 @@ bool Channel::send( PyObject* args, PyObject* exception /* = nullptr */, bool se
 		}
 
         //If current tasklet has block_trap set to true then throw runtime error
-		if( current->blocktrap())
+		if( current->IsBlocktrapped())
 		{
 			PyErr_SetString( PyExc_RuntimeError, "Channel cannot block on main tasklet with block_trap set true" );
 
-            schedule_manager->decref();
+            scheduleManager->Decref();
 
             PyThread_release_lock( m_lock );
 
@@ -98,7 +98,7 @@ bool Channel::send( PyObject* args, PyObject* exception /* = nullptr */, bool se
         {
 			PyErr_SetString( PyExc_ValueError, "Send/receive operation on a closed channel" );
 
-			schedule_manager->decref();
+			scheduleManager->Decref();
 
             PyThread_release_lock( m_lock );
 
@@ -106,32 +106,32 @@ bool Channel::send( PyObject* args, PyObject* exception /* = nullptr */, bool se
         }
 
 		// Block as there is no tasklet receiving
-		Py_IncRef( current->python_object() );
+		Py_IncRef( current->PythonObject() );
 
-        add_tasklet_to_waiting_to_send( current );
+        AddTaskletToWaitingToSend( current );
 
-		current->block( this );
+		current->Block( this );
 
         PyThread_release_lock( m_lock );
 
          // Continue scheduler
-		if( !schedule_manager->yield() )
+		if( !scheduleManager->Yield() )
 		{
 			PyThread_acquire_lock( m_lock, 1 );
 
-			current->set_transfer_in_progress( false );
+			current->SetTransferInProgress( false );
 
-            if( current->is_on_channel_block_list() )
+            if( current->IsOnChannelBlockList() )
             {
-				current->unblock();
+				current->Unblock();
 
-				pop_next_tasklet_blocked_on_send();
+				PopNextTaskletBlockedOnSend();
 
             }
 
-			current->decref();
+			current->Decref();
             
-            schedule_manager->decref();
+            scheduleManager->Decref();
 
             PyThread_release_lock( m_lock );
 
@@ -143,46 +143,46 @@ bool Channel::send( PyObject* args, PyObject* exception /* = nullptr */, bool se
 
     }
 
-    Tasklet* receiving_tasklet = pop_next_tasklet_blocked_on_receive();
+    Tasklet* receivingTasklet = PopNextTaskletBlockedOnReceive();
 
-    receiving_tasklet->unblock();
+    receivingTasklet->Unblock();
 	
     // Store for retrieval from receiving tasklet
-	receiving_tasklet->set_transfer_arguments( args, exception, send_throw_exception );
+	receivingTasklet->SetTransferArguments( args, exception, send_throw_exception );
 
 	PyThread_release_lock( m_lock );
 
-    Tasklet* current_tasklet = schedule_manager->get_current_tasklet();
+    Tasklet* current_tasklet = scheduleManager->GetCurrentTasklet();
 
-    if (!channel_switch(current_tasklet, receiving_tasklet, direction, SENDER))
+    if (!ChannelSwitch(current_tasklet, receivingTasklet, direction, SENDER))
     {
-		schedule_manager->decref();
+		scheduleManager->Decref();
 
 		return false;
     }
 	
 
-    receiving_tasklet->decref();
+    receivingTasklet->Decref();
 
-	current->set_transfer_in_progress( false );
+	current->SetTransferInProgress( false );
 
-    schedule_manager->decref();
+    scheduleManager->Decref();
 
 	return true;
 
 }
 
-bool Channel::channel_switch(Tasklet* caller, Tasklet* other, int dir, int caller_dir)
+bool Channel::ChannelSwitch(Tasklet* caller, Tasklet* other, int dir, int callerDir)
 {
-	ScheduleManager* schedule_manager = ScheduleManager::get_scheduler();
+	ScheduleManager* scheduleManager = ScheduleManager::GetScheduler();
 
     //if preference is opposit from direction, switch away from caller
-	if( ( -dir == m_preference && dir == caller_dir ) || (dir == m_preference && dir != caller_dir))
+	if( ( -dir == m_preference && dir == callerDir ) || (dir == m_preference && dir != callerDir))
     {
-        schedule_manager->insert_tasklet( caller );
-        if (!other->switch_to())
+        scheduleManager->InsertTasklet( caller );
+        if (!other->SwitchTo())
         {
-			schedule_manager->decref();
+			scheduleManager->Decref();
 
 			return false;
         }
@@ -190,76 +190,76 @@ bool Channel::channel_switch(Tasklet* caller, Tasklet* other, int dir, int calle
     //if preference is towards caller, schedule other tasklet and continue
 	else
     {
-		if( m_preference == PREFER_NEITHER && -caller_dir == dir )
+		if( m_preference == PREFER_NEITHER && -callerDir == dir )
         {
-            schedule_manager->insert_tasklet( caller );
-            if (!other->switch_to())
+            scheduleManager->InsertTasklet( caller );
+            if (!other->SwitchTo())
             {
-				schedule_manager->decref();
+				scheduleManager->Decref();
 
 				return false;
             }
         }
         else
         {
-			if( other->scheduled() )
+			if( other->IsScheduled() )
 			{
-				other->set_reschedule( true );
+				other->SetReschedule( true );
 			}
 			else
 			{
-                schedule_manager->insert_tasklet( other );
+                scheduleManager->InsertTasklet( other );
 			}
         }
     }
 
-    schedule_manager->set_current_tasklet( caller );
+    scheduleManager->SetCurrentTasklet( caller );
 
-    schedule_manager->decref();
+    scheduleManager->Decref();
 
     return true;
 }
 
-PyObject* Channel::receive()
+PyObject* Channel::Receive()
 {
 	PyThread_acquire_lock( m_lock, 1 );
 
-    ScheduleManager* schedule_manager = ScheduleManager::get_scheduler();
+    ScheduleManager* scheduleManager = ScheduleManager::GetScheduler();
 
-    schedule_manager->get_current_tasklet()->set_transfer_in_progress( true );
+    scheduleManager->GetCurrentTasklet()->SetTransferInProgress( true );
 
 	// Block as there is no tasklet sending
-	Tasklet* current = schedule_manager->get_current_tasklet();
+	Tasklet* current = scheduleManager->GetCurrentTasklet();
 
-	run_channel_callback( this , current, false, m_first_blocked_on_send == nullptr );    //TODO will_block logic here will change with addition of preference
+	RunChannelCallback( this , current, false, m_firstBlockedOnSend == nullptr );    //TODO will_block logic here will change with addition of preference
 
     if( current == nullptr )
 	{
 		PyErr_SetString( PyExc_RuntimeError, "No current tasklet set" );
 
-        schedule_manager->decref();
+        scheduleManager->Decref();
 
         PyThread_release_lock( m_lock );
 
 		return nullptr;
 	}
 
-	current->incref();
+	current->Incref();
 
-    add_tasklet_to_waiting_to_receive( current );
+    AddTaskletToWaitingToReceive( current );
 
-    if( m_first_blocked_on_send == nullptr )
+    if( m_firstBlockedOnSend == nullptr )
 	{
 		//If current tasklet has block_trap set to true then throw runtime error
-		if( current->blocktrap() )
+		if( current->IsBlocktrapped() )
 		{
-			remove_tasklet_from_blocked( current );
+			RemoveTaskletFromBlocked( current );
 
 			PyErr_SetString( PyExc_RuntimeError, "Channel cannot block on main tasklet with block_trap set true" );
 
-            schedule_manager->decref();
+            scheduleManager->Decref();
 
-            current->decref();
+            current->Decref();
 
             PyThread_release_lock( m_lock );
 
@@ -271,35 +271,35 @@ PyObject* Channel::receive()
 		{
 			PyErr_SetString( PyExc_ValueError, "Send/receive operation on a closed channel" );
 
-			schedule_manager->decref();
+			scheduleManager->Decref();
 
             PyThread_release_lock( m_lock );
 
 			return nullptr;
 		}
 		
-		current->block( this );
+		current->Block( this );
 
 		PyThread_release_lock( m_lock );
 
 		// Continue scheduler
-		if( !schedule_manager->yield() )
+		if( !scheduleManager->Yield() )
 		// Will enter here if an exception has been thrown on a tasklet
 		{
 			PyThread_acquire_lock( m_lock, 1 );
 
-            if( current->is_on_channel_block_list() )
+            if( current->IsOnChannelBlockList() )
             {
-				remove_tasklet_from_blocked( current );
+				RemoveTaskletFromBlocked( current );
             }
 
-			current->unblock();
+			current->Unblock();
 
-            current->decref();
+            current->Decref();
 
-			current->set_transfer_in_progress( false );
+			current->SetTransferInProgress( false );
 
-            schedule_manager->decref();
+            scheduleManager->Decref();
 
             PyThread_release_lock( m_lock );
 
@@ -309,19 +309,19 @@ PyObject* Channel::receive()
 	else
 	{
 		//Get first
-		Tasklet* sending_tasklet = pop_next_tasklet_blocked_on_send();
+		Tasklet* sendingTasklet = PopNextTaskletBlockedOnSend();
 
-		sending_tasklet->unblock();
+		sendingTasklet->Unblock();
 
-        Tasklet* current_tasklet = schedule_manager->get_current_tasklet();
+        Tasklet* current_tasklet = scheduleManager->GetCurrentTasklet();
 		
         PyThread_release_lock( m_lock );
 
-		if(!sending_tasklet->switch_to())
+		if(!sendingTasklet->SwitchTo())
 		{
-			current->decref();
+			current->Decref();
 
-			schedule_manager->decref();
+			scheduleManager->Decref();
 
 			return nullptr;
         }
@@ -330,369 +330,372 @@ PyObject* Channel::receive()
 			// Update current tasklet back to the correct calling tasklet
 			// Required as the switch_to circumvents the scheduling queue
 			// Which would normally deal with this
-			schedule_manager->set_current_tasklet( current_tasklet );
+			scheduleManager->SetCurrentTasklet( current_tasklet );
         }
 
-        sending_tasklet->decref();
+        sendingTasklet->Decref();
 	}
 
     
     //Process the exception
-	PyObject* transfer_exception = current->transfer_exception();
+	PyObject* transferException = current->TransferException();
 
-	if( transfer_exception )
-	{
-        PyObject* arguments = current->get_transfer_arguments();
+	if( transferException )
+	{	
+        PyObject* arguments = current->GetTransferArguments();
 
         // If arguments are Py_None, then we want to use the exception data as it is set in send_throw
         if (current->transfer_exception_is_from_send_throw())
         {
-            auto exception_type = PyTuple_GetItem( transfer_exception, 0 );
-			auto exception_alue = PyTuple_GetItem( transfer_exception, 1 );
-			auto exception_tb = PyTuple_GetItem( transfer_exception, 2 );
+            auto exceptionType = PyTuple_GetItem( transferException, 0 );
+			auto exceptionValue = PyTuple_GetItem( transferException, 1 );
+			auto exceptionTb = PyTuple_GetItem( transferException, 2 );
 
-            Py_INCREF( exception_type );
-			Py_INCREF( exception_alue );
-			Py_INCREF( exception_tb );
+            Py_INCREF( exceptionType );
+			Py_INCREF( exceptionValue );
+			Py_INCREF( exceptionTb );
 
-            Py_DECREF( transfer_exception );
+            Py_DECREF( transferException );
             
-            PyErr_Restore( exception_type, exception_alue, exception_tb );
+            PyErr_Restore( exceptionType, exceptionValue, exceptionTb );
         }
         else
         {
-			PyErr_SetObject( transfer_exception, arguments );
+			PyErr_SetObject( transferException, arguments );
 
-			Py_DecRef( transfer_exception );
+			Py_DecRef( transferException );
 
         }
 
         Py_DecRef( arguments );
 
-        current->clear_transfer_arguments();
+        current->ClearTransferArguments();
 
-		current->set_transfer_in_progress( false );
+		current->SetTransferInProgress( false );
         
-        schedule_manager->decref();
+        scheduleManager->Decref();
        
         return nullptr;
 
     }
 
-	current->set_transfer_in_progress( false );
+	current->SetTransferInProgress( false );
 
-	auto ret = current->get_transfer_arguments();
+	auto ret = current->GetTransferArguments();
 
-	current->clear_transfer_arguments();
+	current->ClearTransferArguments();
 
-    schedule_manager->decref();
+    scheduleManager->Decref();
 
 	return ret;
 }
 
-int Channel::balance() const
+int Channel::Balance() const
 {
 	return m_balance;
 }
 
-void Channel::unblock_tasklet_from_channel( Tasklet* tasklet )
+void Channel::UnblockTaskletFromChannel( Tasklet* tasklet )
 {
     // Public exposed remove_tasklet_from_blocked wrapped in lock for thread safety
 	PyThread_acquire_lock( m_lock, 1 );
 
-    remove_tasklet_from_blocked( tasklet );
+    RemoveTaskletFromBlocked( tasklet );
 
     PyThread_release_lock( m_lock );
 }
 
-void Channel::remove_tasklet_from_blocked( Tasklet* tasklet )
+void Channel::RemoveTaskletFromBlocked( Tasklet* tasklet )
 {
-	bool end_node = false;
-    if (tasklet == m_first_blocked_on_receive)
+	bool endNode = false;
+    if (tasklet == m_firstBlockedOnReceive)
     {
-		m_first_blocked_on_receive = tasklet->next_blocked();
-        if (m_first_blocked_on_receive != nullptr)
+		m_firstBlockedOnReceive = tasklet->NextBlocked();
+        if (m_firstBlockedOnReceive != nullptr)
         {
-			m_first_blocked_on_receive->set_previous_blocked( nullptr );
+			m_firstBlockedOnReceive->SetPreviousBlocked( nullptr );
         }
 
-		end_node = true;
+		endNode = true;
     }
 
-    if (tasklet == m_first_blocked_on_send)
+    if (tasklet == m_firstBlockedOnSend)
     {
-		m_first_blocked_on_send = tasklet->next_blocked();
-        if (m_first_blocked_on_send != nullptr)
+		m_firstBlockedOnSend = tasklet->NextBlocked();
+        if (m_firstBlockedOnSend != nullptr)
         {
-			m_first_blocked_on_send->set_previous_blocked( nullptr );
+			m_firstBlockedOnSend->SetPreviousBlocked( nullptr );
         }
 
-        end_node = true;
+        endNode = true;
     }
 
-    if (tasklet == m_last_blocked_on_receive)
+    if (tasklet == m_lastBlockedOnReceive)
     {
-		m_last_blocked_on_receive = tasklet->previous_blocked();
-        if (m_last_blocked_on_receive != nullptr)
+		m_lastBlockedOnReceive = tasklet->PreviousBlocked();
+        if (m_lastBlockedOnReceive != nullptr)
         {
-			m_last_blocked_on_receive->set_next_blocked( nullptr );
-        }
-		
-		end_node = true;
-    }
-
-    if (tasklet == m_last_blocked_on_send)
-    {
-		m_last_blocked_on_send = tasklet->previous_blocked();
-        if (m_last_blocked_on_send != nullptr)
-        {
-			m_last_blocked_on_send->set_next_blocked( nullptr );
+			m_lastBlockedOnReceive->SetNextBlocked( nullptr );
         }
 		
-		end_node = true;
+		endNode = true;
     }
 
-    if (!end_node)
+    if (tasklet == m_lastBlockedOnSend)
     {
-		tasklet->previous_blocked()->set_next_blocked( tasklet->next_blocked() );
-		tasklet->next_blocked()->set_previous_blocked( tasklet->previous_blocked() );
+		m_lastBlockedOnSend = tasklet->PreviousBlocked();
+        if (m_lastBlockedOnSend != nullptr)
+        {
+			m_lastBlockedOnSend->SetNextBlocked( nullptr );
+        }
+		
+		endNode = true;
     }
 
-    tasklet->set_next_blocked( nullptr );
-	tasklet->set_previous_blocked( nullptr );
-
-    if (tasklet->get_blocked_direction() == SENDER)
+    if (!endNode)
     {
-		decrement_balance();
-    }
-    else if (tasklet->get_blocked_direction() == RECEIVER)
-    {
-		increment_balance();
+		tasklet->PreviousBlocked()->SetNextBlocked( tasklet->NextBlocked() );
+		tasklet->NextBlocked()->SetPreviousBlocked( tasklet->PreviousBlocked() );
     }
 
-    tasklet->set_blocked_direction( 0 );
+    tasklet->SetNextBlocked( nullptr );
+	tasklet->SetPreviousBlocked( nullptr );
+
+    if (tasklet->GetBlockedDirection() == SENDER)
+    {
+		DecrementBalance();
+    }
+    else if (tasklet->GetBlockedDirection() == RECEIVER)
+    {
+		IncrementBalance();
+    }
+
+    tasklet->SetBlockedDirection( 0 );
     
 }
 
-void Channel::run_channel_callback( Channel* channel, Tasklet* tasklet, bool sending, bool will_block ) const
+void Channel::RunChannelCallback( Channel* channel, Tasklet* tasklet, bool sending, bool willBlock ) const
 {
-	if( s_channel_callback )
+	if( s_channelCallback )
 	{
 		PyObject* args = PyTuple_New( 4 ); // TODO don't create this each time
 
-        PyObject* py_channel = channel->python_object();
+        PyObject* pyChannel = channel->PythonObject();
 
-        PyObject* py_tasklet = tasklet->python_object();
+        PyObject* pyTasklet = tasklet->PythonObject();
 
-		Py_IncRef( py_channel );
+		Py_IncRef( pyChannel );
 
-		Py_IncRef( py_tasklet );
+		Py_IncRef( pyTasklet );
 
-		PyTuple_SetItem( args, 0, py_channel );
+		PyTuple_SetItem( args, 0, pyChannel );
 
-		PyTuple_SetItem( args, 1, py_tasklet );
+		PyTuple_SetItem( args, 1, pyTasklet );
 
         PyTuple_SetItem( args, 2, sending ? Py_True : Py_False );
 
-        PyTuple_SetItem( args, 3, will_block ? Py_True : Py_False );
+        PyTuple_SetItem( args, 3, willBlock ? Py_True : Py_False );
 
-		PyObject_Call( s_channel_callback, args, nullptr );
+		PyObject_Call( s_channelCallback, args, nullptr );
 
 		Py_DecRef( args );
 	}
 }
 
-void Channel::add_tasklet_to_waiting_to_send( Tasklet* tasklet )
+void Channel::AddTaskletToWaitingToSend( Tasklet* tasklet )
 {
-    if( m_first_blocked_on_send == nullptr )
+    if( m_firstBlockedOnSend == nullptr )
     {
-		m_first_blocked_on_send = tasklet;
-		m_last_blocked_on_send = tasklet;
+		m_firstBlockedOnSend = tasklet;
+		m_lastBlockedOnSend = tasklet;
     }
 	else
 	{
-		m_first_blocked_on_send->set_previous_blocked( tasklet );
-		tasklet->set_next_blocked( m_first_blocked_on_send );
-		m_first_blocked_on_send = tasklet;
+		m_firstBlockedOnSend->SetPreviousBlocked( tasklet );
+		tasklet->SetNextBlocked( m_firstBlockedOnSend );
+		m_firstBlockedOnSend = tasklet;
     }
 
-    tasklet->set_blocked_direction( SENDER );
-    increment_balance();
+    tasklet->SetBlockedDirection( SENDER );
+    IncrementBalance();
 }
 
-void Channel::add_tasklet_to_waiting_to_receive( Tasklet* tasklet )
+void Channel::AddTaskletToWaitingToReceive( Tasklet* tasklet )
 {
-	if( m_first_blocked_on_receive == nullptr )
+	if( m_firstBlockedOnReceive == nullptr )
     {
-		m_first_blocked_on_receive = tasklet;
-        m_last_blocked_on_receive = tasklet;
+		m_firstBlockedOnReceive = tasklet;
+        m_lastBlockedOnReceive = tasklet;
     }
     else
     {
-		m_first_blocked_on_receive->set_previous_blocked( tasklet );
-		tasklet->set_next_blocked( m_first_blocked_on_receive );
-		m_first_blocked_on_receive = tasklet;
+		m_firstBlockedOnReceive->SetPreviousBlocked( tasklet );
+		tasklet->SetNextBlocked( m_firstBlockedOnReceive );
+		m_firstBlockedOnReceive = tasklet;
     }
 
-    tasklet->set_blocked_direction( RECEIVER );
-    decrement_balance();
+    tasklet->SetBlockedDirection( RECEIVER );
+    DecrementBalance();
 }
 
-Tasklet* Channel::pop_next_tasklet_blocked_on_send()
+Tasklet* Channel::PopNextTaskletBlockedOnSend()
 {
 	Tasklet* next = nullptr;
-    if (m_last_blocked_on_send != nullptr)
+    if (m_lastBlockedOnSend != nullptr)
     {
-		next = m_last_blocked_on_send;
+		next = m_lastBlockedOnSend;
 
-		remove_tasklet_from_blocked( next );
+		RemoveTaskletFromBlocked( next );
     }
 	
     return next;
 }
 
-Tasklet* Channel::pop_next_tasklet_blocked_on_receive()
+Tasklet* Channel::PopNextTaskletBlockedOnReceive()
 {
 	Tasklet* next = nullptr;
-    if (m_last_blocked_on_receive != nullptr)
+    if (m_lastBlockedOnReceive != nullptr)
     {
-		next = m_last_blocked_on_receive;
+		next = m_lastBlockedOnReceive;
 
-		remove_tasklet_from_blocked( next );
+		RemoveTaskletFromBlocked( next );
     }
 
     return next;
 }
 
-PyObject* Channel::channel_callback()
+PyObject* Channel::ChannelCallback()
 {
-	return s_channel_callback;
+	return s_channelCallback;
 }
 
-void Channel::set_channel_callback( PyObject* callback )
+void Channel::SetChannelCallback( PyObject* callback )
 {
-	s_channel_callback = callback;
+	s_channelCallback = callback;
 }
 
-int Channel::preference() const
+int Channel::Preference() const
 {
 	return m_preference;
 }
 
-void Channel::set_preference( int value )
+void Channel::SetPreference( int value )
 {
 	m_preference = value;
 }
 
-Tasklet* Channel::blocked_queue_front()
+Tasklet* Channel::BlockedQueueFront()
 {
-    if (m_first_blocked_on_receive != nullptr)
+    if (m_firstBlockedOnReceive != nullptr)
     {
-		return m_first_blocked_on_receive;
+		return m_firstBlockedOnReceive;
     }
-    else if (m_first_blocked_on_send != nullptr)
+    else if (m_firstBlockedOnSend != nullptr)
     {
-		return m_first_blocked_on_send;
+		return m_firstBlockedOnSend;
     }
 	return nullptr;
 }
 
-void Channel::clear_blocked( bool pending )
+void Channel::ClearBlocked( bool pending )
 {
     // Kill all blocked tasklets
-    Tasklet* current = m_first_blocked_on_receive;
+    Tasklet* current = m_firstBlockedOnReceive;
 
 	while( current )
     {
-		current->kill( pending );
+		current->Kill( pending );
 
-        current = current->next_blocked();
+        current = current->NextBlocked();
     }
 
-    current = m_first_blocked_on_send;
+    current = m_firstBlockedOnSend;
 
     while( current )
 	{
-		current->kill( pending );
+		current->Kill( pending );
 
-        current = current->next_blocked();
+        current = current->NextBlocked();
 	}
 
 }
 
-int Channel::num_active_channels()
+int Channel::NumberOfActiveChannels()
 {
-	return s_active_channels.size();
+	return s_activeChannels.size();
 }
 
-int Channel::unblock_all_channels()
+int Channel::UnblockAllActiveChannels()
 {
-	int num_channels_unblocked = 0;
+	int numberOfChannelsUnblocked = 0;
 
-	auto iter = s_active_channels.begin();
-	std::vector<Channel*> channels_to_unblock;
-	while(iter != s_active_channels.end())
+	auto iter = s_activeChannels.begin();
+
+	std::vector<Channel*> channelsToUnblock;
+
+	while(iter != s_activeChannels.end())
 	{
 		Channel* channel = *iter;
 		if (channel->m_balance != 0)
 		{
-			channels_to_unblock.push_back(channel);
+			channelsToUnblock.push_back(channel);
 		}
 		iter++;
 	}
 
-	for (auto chan : channels_to_unblock)
+	for (auto chan : channelsToUnblock)
 	{
-		num_channels_unblocked++;
-		chan->clear_blocked( false );
+		numberOfChannelsUnblocked++;
+
+		chan->ClearBlocked( false );
 	}
 
-    return num_channels_unblocked;
+    return numberOfChannelsUnblocked;
 }
 
-void Channel::close()
+void Channel::Close()
 {
 	PyThread_acquire_lock( m_lock, 1 );
 
 	m_closing = true;
 
-    update_close_state();
+    UpdateCloseState();
 
     PyThread_release_lock( m_lock );
 }
 
-void Channel::open()
+void Channel::Open()
 {
 	m_closing = false;
 
 	m_closed = false;
 }
 
-bool Channel::is_closed()
+bool Channel::IsClosed()
 {
 	return m_closed;
 }
 
-bool Channel::is_closing()
+bool Channel::IsClosing()
 {
 	return m_closing;
 }
 
-void Channel::increment_balance()
+void Channel::IncrementBalance()
 {
 	m_balance++;
 
-    update_close_state();
+    UpdateCloseState();
 }
 
-void Channel::decrement_balance()
+void Channel::DecrementBalance()
 {
 	m_balance--;
 
-    update_close_state();
+    UpdateCloseState();
 }
 
-void Channel::update_close_state()
+void Channel::UpdateCloseState()
 {
     // If channel is set to close and the balance is zero then set as closed
 

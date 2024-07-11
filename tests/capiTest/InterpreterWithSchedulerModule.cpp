@@ -1,6 +1,6 @@
-#include "InterpreterWithSchedulerModule.h"
-
 #include "StdAfx.h"
+
+#include "InterpreterWithSchedulerModule.h"
 
 // Include build config specific paths
 #define CONCATENATE_DIRECT( s1, s2 ) s1##s2
@@ -10,8 +10,8 @@
 #define MODULE_PATH_INCLUDE CONCATENATE_TO_STRING( CCP_BUILD_FLAVOR, _PackagePaths.h )
 #include MODULE_PATH_INCLUDE
 
-static SchedulerCAPI* s_scheduler_api = nullptr;
-static int s_test_value = 0;
+static SchedulerCAPI* s_schedulerApi = nullptr;
+static int s_testValue = 0;
 
 static PyObject*
 	schedulertest_channel_send( PyObject* self, PyObject* args )
@@ -25,18 +25,18 @@ static PyObject*
 		return NULL;
     }
 
-    if (!s_scheduler_api->PyChannel_Check(channel))
+    if (!s_schedulerApi->PyChannel_Check(channel))
     {
 		return NULL;
     }
 
     Py_IncRef( value );
 
-    s_test_value = 1; // Increment test value
+    s_testValue = 1; // Increment test value
 
-    int ret_val = s_scheduler_api->PyChannel_Send( reinterpret_cast<PyChannelObject*>(channel), value );
+    int ret_val = s_schedulerApi->PyChannel_Send( reinterpret_cast<PyChannelObject*>(channel), value );
 
-    s_test_value = ret_val; // Will be -1 if failed (eg tasklet killed)
+    s_testValue = ret_val; // Will be -1 if failed (eg tasklet killed)
 
     Py_DecRef( value );
 	
@@ -66,7 +66,7 @@ static PyObject*
 		return NULL;
 	}
 
-	if( !s_scheduler_api->PyChannel_Check( channel ) )
+	if( !s_schedulerApi->PyChannel_Check( channel ) )
 	{
 		return NULL;
 	}
@@ -77,11 +77,11 @@ static PyObject*
 
     Py_IncRef( tb );
 
-	s_test_value = 1; // Increment test value
+	s_testValue = 1; // Increment test value
 
-	int ret_val = s_scheduler_api->PyChannel_SendThrow( reinterpret_cast<PyChannelObject*>( channel ),exception, value, tb );
+	int ret_val = s_schedulerApi->PyChannel_SendThrow( reinterpret_cast<PyChannelObject*>( channel ),exception, value, tb );
 
-	s_test_value = ret_val; // Will be -1 if failed (eg tasklet killed)
+	s_testValue = ret_val; // Will be -1 if failed (eg tasklet killed)
 
     Py_DecRef( exception );
 
@@ -111,16 +111,16 @@ static PyObject*
 		return NULL;
 	}
 
-	if( !s_scheduler_api->PyChannel_Check( channel ) )
+	if( !s_schedulerApi->PyChannel_Check( channel ) )
 	{
 		return NULL;
 	}
 
-	s_test_value = 1; // Increment test value
+	s_testValue = 1; // Increment test value
 
-	PyObject* ret_val = s_scheduler_api->PyChannel_Receive( reinterpret_cast<PyChannelObject*>( channel ) );
+	PyObject* ret_val = s_schedulerApi->PyChannel_Receive( reinterpret_cast<PyChannelObject*>( channel ) );
 
-    s_test_value = ret_val ? 0 : -1;
+    s_testValue = ret_val ? 0 : -1;
 
 	return ret_val;
 }
@@ -135,13 +135,13 @@ static PyObject*
 		return NULL;
 	}
 
-    return s_scheduler_api->PyScheduler_Schedule( nullptr, remove );
+    return s_schedulerApi->PyScheduler_Schedule( nullptr, remove );
 }
 
 static PyObject*
 	schedulertest_test_value( PyObject* self, PyObject* args )
 {
-	return PyLong_FromLong( s_test_value );
+	return PyLong_FromLong( s_testValue );
 }
 
 static PyObject*
@@ -158,7 +158,7 @@ static PyObject*
 		return NULL;
 	}
 
-    if (s_scheduler_api->PyChannel_SendException(reinterpret_cast<PyChannelObject*>(channel), klass, value) == 0)
+    if (s_schedulerApi->PyChannel_SendException(reinterpret_cast<PyChannelObject*>(channel), klass, value) == 0)
     {
 		Py_IncRef( Py_None );
 
@@ -207,9 +207,9 @@ void InterpreterWithSchedulerModule::SetUp()
 
 	PyStatus status;
 
-	const char* program_name = "SchedulerCapiTest";
+	const char* programName = "SchedulerCapiTest";
 
-	status = PyConfig_SetBytesString( &config, &config.program_name, program_name );
+	status = PyConfig_SetBytesString( &config, &config.program_name, programName );
 	if( PyStatus_Exception( status ) )
 	{
 		PyErr_Print();
@@ -260,7 +260,7 @@ void InterpreterWithSchedulerModule::SetUp()
 	config.use_environment = 0;
 
     // Reset test value
-    s_test_value = 0;
+    s_testValue = 0;
 
     // Import extension used in tests
 	PyImport_AppendInittab( "schedulertest", &PyInit_schedulertest );
@@ -276,9 +276,9 @@ void InterpreterWithSchedulerModule::SetUp()
 
 
 	// Import scheduler
-	m_scheduler_module = PyImport_ImportModule( CONCATENATE_TO_STRING( _scheduler, CCP_BUILD_FLAVOR ) );
+	m_schedulerModule = PyImport_ImportModule( CONCATENATE_TO_STRING( _scheduler, CCP_BUILD_FLAVOR ) );
 
-	if( !m_scheduler_module )
+	if( !m_schedulerModule )
 	{
 		PyErr_Print();
 		PySys_WriteStdout( "Failed to import scheduler module\n" );
@@ -289,7 +289,7 @@ void InterpreterWithSchedulerModule::SetUp()
     PyObject* sysmodule = PyImport_ImportModule( "sys" );
 	PyObject* dict = PyModule_GetDict( sysmodule );
 	PyObject* modules = PyDict_GetItemString( dict, "modules" );
-	PyDict_SetItemString( modules, "scheduler", m_scheduler_module );
+	PyDict_SetItemString( modules, "scheduler", m_schedulerModule );
     Py_DECREF( sysmodule );
 
     // Import capsule
@@ -303,7 +303,7 @@ void InterpreterWithSchedulerModule::SetUp()
 	}
 
     // Store api for use in tests
-    s_scheduler_api = m_api;
+    s_schedulerApi = m_api;
 
     // Import scheduler ready for use in tests
     if (PyRun_SimpleString("import scheduler\n") != 0)
@@ -320,24 +320,24 @@ void InterpreterWithSchedulerModule::SetUp()
 	}
 
     // Import for use in tests
-    m_main_module = PyImport_AddModule( "__main__" );
-	if( m_main_module == nullptr )
+    m_mainModule = PyImport_AddModule( "__main__" );
+	if( m_mainModule == nullptr )
 	{
 		PyErr_Print();
 		exit( -1 );
     }
 
     // Get a reference to the main scheduler
-    m_main_scheduler = m_api->PyScheduler_GetScheduler();
+    m_mainScheduler = m_api->PyScheduler_GetScheduler();
 }
 
 void InterpreterWithSchedulerModule::TearDown()
 {
 	// Destroy main scheduler
-	Py_DecRef( m_main_scheduler );
+	Py_DecRef( m_mainScheduler );
 
     // Destroy scheduler helper module
-	Py_DecRef( m_scheduler_module );
+	Py_DecRef( m_schedulerModule );
     
 	if( Py_FinalizeEx() < 0 )
 	{

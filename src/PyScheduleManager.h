@@ -16,6 +16,8 @@
 	*************************************************************************
 */
 #pragma once
+#ifndef PyScheduleManager_H
+#define PyScheduleManager_H
 
 class ScheduleManager;
 
@@ -23,8 +25,10 @@ typedef struct PyScheduleManagerObject
 {
 	PyObject_HEAD
 
-	ScheduleManager* m_impl;
+	ScheduleManager* m_implementation;
 
-    PyObject* m_weakref_list; // TODO: This is apparently the old style, new style crashes
+    PyObject* m_weakrefList; // TODO: This is apparently the old style, new style crashes
 
 } _PyScheduleManagerObject;
+
+#endif // PyScheduleManager_H

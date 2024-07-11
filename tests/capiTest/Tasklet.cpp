@@ -1,5 +1,6 @@
 
 #include "StdAfx.h"
+
 #include <Python.h>
 #include <Scheduler.h>
 
@@ -14,15 +15,15 @@ TEST_F( TaskletCapi, PyTasklet_New )
 	EXPECT_EQ( PyRun_SimpleString( "def foo():\n"
 								   "   print(\"bar\")\n" ),
 			   0 );
-	PyObject* foo_callable = PyObject_GetAttrString( m_main_module, "foo" );
-	EXPECT_NE( foo_callable, nullptr );
-	EXPECT_TRUE( PyCallable_Check( foo_callable ) );
+	PyObject* fooCallable = PyObject_GetAttrString( m_mainModule, "foo" );
+	EXPECT_NE( fooCallable, nullptr );
+	EXPECT_TRUE( PyCallable_Check( fooCallable ) );
 
     // Create tasklet
-    PyObject* tasklet_args = PyTuple_New( 1 );
-	EXPECT_NE( tasklet_args, nullptr );
-	EXPECT_EQ(PyTuple_SetItem( tasklet_args, 0, foo_callable ),0);
-	PyTaskletObject* tasklet = m_api->PyTasklet_New( m_api->PyTaskletType, tasklet_args );
+    PyObject* taskletArgs = PyTuple_New( 1 );
+	EXPECT_NE( taskletArgs, nullptr );
+	EXPECT_EQ(PyTuple_SetItem( taskletArgs, 0, fooCallable ),0);
+	PyTaskletObject* tasklet = m_api->PyTasklet_New( m_api->PyTaskletType, taskletArgs );
 	EXPECT_NE( tasklet, nullptr );
 
     // Check type
@@ -30,14 +31,14 @@ TEST_F( TaskletCapi, PyTasklet_New )
 
     // Clean
 	Py_XDECREF( tasklet );
-    Py_XDECREF( tasklet_args );
-	Py_XDECREF( foo_callable );
+    Py_XDECREF( taskletArgs );
+	Py_XDECREF( fooCallable );
 
 }
 
 TEST_F( TaskletCapi, PyTasklet_Setup )
 {
-	long test_value = 101;
+	long testValue = 101;
 
     // Create test value container
 	EXPECT_EQ( PyRun_SimpleString( "testValue = [0]\n" ), 0 );
@@ -46,15 +47,15 @@ TEST_F( TaskletCapi, PyTasklet_Setup )
 	EXPECT_EQ( PyRun_SimpleString( "def foo(x):\n"
 								   "   testValue[0] = x\n" ),
 			   0 );
-	PyObject* foo_callable = PyObject_GetAttrString( m_main_module, "foo" );
-	EXPECT_NE( foo_callable, nullptr );
-	EXPECT_TRUE( PyCallable_Check( foo_callable ) );
+	PyObject* fooCallable = PyObject_GetAttrString( m_mainModule, "foo" );
+	EXPECT_NE( fooCallable, nullptr );
+	EXPECT_TRUE( PyCallable_Check( fooCallable ) );
 
 	// Create tasklet
-	PyObject* tasklet_args = PyTuple_New( 1 );
-	EXPECT_NE( tasklet_args, nullptr );
-	EXPECT_EQ( PyTuple_SetItem( tasklet_args, 0, foo_callable ), 0 );
-	PyTaskletObject* tasklet = m_api->PyTasklet_New( m_api->PyTaskletType, tasklet_args );
+	PyObject* taskletArgs = PyTuple_New( 1 );
+	EXPECT_NE( taskletArgs, nullptr );
+	EXPECT_EQ( PyTuple_SetItem( taskletArgs, 0, fooCallable ), 0 );
+	PyTaskletObject* tasklet = m_api->PyTasklet_New( m_api->PyTaskletType, taskletArgs );
 	EXPECT_NE( tasklet, nullptr );
 
 	// Check type
@@ -64,11 +65,11 @@ TEST_F( TaskletCapi, PyTasklet_Setup )
     EXPECT_EQ( m_api->PyScheduler_GetRunCount(), 1 );
 
     // Setup tasklet
-	PyObject* callable_args = PyTuple_New( 1 );
-	EXPECT_NE( callable_args, nullptr );
-	EXPECT_EQ( PyTuple_SetItem( callable_args, 0, PyLong_FromLong( test_value ) ), 0 );
-	EXPECT_EQ( m_api->PyTasklet_Setup( tasklet, callable_args, nullptr ), 0 );
-	Py_XDECREF( callable_args );
+	PyObject* callableArgs = PyTuple_New( 1 );
+	EXPECT_NE( callableArgs, nullptr );
+	EXPECT_EQ( PyTuple_SetItem( callableArgs, 0, PyLong_FromLong( testValue ) ), 0 );
+	EXPECT_EQ( m_api->PyTasklet_Setup( tasklet, callableArgs, nullptr ), 0 );
+	Py_XDECREF( callableArgs );
 
     // Should be added to queue
     EXPECT_EQ( m_api->PyScheduler_GetRunCount(), 2 );
@@ -80,20 +81,20 @@ TEST_F( TaskletCapi, PyTasklet_Setup )
     EXPECT_EQ( m_api->PyScheduler_GetRunCount(), 1 );
 
     // Retreive test value to check argument was setup correctly
-	PyObject* python_test_value_list = PyObject_GetAttrString( m_main_module, "testValue" );
-	EXPECT_NE( python_test_value_list, nullptr );
-	EXPECT_TRUE( PyList_Check( python_test_value_list ) );
-	PyObject* python_test_value = PyList_GetItem( python_test_value_list, 0 );
-	EXPECT_NE( python_test_value, nullptr );
-	EXPECT_TRUE( PyLong_Check( python_test_value ) );
-	EXPECT_EQ( PyLong_AsLong( python_test_value ), test_value );
-	Py_XDECREF( python_test_value_list );
-	Py_XDECREF( python_test_value );
+	PyObject* pythonTestValueList = PyObject_GetAttrString( m_mainModule, "testValue" );
+	EXPECT_NE( pythonTestValueList, nullptr );
+	EXPECT_TRUE( PyList_Check( pythonTestValueList ) );
+	PyObject* pythonTestValue = PyList_GetItem( pythonTestValueList, 0 );
+	EXPECT_NE( pythonTestValue, nullptr );
+	EXPECT_TRUE( PyLong_Check( pythonTestValue ) );
+	EXPECT_EQ( PyLong_AsLong( pythonTestValue ), testValue );
+	Py_XDECREF( pythonTestValueList );
+	Py_XDECREF( pythonTestValue );
     
 	// Clean
 	Py_XDECREF( tasklet );
-	Py_XDECREF( tasklet_args );
-	Py_XDECREF( foo_callable );
+	Py_XDECREF( taskletArgs );
+	Py_XDECREF( fooCallable );
 }
 
 TEST_F( TaskletCapi, PyTasklet_Insert )
@@ -113,18 +114,18 @@ TEST_F( TaskletCapi, PyTasklet_Insert )
 			   0 );
 
     // test value should be unchanged
-	PyObject* python_test_value_list = PyObject_GetAttrString( m_main_module, "testValue" );
-	EXPECT_NE( python_test_value_list, nullptr );
-	EXPECT_TRUE( PyList_Check( python_test_value_list ) );
-	PyObject* python_test_value = PyList_GetItem( python_test_value_list, 0 );
-	EXPECT_NE( python_test_value, nullptr );
-	EXPECT_TRUE( PyLong_Check( python_test_value ) );
-	EXPECT_EQ( PyLong_AsLong( python_test_value ), 0 );
-	Py_XDECREF( python_test_value_list );
-	Py_XDECREF( python_test_value );
+	PyObject* pythonTestValueList = PyObject_GetAttrString( m_mainModule, "testValue" );
+	EXPECT_NE( pythonTestValueList, nullptr );
+	EXPECT_TRUE( PyList_Check( pythonTestValueList ) );
+	PyObject* pythonTestValue = PyList_GetItem( pythonTestValueList, 0 );
+	EXPECT_NE( pythonTestValue, nullptr );
+	EXPECT_TRUE( PyLong_Check( pythonTestValue ) );
+	EXPECT_EQ( PyLong_AsLong( pythonTestValue ), 0 );
+	Py_XDECREF( pythonTestValueList );
+	Py_XDECREF( pythonTestValue );
 
     // Tasklet is now alive and removed from queue
-	PyObject* tasklet = PyObject_GetAttrString( m_main_module, "tasklet" );
+	PyObject* tasklet = PyObject_GetAttrString( m_mainModule, "tasklet" );
 	EXPECT_NE( tasklet, nullptr );
 	EXPECT_TRUE( m_api->PyTasklet_Check( tasklet ) );
 
@@ -141,15 +142,15 @@ TEST_F( TaskletCapi, PyTasklet_Insert )
     EXPECT_EQ( m_api->PyScheduler_GetRunCount(), 1 );
 
     // Test value should now be set to 1
-	python_test_value_list = PyObject_GetAttrString( m_main_module, "testValue" );
-	EXPECT_NE( python_test_value_list, nullptr );
-	EXPECT_TRUE( PyList_Check( python_test_value_list ) );
-	python_test_value = PyList_GetItem( python_test_value_list, 0 );
-	EXPECT_NE( python_test_value, nullptr );
-	EXPECT_TRUE( PyLong_Check( python_test_value ) );
-	EXPECT_EQ( PyLong_AsLong( python_test_value ), 1 );
-	Py_XDECREF( python_test_value_list );
-	Py_XDECREF( python_test_value );
+	pythonTestValueList = PyObject_GetAttrString( m_mainModule, "testValue" );
+	EXPECT_NE( pythonTestValueList, nullptr );
+	EXPECT_TRUE( PyList_Check( pythonTestValueList ) );
+	pythonTestValue = PyList_GetItem( pythonTestValueList, 0 );
+	EXPECT_NE( pythonTestValue, nullptr );
+	EXPECT_TRUE( PyLong_Check( pythonTestValue ) );
+	EXPECT_EQ( PyLong_AsLong( pythonTestValue ), 1 );
+	Py_XDECREF( pythonTestValueList );
+	Py_XDECREF( pythonTestValue );
 
     // Test adding in dead tasklet
 	EXPECT_EQ( m_api->PyTasklet_Alive( reinterpret_cast<PyTaskletObject*>( tasklet ) ), 0 );
@@ -166,32 +167,32 @@ TEST_F( TaskletCapi, PyTasklet_Check )
 	EXPECT_EQ( PyRun_SimpleString( "def foo(x):\n"
 								   "   testValue[0] = x\n" ),
 			   0 );
-	PyObject* foo_callable = PyObject_GetAttrString( m_main_module, "foo" );
-	EXPECT_NE( foo_callable, nullptr );
-	EXPECT_TRUE( PyCallable_Check( foo_callable ) );
+	PyObject* fooCallable = PyObject_GetAttrString( m_mainModule, "foo" );
+	EXPECT_NE( fooCallable, nullptr );
+	EXPECT_TRUE( PyCallable_Check( fooCallable ) );
 
-    PyObject* tasklet_args = PyTuple_New( 1 );
-	EXPECT_NE( tasklet_args, nullptr );
-	EXPECT_EQ( PyTuple_SetItem( tasklet_args, 0, foo_callable ), 0 );
-	PyTaskletObject* tasklet = m_api->PyTasklet_New( m_api->PyTaskletType, tasklet_args );
+    PyObject* taskletArgs = PyTuple_New( 1 );
+	EXPECT_NE( taskletArgs, nullptr );
+	EXPECT_EQ( PyTuple_SetItem( taskletArgs, 0, fooCallable ), 0 );
+	PyTaskletObject* tasklet = m_api->PyTasklet_New( m_api->PyTaskletType, taskletArgs );
 	EXPECT_NE( tasklet, nullptr );
-	Py_XDECREF( tasklet_args );
+	Py_XDECREF( taskletArgs );
 
 	EXPECT_TRUE( m_api->PyTasklet_Check( reinterpret_cast<PyObject*>( tasklet ) ) );
 
 	EXPECT_FALSE( m_api->PyTasklet_Check( nullptr ) );
 
-	EXPECT_FALSE( m_api->PyTasklet_Check( m_scheduler_module ) );
+	EXPECT_FALSE( m_api->PyTasklet_Check( m_schedulerModule ) );
 
     Py_XDECREF( tasklet );
-	Py_XDECREF( foo_callable );
+	Py_XDECREF( fooCallable );
 }
 
 TEST_F( TaskletCapi, PyTasklet_GetBlockTrap )
 {
     // Create a tasklet
 	EXPECT_EQ( PyRun_SimpleString( "tasklet = scheduler.tasklet(lambda: None)\n" ), 0 );
-	PyObject* tasklet = PyObject_GetAttrString( m_main_module, "tasklet" );
+	PyObject* tasklet = PyObject_GetAttrString( m_mainModule, "tasklet" );
 	EXPECT_NE( tasklet, nullptr );
 	EXPECT_TRUE( m_api->PyTasklet_Check( tasklet ) );
 	
@@ -209,19 +210,19 @@ TEST_F( TaskletCapi, PyTasklet_GetBlockTrap )
 
 TEST_F( TaskletCapi, PyTasklet_IsMain )
 {
-	PyObject* main_tasklet = m_api->PyScheduler_GetCurrent();
+	PyObject* mainTasklet = m_api->PyScheduler_GetCurrent();
 
-    EXPECT_NE( main_tasklet, nullptr );
+    EXPECT_NE( mainTasklet, nullptr );
 
-    EXPECT_TRUE( m_api->PyTasklet_Check( main_tasklet ) );
+    EXPECT_TRUE( m_api->PyTasklet_Check( mainTasklet ) );
 
-    EXPECT_TRUE( m_api->PyTasklet_IsMain( reinterpret_cast<PyTaskletObject*>(main_tasklet) ) );
+    EXPECT_TRUE( m_api->PyTasklet_IsMain( reinterpret_cast<PyTaskletObject*>(mainTasklet) ) );
 
-    Py_DecRef( main_tasklet );
+    Py_DecRef( mainTasklet );
 	
     // Create tasklet
 	EXPECT_EQ( PyRun_SimpleString( "tasklet = scheduler.tasklet(lambda: None)\n" ), 0 );
-	PyObject* tasklet = PyObject_GetAttrString( m_main_module, "tasklet" );
+	PyObject* tasklet = PyObject_GetAttrString( m_mainModule, "tasklet" );
 	EXPECT_NE( tasklet, nullptr );
 	EXPECT_TRUE( m_api->PyTasklet_Check( tasklet ) );
     EXPECT_FALSE( m_api->PyTasklet_IsMain( reinterpret_cast<PyTaskletObject*>( tasklet ) ) );
@@ -235,7 +236,7 @@ TEST_F( TaskletCapi, PyTasklet_Alive )
 {
 
 	EXPECT_EQ( PyRun_SimpleString( "tasklet = scheduler.tasklet(lambda: None)()\n" ), 0 );
-	PyObject* tasklet = PyObject_GetAttrString( m_main_module, "tasklet" );
+	PyObject* tasklet = PyObject_GetAttrString( m_mainModule, "tasklet" );
 	EXPECT_NE( tasklet, nullptr );
 	EXPECT_TRUE( m_api->PyTasklet_Check( tasklet ) );
 
@@ -256,7 +257,7 @@ TEST_F( TaskletCapi, PyTasklet_Alive )
 TEST_F( TaskletCapi, PyTasklet_Kill )
 {
 	EXPECT_EQ( PyRun_SimpleString( "tasklet = scheduler.tasklet(lambda: None)()\n" ), 0 );
-	PyObject* tasklet = PyObject_GetAttrString( m_main_module, "tasklet" );
+	PyObject* tasklet = PyObject_GetAttrString( m_mainModule, "tasklet" );
 	EXPECT_NE( tasklet, nullptr );
 	EXPECT_TRUE( m_api->PyTasklet_Check( tasklet ) );
 

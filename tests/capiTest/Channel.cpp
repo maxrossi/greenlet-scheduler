@@ -1,11 +1,10 @@
 
 #include "StdAfx.h"
+
 #include <Python.h>
 #include <Scheduler.h>
 
 #include "InterpreterWithSchedulerModule.h"
-
-
 
 struct ChannelCapi : public InterpreterWithSchedulerModule{};
 
@@ -22,7 +21,7 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
     TEST_F( ChannelCapi, PyChannel_Send )
     {
 	    // Test Value
-	    long test_value = 101;
+	    long testValue = 101;
 
 	    // Create a channel for use in test
 	    PyChannelObject* channel = m_api->PyChannel_New( m_api->PyChannelType );
@@ -34,26 +33,26 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 									   "   schedulertest.channel_send(channel,value)\n" ),
 				   0 );
 
-	    PyObject* send_callable = PyObject_GetAttrString( m_main_module, "send_function" );
-		EXPECT_NE( send_callable, nullptr );
-		EXPECT_TRUE( PyCallable_Check( send_callable ) );
+	    PyObject* sendCallable = PyObject_GetAttrString( m_mainModule, "send_function" );
+		EXPECT_NE( sendCallable, nullptr );
+		EXPECT_TRUE( PyCallable_Check( sendCallable ) );
 
 	    // Create tasklet with foo callable
 	    PyObject* tasklet_args = PyTuple_New( 1 );
 		EXPECT_NE( tasklet_args, nullptr );
-		EXPECT_EQ( PyTuple_SetItem( tasklet_args, 0, send_callable ), 0 );
+		EXPECT_EQ( PyTuple_SetItem( tasklet_args, 0, sendCallable ), 0 );
 	    PyTaskletObject* tasklet = m_api->PyTasklet_New( m_api->PyTaskletType, tasklet_args );
 		EXPECT_NE( tasklet, nullptr );
 	    Py_XDECREF( tasklet_args );
-		Py_XDECREF( send_callable );
+		Py_XDECREF( sendCallable );
 
 	    // Setup tasklet to bind arguments and add the queue
-	    PyObject* callable_args = PyTuple_New( 2 );
-		EXPECT_NE( callable_args, nullptr );
-		EXPECT_EQ( PyTuple_SetItem( callable_args, 0, reinterpret_cast<PyObject*>( channel ) ), 0 );
-		EXPECT_EQ( PyTuple_SetItem( callable_args, 1, PyLong_FromLong( test_value ) ), 0 );
-	    EXPECT_EQ(m_api->PyTasklet_Setup( tasklet, callable_args, nullptr ), 0);
-	    Py_XDECREF( callable_args );
+	    PyObject* callableArgs = PyTuple_New( 2 );
+		EXPECT_NE( callableArgs, nullptr );
+		EXPECT_EQ( PyTuple_SetItem( callableArgs, 0, reinterpret_cast<PyObject*>( channel ) ), 0 );
+		EXPECT_EQ( PyTuple_SetItem( callableArgs, 1, PyLong_FromLong( testValue ) ), 0 );
+	    EXPECT_EQ(m_api->PyTasklet_Setup( tasklet, callableArgs, nullptr ), 0);
+	    Py_XDECREF( callableArgs );
 
 	    // Check that tasklet was scheduled
 	    EXPECT_EQ( m_api->PyScheduler_GetRunCount(), 2 );
@@ -73,7 +72,7 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 	    EXPECT_TRUE( PyLong_Check( received ) );
 
 	    // Should be the same value as the one passed in
-	    EXPECT_EQ( PyLong_AsLong( received ), test_value );
+	    EXPECT_EQ( PyLong_AsLong( received ), testValue );
 
 	    // Channel balance should reset
 	    EXPECT_EQ( m_api->PyChannel_GetBalance( channel ), 0 );
@@ -96,7 +95,7 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
     TEST_F( ChannelCapi, PyChannel_Send_With_Killed_Tasklet )
 	{
 		// Test Value
-		long test_value = 101;
+		long testValue = 101;
 
 		// Create a channel for use in test
 		PyChannelObject* channel = m_api->PyChannel_New( m_api->PyChannelType );
@@ -108,27 +107,27 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 									   "   schedulertest.channel_send(channel,value)\n" ),
 				   0 );
 
-		PyObject* send_callable = PyObject_GetAttrString( m_main_module, "send_function" );
-		EXPECT_NE( send_callable, nullptr );
-		EXPECT_TRUE( PyCallable_Check( send_callable ) );
+		PyObject* sendCallable = PyObject_GetAttrString( m_mainModule, "send_function" );
+		EXPECT_NE( sendCallable, nullptr );
+		EXPECT_TRUE( PyCallable_Check( sendCallable ) );
 
 		// Create tasklet with foo callable
-		PyObject* tasklet_args = PyTuple_New( 1 );
-		EXPECT_NE( tasklet_args, nullptr );
-		EXPECT_EQ( PyTuple_SetItem( tasklet_args, 0, send_callable ), 0 );
-		PyTaskletObject* tasklet = m_api->PyTasklet_New( m_api->PyTaskletType, tasklet_args );
+		PyObject* taskletArgs = PyTuple_New( 1 );
+		EXPECT_NE( taskletArgs, nullptr );
+		EXPECT_EQ( PyTuple_SetItem( taskletArgs, 0, sendCallable ), 0 );
+		PyTaskletObject* tasklet = m_api->PyTasklet_New( m_api->PyTaskletType, taskletArgs );
 		EXPECT_NE( tasklet, nullptr );
 		EXPECT_TRUE( m_api->PyTasklet_Check( reinterpret_cast<PyObject*>(tasklet) ) );
-		Py_XDECREF( tasklet_args );
-		Py_XDECREF( send_callable );
+		Py_XDECREF( taskletArgs );
+		Py_XDECREF( sendCallable );
 
 		// Setup tasklet to bind arguments and add the queue
-		PyObject* callable_args = PyTuple_New( 2 );
-		EXPECT_NE( callable_args, nullptr );
-		EXPECT_EQ( PyTuple_SetItem( callable_args, 0, reinterpret_cast<PyObject*>( channel ) ), 0 );
-		EXPECT_EQ( PyTuple_SetItem( callable_args, 1, PyLong_FromLong( test_value ) ), 0 );
-		EXPECT_EQ( m_api->PyTasklet_Setup( tasklet, callable_args, nullptr ), 0 );
-		Py_XDECREF( callable_args );
+		PyObject* callableArgs = PyTuple_New( 2 );
+		EXPECT_NE( callableArgs, nullptr );
+		EXPECT_EQ( PyTuple_SetItem( callableArgs, 0, reinterpret_cast<PyObject*>( channel ) ), 0 );
+		EXPECT_EQ( PyTuple_SetItem( callableArgs, 1, PyLong_FromLong( testValue ) ), 0 );
+		EXPECT_EQ( m_api->PyTasklet_Setup( tasklet, callableArgs, nullptr ), 0 );
+		Py_XDECREF( callableArgs );
 
 		// Check that tasklet was scheduled
 		EXPECT_EQ( m_api->PyScheduler_GetRunCount(), 2 );
@@ -139,11 +138,11 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
         // Check the test value 
         EXPECT_EQ( PyRun_SimpleString( "channel_state_test_value = schedulertest.test_value()\n" ), 0 );
 
-		PyObject* channel_state_test_value = PyObject_GetAttrString( m_main_module, "channel_state_test_value" );
-		EXPECT_NE( channel_state_test_value, nullptr );
-		EXPECT_TRUE( PyLong_Check( channel_state_test_value ) );
-		EXPECT_EQ( PyLong_AsLong( channel_state_test_value ), 1 ); 
-        Py_XDECREF( channel_state_test_value );
+		PyObject* channelStateTestValue = PyObject_GetAttrString( m_mainModule, "channel_state_test_value" );
+		EXPECT_NE( channelStateTestValue, nullptr );
+		EXPECT_TRUE( PyLong_Check( channelStateTestValue ) );
+		EXPECT_EQ( PyLong_AsLong( channelStateTestValue ), 1 ); 
+        Py_XDECREF( channelStateTestValue );
 
         // Kill the tasklet
 		EXPECT_EQ( m_api->PyTasklet_Kill( reinterpret_cast<PyTaskletObject*>( tasklet ) ), 0);
@@ -151,11 +150,11 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
         // Check that cleanup occurred
 		EXPECT_EQ( PyRun_SimpleString( "channel_state_test_value = schedulertest.test_value()\n" ), 0 );
 
-		channel_state_test_value = PyObject_GetAttrString( m_main_module, "channel_state_test_value" );
-		EXPECT_NE( channel_state_test_value, nullptr );
-		EXPECT_TRUE( PyLong_Check( channel_state_test_value ) );
-		EXPECT_EQ( PyLong_AsLong( channel_state_test_value ), -1 );
-		Py_XDECREF( channel_state_test_value );
+		channelStateTestValue = PyObject_GetAttrString( m_mainModule, "channel_state_test_value" );
+		EXPECT_NE( channelStateTestValue, nullptr );
+		EXPECT_TRUE( PyLong_Check( channelStateTestValue ) );
+		EXPECT_EQ( PyLong_AsLong( channelStateTestValue ), -1 );
+		Py_XDECREF( channelStateTestValue );
 
 		// Cleanup
 		Py_DECREF( tasklet );
@@ -165,7 +164,7 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
     TEST_F( ChannelCapi, PyChannel_Receive )
     {
 	    // Test Value
-	    long test_value = 101;
+	    long testValue = 101;
 
 	    // Create channel
 	    PyChannelObject* channel = m_api->PyChannel_New( m_api->PyChannelType );
@@ -177,27 +176,27 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 									   "   channel.send(value)\n" ),
 				   0 );
 
-	    PyObject* foo_callable = PyObject_GetAttrString( m_main_module, "foo" );
-		EXPECT_NE( foo_callable, nullptr );
-	    EXPECT_TRUE( PyCallable_Check( foo_callable ) );
+	    PyObject* fooCallable = PyObject_GetAttrString( m_mainModule, "foo" );
+		EXPECT_NE( fooCallable, nullptr );
+	    EXPECT_TRUE( PyCallable_Check( fooCallable ) );
 
 	    // Create tasklet with foo callable
-	    PyObject* tasklet_args = PyTuple_New( 1 );
-		EXPECT_NE( tasklet_args, nullptr );
-		EXPECT_EQ( PyTuple_SetItem( tasklet_args, 0, foo_callable ), 0 );
-	    PyTaskletObject* tasklet = m_api->PyTasklet_New( m_api->PyTaskletType, tasklet_args );
+	    PyObject* taskletArgs = PyTuple_New( 1 );
+		EXPECT_NE( taskletArgs, nullptr );
+		EXPECT_EQ( PyTuple_SetItem( taskletArgs, 0, fooCallable ), 0 );
+	    PyTaskletObject* tasklet = m_api->PyTasklet_New( m_api->PyTaskletType, taskletArgs );
 		EXPECT_NE( tasklet, nullptr );
 		EXPECT_TRUE( m_api->PyTasklet_Check( reinterpret_cast<PyObject*>( tasklet ) ) );
-	    Py_XDECREF( tasklet_args );
-	    Py_XDECREF( foo_callable );
+	    Py_XDECREF( taskletArgs );
+	    Py_XDECREF( fooCallable );
 
 	    // Setup tasklet to bind arguments and add the queue
-	    PyObject* callable_args = PyTuple_New( 2 );
-		EXPECT_NE( callable_args, nullptr );
-		EXPECT_EQ( PyTuple_SetItem( callable_args, 0, reinterpret_cast<PyObject*>( channel ) ), 0 );
-		EXPECT_EQ( PyTuple_SetItem( callable_args, 1, PyLong_FromLong( test_value ) ), 0 );
-	    EXPECT_EQ( m_api->PyTasklet_Setup( tasklet, callable_args, nullptr ), 0);
-	    Py_XDECREF( callable_args );
+	    PyObject* callableArgs = PyTuple_New( 2 );
+		EXPECT_NE( callableArgs, nullptr );
+		EXPECT_EQ( PyTuple_SetItem( callableArgs, 0, reinterpret_cast<PyObject*>( channel ) ), 0 );
+		EXPECT_EQ( PyTuple_SetItem( callableArgs, 1, PyLong_FromLong( testValue ) ), 0 );
+	    EXPECT_EQ( m_api->PyTasklet_Setup( tasklet, callableArgs, nullptr ), 0);
+	    Py_XDECREF( callableArgs );
 
 	    // Check that tasklet was scheduled
 	    EXPECT_EQ( m_api->PyScheduler_GetRunCount(), 2 );
@@ -217,7 +216,7 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 	    EXPECT_TRUE( PyLong_Check( received ) );
 
 	    // Should be the same value as the one passed in
-	    EXPECT_EQ( PyLong_AsLong( received ), test_value );
+	    EXPECT_EQ( PyLong_AsLong( received ), testValue );
 
 	    // Channel balance should reset
 	    EXPECT_EQ( m_api->PyChannel_GetBalance( channel ), 0 );
@@ -257,26 +256,26 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 									   "   value = schedulertest.channel_receive(channel)\n" ),
 				   0 );
 
-		PyObject* foo_callable = PyObject_GetAttrString( m_main_module, "foo" );
-		EXPECT_NE( foo_callable, nullptr );
-		EXPECT_TRUE( PyCallable_Check( foo_callable ) );
+		PyObject* fooCallable = PyObject_GetAttrString( m_mainModule, "foo" );
+		EXPECT_NE( fooCallable, nullptr );
+		EXPECT_TRUE( PyCallable_Check( fooCallable ) );
 
 		// Create tasklet with foo callable
-		PyObject* tasklet_args = PyTuple_New( 1 );
-		EXPECT_NE( tasklet_args, nullptr );
-		EXPECT_EQ( PyTuple_SetItem( tasklet_args, 0, foo_callable ), 0 );
-		PyTaskletObject* tasklet = m_api->PyTasklet_New( m_api->PyTaskletType, tasklet_args );
+		PyObject* taskletArgs = PyTuple_New( 1 );
+		EXPECT_NE( taskletArgs, nullptr );
+		EXPECT_EQ( PyTuple_SetItem( taskletArgs, 0, fooCallable ), 0 );
+		PyTaskletObject* tasklet = m_api->PyTasklet_New( m_api->PyTaskletType, taskletArgs );
 		EXPECT_NE( tasklet, nullptr );
 		EXPECT_TRUE(m_api->PyTasklet_Check(reinterpret_cast<PyObject*>(tasklet)));
-		Py_XDECREF( tasklet_args );
-		Py_XDECREF( foo_callable );
+		Py_XDECREF( taskletArgs );
+		Py_XDECREF( fooCallable );
 
 		// Setup tasklet to bind arguments and add the queue
-		PyObject* callable_args = PyTuple_New( 1 );
-		EXPECT_NE( callable_args, nullptr );
-		EXPECT_EQ( PyTuple_SetItem( callable_args, 0, reinterpret_cast<PyObject*>( channel ) ), 0 );
-		EXPECT_EQ(m_api->PyTasklet_Setup( tasklet, callable_args, nullptr ),0);
-		Py_XDECREF( callable_args );
+		PyObject* callableArgs = PyTuple_New( 1 );
+		EXPECT_NE( callableArgs, nullptr );
+		EXPECT_EQ( PyTuple_SetItem( callableArgs, 0, reinterpret_cast<PyObject*>( channel ) ), 0 );
+		EXPECT_EQ(m_api->PyTasklet_Setup( tasklet, callableArgs, nullptr ),0);
+		Py_XDECREF( callableArgs );
 
 		// Check that tasklet was scheduled
 		EXPECT_EQ( m_api->PyScheduler_GetRunCount(), 2 );
@@ -290,11 +289,11 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
         // Check the test value
 		EXPECT_EQ( PyRun_SimpleString( "channel_state_test_value = schedulertest.test_value()\n" ), 0 );
 
-		PyObject* channel_state_test_value = PyObject_GetAttrString( m_main_module, "channel_state_test_value" );
-		EXPECT_NE( channel_state_test_value, nullptr );
-		EXPECT_TRUE( PyLong_Check( channel_state_test_value ) );
-		EXPECT_EQ( PyLong_AsLong( channel_state_test_value ), 1 );
-		Py_XDECREF( channel_state_test_value );
+		PyObject* channelStateTestValue = PyObject_GetAttrString( m_mainModule, "channel_state_test_value" );
+		EXPECT_NE( channelStateTestValue, nullptr );
+		EXPECT_TRUE( PyLong_Check( channelStateTestValue ) );
+		EXPECT_EQ( PyLong_AsLong( channelStateTestValue ), 1 );
+		Py_XDECREF( channelStateTestValue );
 
 		// Kill the tasklet
 		EXPECT_EQ( m_api->PyTasklet_Kill( reinterpret_cast<PyTaskletObject*>( tasklet ) ), 0);
@@ -302,11 +301,11 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 		// Check that cleanup occurred
 		EXPECT_EQ( PyRun_SimpleString( "channel_state_test_value = schedulertest.test_value()\n" ), 0 );
 
-		channel_state_test_value = PyObject_GetAttrString( m_main_module, "channel_state_test_value" );
-		EXPECT_NE( channel_state_test_value, nullptr );
-		EXPECT_TRUE( PyLong_Check( channel_state_test_value ) );
-		EXPECT_EQ( PyLong_AsLong( channel_state_test_value ), -1 );
-		Py_XDECREF( channel_state_test_value );
+		channelStateTestValue = PyObject_GetAttrString( m_mainModule, "channel_state_test_value" );
+		EXPECT_NE( channelStateTestValue, nullptr );
+		EXPECT_TRUE( PyLong_Check( channelStateTestValue ) );
+		EXPECT_EQ( PyLong_AsLong( channelStateTestValue ), -1 );
+		Py_XDECREF( channelStateTestValue );
 
 		// Cleanup
 		Py_XDECREF( tasklet );
@@ -331,7 +330,7 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 				   0 );
 
 	    // Get channel
-	    PyObject* channel = PyObject_GetAttrString( m_main_module, "channel" );
+	    PyObject* channel = PyObject_GetAttrString( m_mainModule, "channel" );
 		EXPECT_NE( channel, nullptr );
 	    EXPECT_TRUE( m_api->PyChannel_Check( channel ) );
 
@@ -339,10 +338,10 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 		EXPECT_EQ( m_api->PyChannel_Receive( reinterpret_cast<PyChannelObject*>( channel ) ), nullptr );
 
 	    // Check error has been raised
-	    PyObject* error_type = PyErr_Occurred();
+	    PyObject* errorType = PyErr_Occurred();
 
 	    // Should be of type value error
-	    EXPECT_EQ( error_type, PyExc_ValueError );
+	    EXPECT_EQ( errorType, PyExc_ValueError );
 
 	    // Clear the error
 	    PyErr_Clear();
@@ -357,9 +356,9 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 	    // Create channel in python
 		EXPECT_EQ( PyRun_SimpleString( "send_channel = scheduler.channel()\n" ), 0 );
 
-	    PyObject* send_channel = PyObject_GetAttrString( m_main_module, "send_channel" );
-		EXPECT_NE( send_channel, nullptr );
-	    EXPECT_TRUE( m_api->PyChannel_Check( send_channel ) );
+	    PyObject* sendChannel = PyObject_GetAttrString( m_mainModule, "send_channel" );
+		EXPECT_NE( sendChannel, nullptr );
+	    EXPECT_TRUE( m_api->PyChannel_Check( sendChannel ) );
 
 	    // Create blocking function
 		EXPECT_EQ( PyRun_SimpleString( "def send_block():\n"
@@ -371,17 +370,17 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 									   "scheduler.run()\n" ),
 				   0 );
 
-	    PyObject* blocked_tasklet = m_api->PyChannel_GetQueue( reinterpret_cast<PyChannelObject*>( send_channel ) );
-		EXPECT_NE( blocked_tasklet, nullptr );
-	    EXPECT_TRUE( m_api->PyTasklet_Check( blocked_tasklet ) );
+	    PyObject* blockedTasklet = m_api->PyChannel_GetQueue( reinterpret_cast<PyChannelObject*>( sendChannel ) );
+		EXPECT_NE( blockedTasklet, nullptr );
+	    EXPECT_TRUE( m_api->PyTasklet_Check( blockedTasklet ) );
 
 	    // Check the tasklet matches expected
-	    PyObject* send_tasklet = PyObject_GetAttrString( m_main_module, "send_tasklet" );
-		EXPECT_NE( send_tasklet, nullptr );
-	    EXPECT_EQ( blocked_tasklet, send_tasklet );
+	    PyObject* sendTasklet = PyObject_GetAttrString( m_mainModule, "send_tasklet" );
+		EXPECT_NE( sendTasklet, nullptr );
+	    EXPECT_EQ( blockedTasklet, sendTasklet );
 
-	    Py_XDECREF( send_channel );
-	    Py_XDECREF( send_tasklet );
+	    Py_XDECREF( sendChannel );
+	    Py_XDECREF( sendTasklet );
     }
 
     TEST_F( ChannelCapi, PyChannel_SetPreference )
@@ -420,13 +419,13 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 	    // Create channel in python
 		EXPECT_EQ( PyRun_SimpleString( "send_channel = scheduler.channel()\n" ), 0 );
 
-	    PyObject* send_channel = PyObject_GetAttrString( m_main_module, "send_channel" );
-		EXPECT_NE( send_channel, nullptr );
+	    PyObject* sendChannel = PyObject_GetAttrString( m_mainModule, "send_channel" );
+		EXPECT_NE( sendChannel, nullptr );
 
-	    EXPECT_TRUE( m_api->PyChannel_Check( send_channel ) );
+	    EXPECT_TRUE( m_api->PyChannel_Check( sendChannel ) );
 
 	    // Check default
-	    EXPECT_EQ( m_api->PyChannel_GetBalance( reinterpret_cast<PyChannelObject*>( send_channel ) ), 0 );
+	    EXPECT_EQ( m_api->PyChannel_GetBalance( reinterpret_cast<PyChannelObject*>( sendChannel ) ), 0 );
 
 	    // Create blocking function
 		EXPECT_EQ( PyRun_SimpleString( "def send_block():\n"
@@ -439,22 +438,22 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 				   0 );
 
 	    // Balance with one blocking send
-	    EXPECT_EQ( m_api->PyChannel_GetBalance( reinterpret_cast<PyChannelObject*>( send_channel ) ), 1 );
+	    EXPECT_EQ( m_api->PyChannel_GetBalance( reinterpret_cast<PyChannelObject*>( sendChannel ) ), 1 );
 
-	    Py_XDECREF( send_channel );
+	    Py_XDECREF( sendChannel );
 
 	    // Check blocking receive
 		EXPECT_EQ( PyRun_SimpleString( "receive_channel = scheduler.channel()\n"
 									   "receive_channel.preference = 1\n" ),
 				   0 );
 
-	    PyObject* receive_channel = PyObject_GetAttrString( m_main_module, "receive_channel" );
-		EXPECT_NE( receive_channel, nullptr );
+	    PyObject* receiveChannel = PyObject_GetAttrString( m_mainModule, "receive_channel" );
+		EXPECT_NE( receiveChannel, nullptr );
 
-	    EXPECT_TRUE( m_api->PyChannel_Check( receive_channel ) );
+	    EXPECT_TRUE( m_api->PyChannel_Check( receiveChannel ) );
 
 	    // Check default
-	    EXPECT_EQ( m_api->PyChannel_GetBalance( reinterpret_cast<PyChannelObject*>( receive_channel ) ), 0 );
+	    EXPECT_EQ( m_api->PyChannel_GetBalance( reinterpret_cast<PyChannelObject*>( receiveChannel ) ), 0 );
 
 	    // Create blocking function
 		EXPECT_EQ( PyRun_SimpleString( "def receive_block():\n"
@@ -467,9 +466,9 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 				   0 );
 
 	    // Balance with one blocking send
-	    EXPECT_EQ( m_api->PyChannel_GetBalance( reinterpret_cast<PyChannelObject*>( receive_channel ) ), -1 );
+	    EXPECT_EQ( m_api->PyChannel_GetBalance( reinterpret_cast<PyChannelObject*>( receiveChannel ) ), -1 );
 
-	    Py_XDECREF( receive_channel );
+	    Py_XDECREF( receiveChannel );
     }
 
     TEST_F( ChannelCapi, PyChannel_Check )
@@ -482,7 +481,7 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 
 	    EXPECT_FALSE( m_api->PyChannel_Check( nullptr ) );
 
-	    EXPECT_FALSE( m_api->PyChannel_Check( m_scheduler_module ) );
+	    EXPECT_FALSE( m_api->PyChannel_Check( m_schedulerModule ) );
 
 	    Py_XDECREF( channel );
     }
@@ -503,15 +502,15 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 				   0 );
 
         // Get reference to callable
-        PyObject* foo_callable = PyObject_GetAttrString( m_main_module, "foo" );
-		EXPECT_NE( foo_callable, nullptr );
-		EXPECT_TRUE( PyCallable_Check( foo_callable ) );
+        PyObject* fooCallable = PyObject_GetAttrString( m_mainModule, "foo" );
+		EXPECT_NE( fooCallable, nullptr );
+		EXPECT_TRUE( PyCallable_Check( fooCallable ) );
 
 		// Create tasklet
-		PyObject* tasklet_args = PyTuple_New( 1 );
-		EXPECT_NE( tasklet_args, nullptr );
-		EXPECT_EQ( PyTuple_SetItem( tasklet_args, 0, foo_callable ), 0 );
-		PyTaskletObject* tasklet = m_api->PyTasklet_New( m_api->PyTaskletType, tasklet_args );
+		PyObject* taskletArgs = PyTuple_New( 1 );
+		EXPECT_NE( taskletArgs, nullptr );
+		EXPECT_EQ( PyTuple_SetItem( taskletArgs, 0, fooCallable ), 0 );
+		PyTaskletObject* tasklet = m_api->PyTasklet_New( m_api->PyTaskletType, taskletArgs );
 		EXPECT_NE( tasklet, nullptr );
 
 		// Check type
@@ -521,11 +520,11 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 		EXPECT_EQ( m_api->PyScheduler_GetRunCount(), 1 );
 
 		// Setup tasklet
-		PyObject* callable_args = PyTuple_New( 1 );
-		EXPECT_NE( callable_args, nullptr );
-		EXPECT_EQ( PyTuple_SetItem( callable_args, 0, reinterpret_cast<PyObject*>(channel) ), 0 );
-		EXPECT_EQ( m_api->PyTasklet_Setup( tasklet, callable_args, nullptr ), 0 );
-		Py_XDECREF( callable_args );
+		PyObject* callableArgs = PyTuple_New( 1 );
+		EXPECT_NE( callableArgs, nullptr );
+		EXPECT_EQ( PyTuple_SetItem( callableArgs, 0, reinterpret_cast<PyObject*>(channel) ), 0 );
+		EXPECT_EQ( m_api->PyTasklet_Setup( tasklet, callableArgs, nullptr ), 0 );
+		Py_XDECREF( callableArgs );
 		
 		// Should be added to queue
 		EXPECT_EQ( m_api->PyScheduler_GetRunCount(), 2 );
@@ -574,15 +573,15 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 				   0 );
 
 		// Get reference to callable
-		PyObject* foo_callable = PyObject_GetAttrString( m_main_module, "foo" );
-		EXPECT_NE( foo_callable, nullptr );
-		EXPECT_TRUE( PyCallable_Check( foo_callable ) );
+		PyObject* fooCallable = PyObject_GetAttrString( m_mainModule, "foo" );
+		EXPECT_NE( fooCallable, nullptr );
+		EXPECT_TRUE( PyCallable_Check( fooCallable ) );
 
 		// Create tasklet
-		PyObject* tasklet_args = PyTuple_New( 1 );
-		EXPECT_NE( tasklet_args, nullptr );
-		EXPECT_EQ( PyTuple_SetItem( tasklet_args, 0, foo_callable ), 0 );
-		PyTaskletObject* tasklet = m_api->PyTasklet_New( m_api->PyTaskletType, tasklet_args );
+		PyObject* taskletArgs = PyTuple_New( 1 );
+		EXPECT_NE( taskletArgs, nullptr );
+		EXPECT_EQ( PyTuple_SetItem( taskletArgs, 0, fooCallable ), 0 );
+		PyTaskletObject* tasklet = m_api->PyTasklet_New( m_api->PyTaskletType, taskletArgs );
 		EXPECT_NE( tasklet, nullptr );
 
 		// Check type
@@ -592,11 +591,11 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 		EXPECT_EQ( m_api->PyScheduler_GetRunCount(), 1 );
 
 		// Setup tasklet
-		PyObject* callable_args = PyTuple_New( 1 );
-		EXPECT_NE( callable_args, nullptr );
-		EXPECT_EQ( PyTuple_SetItem( callable_args, 0, reinterpret_cast<PyObject*>( channel ) ), 0 );
-		EXPECT_EQ( m_api->PyTasklet_Setup( tasklet, callable_args, nullptr ), 0 );
-		Py_XDECREF( callable_args );
+		PyObject* callableArgs = PyTuple_New( 1 );
+		EXPECT_NE( callableArgs, nullptr );
+		EXPECT_EQ( PyTuple_SetItem( callableArgs, 0, reinterpret_cast<PyObject*>( channel ) ), 0 );
+		EXPECT_EQ( m_api->PyTasklet_Setup( tasklet, callableArgs, nullptr ), 0 );
+		Py_XDECREF( callableArgs );
 
 		// Should be added to queue
 		EXPECT_EQ( m_api->PyScheduler_GetRunCount(), 2 );
