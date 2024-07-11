@@ -403,7 +403,7 @@ static PyObject*
 static PyObject*
     Tasklet_frame_get(PyTaskletObject* self, void* closure)
 {
-	PyObject* greenlet = reinterpret_cast<PyObject*>(self->m_impl->get_greenlet());
+	PyObject* greenlet = reinterpret_cast<PyObject*>( self->m_implementation->get_greenlet() );
 
     if (greenlet == nullptr)
     {
