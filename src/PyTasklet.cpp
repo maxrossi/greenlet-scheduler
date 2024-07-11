@@ -475,7 +475,6 @@ static PyGetSetDef Tasklet_getsetters[] = {
         "This attribute is True when a tasklet is alive, but not scheduled or blocked on a channel.",
         NULL },
 	{ "frame",
-
         (getter)Tasklet_frame_get,
         NULL,
 	    "Get the current frame of a tasklet",
