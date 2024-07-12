@@ -899,5 +899,6 @@ class TestTaskletExitException(test_utils.SchedulerTestCaseBase):
         t = scheduler.tasklet(foo)(channel)
         t.run()
         frame = t.frame
-        self.assertTrue("test_tasklet.py" in inspect.getsourcefile(frame))
+        # frame has been dissabled, this should always be None
+        self.assertEqual(frame, None)
         channel.send(None)
