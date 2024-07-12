@@ -289,12 +289,16 @@ TEST_F( SchedulerCapi, PyScheduler_SetScheduleCallback )
 {
 
     // Create a test value container
-	EXPECT_EQ( PyRun_SimpleString( "testValue = [None]\n" ), 0 );
+	EXPECT_EQ( PyRun_SimpleString( "testValue = [None,None]\n" ), 0 );
 
     // Create a scheduler callback
 	EXPECT_EQ( PyRun_SimpleString( "def schedule_callback(prev,next):\n"
-								   "   testValue[0] = next\n" ),
+								   "   testValue[0] = prev\n"
+								   "   testValue[1] = next\n" ),
 			   0 );
+
+    // Store main tasklet
+	PyObject* mainTasklet = m_api->PyScheduler_GetCurrent();
 
 	// Get scheduler callback callable
 	PyObject* callbackCallable = PyObject_GetAttrString( m_mainModule, "schedule_callback" );
@@ -318,20 +322,26 @@ TEST_F( SchedulerCapi, PyScheduler_SetScheduleCallback )
 	PyObject* pythonTestValueList = PyObject_GetAttrString( m_mainModule, "testValue" );
 	EXPECT_NE( pythonTestValueList, nullptr );
 	EXPECT_TRUE( PyList_Check( pythonTestValueList ) );
-	PyObject* pythonTestValue = PyList_GetItem( pythonTestValueList, 0 );
-	EXPECT_NE( pythonTestValue, nullptr );
+	PyObject* pythonPreviousTasklet = PyList_GetItem( pythonTestValueList, 0 );
+	EXPECT_NE( pythonPreviousTasklet, nullptr );
+	PyObject* pythonNextTasklet = PyList_GetItem( pythonTestValueList, 1 );
+	EXPECT_NE( pythonNextTasklet, nullptr );
 
 	// Test object should be the same as the tasklet
-	EXPECT_TRUE( m_api->PyTasklet_Check( pythonTestValue ) );
+	EXPECT_TRUE( m_api->PyTasklet_Check( pythonPreviousTasklet ) );
+	EXPECT_TRUE( m_api->PyTasklet_Check( pythonNextTasklet ) );
 
 	// Should match the tasklet
-	EXPECT_EQ( pythonTestValue, tasklet );
+	EXPECT_EQ( pythonPreviousTasklet, tasklet );
+	EXPECT_EQ( pythonNextTasklet, mainTasklet );
 
 	// Cleanup
 	Py_XDECREF( pythonTestValueList );
-	Py_XDECREF( pythonTestValue );
+	Py_XDECREF( pythonPreviousTasklet );
+	Py_XDECREF( pythonNextTasklet );
 	Py_XDECREF( callbackCallable );
 	Py_XDECREF( tasklet );
+	Py_XDECREF( mainTasklet );
 
 	// Reset the scheduler callback
 	EXPECT_EQ( m_api->PyScheduler_SetScheduleCallback( nullptr ), 0 );
@@ -369,9 +379,10 @@ TEST_F( SchedulerCapi, PyScheduler_SetScheduleFastcallback )
 	PyObject* mainTasklet = m_api->PyScheduler_GetCurrent();
 
     // Check values
-    EXPECT_EQ( s_testFrom, reinterpret_cast<PyTaskletObject*>(mainTasklet) );
-	EXPECT_EQ( s_testTo, reinterpret_cast<PyTaskletObject*>( tasklet ) );
+    EXPECT_EQ( s_testFrom, reinterpret_cast<PyTaskletObject*>(tasklet) );
+	EXPECT_EQ( s_testTo, reinterpret_cast<PyTaskletObject*>( mainTasklet ) );
 
     // Clean
 	Py_XDECREF( tasklet );
+	Py_XDECREF( mainTasklet );
 }

@@ -26,11 +26,11 @@ Channel::Channel( PyObject* pythonObject ) :
 
 Channel::~Channel()
 {
-	// Destructor will never be called while there are tasklets blocking
+	// Note: Destructor will never be called while there are tasklets blocking
 
 	// Remove weak ref from store
 	s_activeChannels.remove( this );
-	
+
 	Py_DECREF( m_lock );
 }
 
@@ -478,23 +478,19 @@ void Channel::RunChannelCallback( Channel* channel, Tasklet* tasklet, bool sendi
 {
 	if( s_channelCallback )
 	{
-		PyObject* args = PyTuple_New( 4 ); // TODO don't create this each time
-
         channel->Incref();
 
-		PyTuple_SetItem( args, 0, channel->PythonObject() );
+		PyTuple_SetItem( s_callbackArguments, 0, channel->PythonObject() );
 
 		tasklet->Incref();
 
-		PyTuple_SetItem( args, 1, tasklet->PythonObject() );
+		PyTuple_SetItem( s_callbackArguments, 1, tasklet->PythonObject() );
 
-        PyTuple_SetItem( args, 2, sending ? Py_True : Py_False );
+        PyTuple_SetItem( s_callbackArguments, 2, sending ? Py_True : Py_False );
 
-        PyTuple_SetItem( args, 3, willBlock ? Py_True : Py_False );
+        PyTuple_SetItem( s_callbackArguments, 3, willBlock ? Py_True : Py_False );
 
-		PyObject_Call( s_channelCallback, args, nullptr );
-
-		Py_DecRef( args );
+		PyObject_Call( s_channelCallback, s_callbackArguments, nullptr );
 	}
 }
 
@@ -567,7 +563,23 @@ PyObject* Channel::ChannelCallback()
 
 void Channel::SetChannelCallback( PyObject* callback )
 {
-	s_channelCallback = callback;
+	Py_XDECREF( s_channelCallback ); 
+
+    if (callback)
+    {
+		if( !s_callbackArguments )
+		{
+			s_callbackArguments = PyTuple_New( 4 );
+		}
+    }
+    else
+    {
+		Py_XDECREF( s_callbackArguments ); 
+
+        s_callbackArguments = nullptr;
+    }
+
+    s_channelCallback = callback;
 }
 
 int Channel::Preference() const
@@ -701,4 +713,10 @@ void Channel::UpdateCloseState()
 		m_closed = true;
 
 	}
+}
+
+// Called by module destructor
+void Channel::Clean()
+{
+	Py_XDECREF( s_callbackArguments );
 }

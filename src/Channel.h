@@ -76,6 +76,9 @@ public:
     static int NumberOfActiveChannels();
 
     static int UnblockAllActiveChannels();
+
+    static void Clean();
+
 private:
 
     void RemoveTaskletFromBlocked( Tasklet* tasklet );
@@ -114,6 +117,8 @@ private:
 
     inline static PyObject* s_channelCallback; // This is global, not per channel
 
+    inline static PyObject* s_callbackArguments = nullptr;
+
     Tasklet* m_firstBlockedOnReceive;
 
 	Tasklet* m_lastBlockedOnReceive;
@@ -123,6 +128,8 @@ private:
     Tasklet* m_lastBlockedOnSend;
 
     inline static std::list<Channel*> s_activeChannels;
+
+    
     
 };
 

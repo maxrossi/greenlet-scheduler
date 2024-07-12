@@ -13,6 +13,7 @@ ScheduleManager::ScheduleManager( PyObject* pythonObject ) :
 	m_switchTrapLevel(0),
     m_currentTaskletChangedCallback(nullptr),
     m_schedulerCallback(nullptr),
+	m_callbackArguments(nullptr),
     m_schedulerFastCallback(nullptr),
     m_taskletLimit(-1),
 	m_totalTaskletRunTimeLimit(-1),
@@ -523,12 +524,23 @@ void ScheduleManager::SetSchedulerCallback( PyObject* callback )
     //TODO so far this is specific to the thread it was called on
     //Check what stackless does, docs are not clear on this
     //Looks global but imo makes more logical sense as local to thread
+	Py_XDECREF( m_schedulerCallback );
 
-    Py_XDECREF( m_schedulerCallback );
+    if( callback )
+	{
+		if( !m_callbackArguments )
+		{
+			m_callbackArguments = PyTuple_New( 2 );
+		}
+	}
+	else
+	{
+		Py_XDECREF( m_callbackArguments );
 
-    Py_IncRef( callback );
+        m_callbackArguments = nullptr;
+	}
 
-    m_schedulerCallback = callback;
+	m_schedulerCallback = callback;
 }
 
 void ScheduleManager::RunSchedulerCallback( Tasklet* previous, Tasklet* next )

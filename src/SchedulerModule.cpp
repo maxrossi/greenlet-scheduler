@@ -19,23 +19,29 @@
 static PyObject*
 	SetChannelCallback( PyObject* self, PyObject* args )
 {
-    //TODO what if a callback is supplied which requires the wrong number of arguments?
 	PyObject* temp;
 
 	if( PyArg_ParseTuple( args, "O:set_channel_callback", &temp ) )
 	{
-		if( !PyCallable_Check( temp ) )
+		if( !PyCallable_Check( temp ) && temp != Py_None )
 		{
-			PyErr_SetString( PyExc_TypeError, "parameter must be callable" );
+			PyErr_SetString( PyExc_TypeError, "parameter must be callable or None." );
 
 			return nullptr;
 		}
 
-		Py_IncRef( temp );
-
 		PyObject* previousCallback = Channel::ChannelCallback();
 
-		Channel::SetChannelCallback(temp);
+        if( PyCallable_Check( temp ) )
+		{
+			Py_IncRef( temp );
+
+			Channel::SetChannelCallback( temp );
+		}
+        else
+        {
+			Channel::SetChannelCallback( nullptr );
+        }
 
 		if( previousCallback )
 		{
@@ -228,24 +234,30 @@ static PyObject*
 static PyObject*
 	SchedulerSetScheduleCallback( PyObject* self, PyObject* args, PyObject* kwds )
 {
-	//TODO what if a callback is supplied which requires the wrong number of arguments?
     PyObject* temp;
 
 	if( PyArg_ParseTuple( args, "O:set_schedule_callback", &temp ) )
 	{
-		if( !PyCallable_Check( temp ) )
+		if( !PyCallable_Check( temp ) && temp != Py_None )
 		{
-			PyErr_SetString( PyExc_TypeError, "parameter must be callable" );
-			return NULL;    //TODO convert all to nullptr - left so I remember
+			PyErr_SetString( PyExc_TypeError, "parameter must be callable or None." );
+			return nullptr;    //TODO convert all to nullptr - left so I remember
 		}
 
         ScheduleManager* currentScheduler = ScheduleManager::GetThreadScheduleManager();
 
-		Py_IncRef( temp );
-
         PyObject* previousCallback = currentScheduler->SchedulerCallback();
 
-        currentScheduler->SetSchedulerCallback( temp );
+        if( PyCallable_Check( temp ) )
+		{
+			Py_IncRef( temp );
+
+			currentScheduler->SetSchedulerCallback( temp );
+		}
+        else
+        {
+			currentScheduler->SetSchedulerCallback( nullptr );
+        }
 
         currentScheduler->Decref();
 
@@ -375,6 +387,9 @@ void ModuleDestructor( void* )
 
     // Destroy thread local storage key
 	PyThread_tss_delete( &ScheduleManager::s_threadLocalStorageKey );
+
+    // Destroy any left over structures in Channel
+	Channel::Clean();
 }
 
 /*

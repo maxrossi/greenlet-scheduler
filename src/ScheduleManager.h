@@ -117,6 +117,8 @@ private:
 
 	PyObject* m_schedulerCallback;
 
+    PyObject* m_callbackArguments;
+
     schedule_hook_func* m_schedulerFastCallback;
 
     int m_taskletLimit;
