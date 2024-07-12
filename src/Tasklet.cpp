@@ -1022,7 +1022,7 @@ void Tasklet::SetBlockedDirection(int direction)
 	m_blockedDirection = direction;
 }
 
-PyGreenlet* Tasklet::get_greenlet()
+PyGreenlet* Tasklet::GetGreenlet()
 {
 	return m_greenlet;
 }
