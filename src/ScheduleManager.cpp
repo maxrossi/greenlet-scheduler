@@ -109,6 +109,8 @@ ScheduleManager* ScheduleManager::GetThreadScheduleManager()
 
 void ScheduleManager::SetCurrentTasklet( Tasklet* tasklet )
 {
+	RunSchedulerCallback( m_currentTasklet, tasklet );
+
 	m_currentTasklet = tasklet;
 
 }
@@ -378,7 +380,6 @@ bool ScheduleManager::Run( Tasklet* startTasklet /* = nullptr */ )
 
 		Tasklet* currentTasklet = baseTasklet->Next();
 
-        RunSchedulerCallback( currentTasklet->Previous(), currentTasklet );
 
         // Store the parent to the tasklet
 		// Required for nested scheduling calls
