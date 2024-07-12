@@ -379,11 +379,9 @@ static PyObject*
 	}
 	else
 	{
-		PyObject* pyPrevious = previous->PythonObject();
+		previous->Incref();
 
-        Py_IncRef( pyPrevious );
-
-		return pyPrevious;
+		return previous->PythonObject();
     }
 
 }

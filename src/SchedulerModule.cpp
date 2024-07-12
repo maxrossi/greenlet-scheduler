@@ -99,13 +99,13 @@ static PyObject*
 {
 	ScheduleManager* currentScheduler = ScheduleManager::GetScheduler();
 
-    PyObject* pyMainTasklet = currentScheduler->GetMainTasklet()->PythonObject();
+    Tasklet* mainTasklet = currentScheduler->GetMainTasklet();
 
-	Py_IncRef( pyMainTasklet );
+    mainTasklet->Incref();
 
     currentScheduler->Decref();
 
-	return pyMainTasklet;
+	return mainTasklet->PythonObject();
 }
 
 static PyObject*
@@ -286,13 +286,15 @@ static PyObject*
 
 	PyObject* threadInfoTuple = PyTuple_New( 3 );
 
-	Py_IncRef( currentScheduler->GetMainTasklet()->PythonObject() );
+    Tasklet* mainTasklet = currentScheduler->GetMainTasklet();
 
-	PyTuple_SetItem( threadInfoTuple, 0, currentScheduler->GetMainTasklet()->PythonObject());
+	PyTuple_SetItem( threadInfoTuple, 0, mainTasklet->PythonObject() );
 
-	Py_IncRef( currentScheduler->GetCurrentTasklet()->PythonObject() );
+    Tasklet* currentTasklet = currentScheduler->GetCurrentTasklet();
 
-	PyTuple_SetItem( threadInfoTuple, 1, currentScheduler->GetCurrentTasklet()->PythonObject());
+    currentTasklet->Incref();
+
+	PyTuple_SetItem( threadInfoTuple, 1, currentTasklet->PythonObject());
 
 	PyTuple_SetItem( threadInfoTuple, 2, PyLong_FromLong( currentScheduler->GetCachedTaskletCount() + 1 ) );
 

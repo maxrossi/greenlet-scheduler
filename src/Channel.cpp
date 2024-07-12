@@ -106,7 +106,7 @@ bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */)
         }
 
 		// Block as there is no tasklet receiving
-		Py_IncRef( current->PythonObject() );
+		current->Incref();
 
         AddTaskletToWaitingToSend( current );
 

@@ -30,7 +30,7 @@ ScheduleManager::ScheduleManager( PyObject* pythonObject ) :
 
 ScheduleManager::~ScheduleManager()
 {
-	Py_DecRef( m_schedulerTasklet->PythonObject() );
+	m_schedulerTasklet->Decref();
 
     Py_XDECREF( m_schedulerCallback );
 
@@ -154,7 +154,7 @@ Tasklet* ScheduleManager::GetCurrentTasklet()
 //TODO naming correct here?
 void ScheduleManager::InsertTaskletAtBeginning( Tasklet* tasklet )
 {
-	Py_IncRef( tasklet->PythonObject() );
+	tasklet->Incref();
 
     ScheduleManager* currentScheduler = GetScheduler( tasklet->ThreadId() ); 
 
@@ -178,7 +178,7 @@ void ScheduleManager::InsertTasklet( Tasklet* tasklet )
 
     if( !tasklet->IsScheduled() )
 	{
-		Py_IncRef( tasklet->PythonObject() );
+		tasklet->Incref();
 		currentScheduler->m_previousTasklet->SetNext( tasklet );
 
 		tasklet->SetPrevious( currentScheduler->m_previousTasklet );
