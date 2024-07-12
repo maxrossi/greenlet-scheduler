@@ -62,7 +62,7 @@ bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */)
 
     Tasklet* current = scheduleManager->GetCurrentTasklet(); //TODO naming clean up
 
-	RunChannelCallback( this, current, true, m_firstBlockedOnReceive == nullptr );  //TODO will_block logic here will change with addition of preference
+	RunChannelCallback( this, current, true, m_firstBlockedOnReceive == nullptr );
 
     current->SetTransferInProgress(true);
 	int direction = SENDER;
@@ -231,7 +231,7 @@ PyObject* Channel::Receive()
 	// Block as there is no tasklet sending
 	Tasklet* current = scheduleManager->GetCurrentTasklet();
 
-	RunChannelCallback( this , current, false, m_firstBlockedOnSend == nullptr );    //TODO will_block logic here will change with addition of preference
+	RunChannelCallback( this , current, false, m_firstBlockedOnSend == nullptr );
 
     if( current == nullptr )
 	{
