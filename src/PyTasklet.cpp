@@ -42,7 +42,7 @@ static PyObject*
 	{
 		if( callable == Py_None && ( bindArgs == nullptr && bindKwArgs == nullptr ) )
 		{
-			ScheduleManager* scheduleManager = ScheduleManager::GetScheduler();
+			ScheduleManager* scheduleManager = ScheduleManager::GetThreadScheduleManager();
 
 			auto current = reinterpret_cast<PyTaskletObject*>( scheduleManager->GetCurrentTasklet()->PythonObject() );
 
@@ -299,7 +299,7 @@ static PyObject*
 		return nullptr;
 	}
 
-	ScheduleManager* scheduleManager = ScheduleManager::GetScheduler();
+	ScheduleManager* scheduleManager = ScheduleManager::GetThreadScheduleManager();
 
 	Tasklet* currentTasklet = scheduleManager->GetCurrentTasklet();
 

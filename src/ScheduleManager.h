@@ -43,9 +43,7 @@ public:
 
     static int NumberOfActiveScheduleManagers();
 
-    static ScheduleManager* FindScheduler( long threadId );
-
-    static ScheduleManager* GetScheduler( long threadId = -1 );
+    static ScheduleManager* GetThreadScheduleManager();
 
 	void SetCurrentTasklet( Tasklet* tasklet );
 
@@ -99,6 +97,8 @@ public:
 
     inline static PyThread_type_lock s_scheduleManagerLock;
 
+    inline static Py_tss_t s_threadLocalStorageKey = Py_tss_NEEDS_INIT;
+
 private:
 
     PyObject* m_pythonObject;
@@ -129,7 +129,7 @@ private:
 
     int m_numberOfTaskletsInQueue;
 
-    inline static std::map<long, ScheduleManager*> s_schedulers;    //Each thread has its own scheduler
+    static inline int s_numberOfActiveScheduleManagers = 0;
     
 };
 

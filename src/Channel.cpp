@@ -58,7 +58,7 @@ bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */)
 {
     PyThread_acquire_lock( m_lock, 1 );
 
-    ScheduleManager* scheduleManager = ScheduleManager::GetScheduler();
+    ScheduleManager* scheduleManager = ScheduleManager::GetThreadScheduleManager();
 
     Tasklet* current = scheduleManager->GetCurrentTasklet(); //TODO naming clean up
 
@@ -106,7 +106,7 @@ bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */)
         }
 
 		// Block as there is no tasklet receiving
-		Py_IncRef( current->PythonObject() );
+		current->Incref();
 
         AddTaskletToWaitingToSend( current );
 
@@ -174,7 +174,7 @@ bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */)
 
 bool Channel::ChannelSwitch(Tasklet* caller, Tasklet* other, int dir, int callerDir)
 {
-	ScheduleManager* scheduleManager = ScheduleManager::GetScheduler();
+	ScheduleManager* scheduleManager = ScheduleManager::GetThreadScheduleManager();
 
     //if preference is opposit from direction, switch away from caller
 	if( ( -dir == m_preference && dir == callerDir ) || (dir == m_preference && dir != callerDir))
@@ -224,7 +224,7 @@ PyObject* Channel::Receive()
 {
 	PyThread_acquire_lock( m_lock, 1 );
 
-    ScheduleManager* scheduleManager = ScheduleManager::GetScheduler();
+    ScheduleManager* scheduleManager = ScheduleManager::GetThreadScheduleManager();
 
     scheduleManager->GetCurrentTasklet()->SetTransferInProgress( true );
 
@@ -480,17 +480,13 @@ void Channel::RunChannelCallback( Channel* channel, Tasklet* tasklet, bool sendi
 	{
 		PyObject* args = PyTuple_New( 4 ); // TODO don't create this each time
 
-        PyObject* pyChannel = channel->PythonObject();
+        channel->Incref();
 
-        PyObject* pyTasklet = tasklet->PythonObject();
+		PyTuple_SetItem( args, 0, channel->PythonObject() );
 
-		Py_IncRef( pyChannel );
+		tasklet->Incref();
 
-		Py_IncRef( pyTasklet );
-
-		PyTuple_SetItem( args, 0, pyChannel );
-
-		PyTuple_SetItem( args, 1, pyTasklet );
+		PyTuple_SetItem( args, 1, tasklet->PythonObject() );
 
         PyTuple_SetItem( args, 2, sending ? Py_True : Py_False );
 
