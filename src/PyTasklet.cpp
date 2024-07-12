@@ -410,7 +410,7 @@ static PyObject*
 		return nullptr;
 	}
 
-	PyObject* greenlet = reinterpret_cast<PyObject*>( self->m_implementation->get_greenlet() );
+	PyObject* greenlet = reinterpret_cast<PyObject*>( self->m_implementation->GetGreenlet() );
 
     if (greenlet == nullptr)
     {
@@ -418,7 +418,9 @@ static PyObject*
 		return nullptr;
     }
 
-    return PyObject_GetAttrString( greenlet, "gr_frame" );
+    // Accessing greenlet.gr_frame is disabled, as accessing frame can produce un-expected crashes
+    Py_IncRef( Py_None );
+    return Py_None;
 }
 
 static PyGetSetDef Tasklet_getsetters[] = {
@@ -484,7 +486,7 @@ static PyGetSetDef Tasklet_getsetters[] = {
 	{ "frame",
         (getter)Tasklet_frame_get,
         NULL,
-	    "Get the current frame of a tasklet",
+	    "Get the current frame of a tasklet. Frame has been dissabled due to instability in greenlet. This attribute will always be None",
         NULL },
 
 	{ NULL } /* Sentinel */
