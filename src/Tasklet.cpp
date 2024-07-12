@@ -41,7 +41,7 @@ Tasklet::Tasklet( PyObject* pythonObject, PyObject* taskletExitException, bool i
     // it will hold an incref to it
 	if( !m_isMain )
 	{
-		m_scheduleManager = ScheduleManager::GetScheduler( m_threadId ); // This will return a new reference which is then decreffed in destructor
+		m_scheduleManager = ScheduleManager::GetThreadScheduleManager( ); // This will return a new reference which is then decreffed in destructor
 	}
 }
 
@@ -141,11 +141,7 @@ bool Tasklet::Remove()
 {
 	if(m_scheduled)
 	{
-		ScheduleManager* scheduleManager = ScheduleManager::GetScheduler();
-
-		scheduleManager->RemoveTasklet( this );
-
-        scheduleManager->Decref();
+		m_scheduleManager->RemoveTasklet( this );
 
 		m_paused = true;
 
@@ -191,11 +187,7 @@ bool Tasklet::Insert()
 		return false;
     }
 
-	ScheduleManager* scheduleManager = ScheduleManager::GetScheduler();
-
-    scheduleManager->InsertTasklet( this );
-
-    scheduleManager->Decref();
+    m_scheduleManager->InsertTasklet( this );
 
 	m_paused = false;
 
@@ -220,32 +212,25 @@ bool Tasklet::SwitchImplementation()
 		return false;
 	}
 
-    ScheduleManager* scheduleManager = ScheduleManager::GetScheduler();
-
 	// Run scheduler starting from this tasklet (If it is already in the scheduled)
 	if( m_scheduled )
 	{
         // Pause the parent tasklet
-		scheduleManager->GetCurrentTasklet()->m_paused = true;
+		m_scheduleManager->GetCurrentTasklet()->m_paused = true;
 
-		if( scheduleManager->Run( this ) )
+		if( m_scheduleManager->Run( this ) )
 		{
 			// Yeild the tasklets parent as to not continue execution of the rest of this tasklet
-            if ( !scheduleManager->Yield() )
+            if ( !m_scheduleManager->Yield() )
             {
-				scheduleManager->Decref();
 				return false;
             }
-
-            scheduleManager->Decref();
 
 			return true;
         }
 		else
 		{
-			scheduleManager->GetCurrentTasklet()->m_paused = false;
-
-            scheduleManager->Decref();
+			m_scheduleManager->GetCurrentTasklet()->m_paused = false;
 
 			return false;
         } 
@@ -253,24 +238,20 @@ bool Tasklet::SwitchImplementation()
 	}
 	else
 	{
-		scheduleManager->GetCurrentTasklet()->m_paused = true;
+		m_scheduleManager->GetCurrentTasklet()->m_paused = true;
 
-        scheduleManager->InsertTasklet( this );
+        m_scheduleManager->InsertTasklet( this );
 
-        if (!scheduleManager->Run(this))
+        if (!m_scheduleManager->Run(this))
         {
-			scheduleManager->GetCurrentTasklet()->m_paused = false;
-
-			scheduleManager->Decref();
+			m_scheduleManager->GetCurrentTasklet()->m_paused = false;
 
 			return false;
         }
 
-        scheduleManager->GetCurrentTasklet()->m_paused = false;
+        m_scheduleManager->GetCurrentTasklet()->m_paused = false;
 
 	}
-
-    scheduleManager->Decref();
 
 	return true;
 
@@ -310,7 +291,7 @@ bool Tasklet::SwitchTo( )
 		kwArgsSupplied = true;
 	}
 
-    ScheduleManager* scheduleManager = ScheduleManager::GetScheduler();
+    ScheduleManager* scheduleManager = ScheduleManager::GetThreadScheduleManager();
 
     auto main_tasklet = scheduleManager->GetMainTasklet();
 	// Check required arguments have been supplied if this is the first time the tasklet
@@ -324,9 +305,9 @@ bool Tasklet::SwitchTo( )
 		return false;
 	}
 
-    if( PyThread_get_thread_ident() != m_threadId)
+	if( scheduleManager != m_scheduleManager)
 	{
-
+        // Tasklet being switched to is on a different thread than the current scheduleManager
         scheduleManager->InsertTasklet( this );
 
         if ( !scheduleManager->Yield() )
@@ -509,45 +490,35 @@ bool Tasklet::Run()
 		return false;
 	}
 
-    ScheduleManager* scheduleManager = ScheduleManager::GetScheduler();
-
 	// Run scheduler starting from this tasklet (If it is already in the scheduled)
 	if(m_scheduled)
 	{
-		bool ret = scheduleManager->Run( this );
-
-        scheduleManager->Decref();
+		bool ret = m_scheduleManager->Run( this );
 
 		return ret;
     }
 	else
 	{
-		Tasklet* current_tasklet = scheduleManager->GetCurrentTasklet();
+		Tasklet* current_tasklet = m_scheduleManager->GetCurrentTasklet();
 
-		if( scheduleManager->GetCurrentTasklet() == scheduleManager->GetMainTasklet() )
+		if( m_scheduleManager->GetCurrentTasklet() == m_scheduleManager->GetMainTasklet() )
 		{
 			// Run the scheduler starting at current_tasklet
-			scheduleManager->InsertTaskletAtBeginning( this );
+			m_scheduleManager->InsertTaskletAtBeginning( this );
 
-            bool ret = scheduleManager->Run( this );
-
-            scheduleManager->Decref();
+            bool ret = m_scheduleManager->Run( this );
 
 			return ret;
 		}
 		else
 		{
-            scheduleManager->InsertTasklet( this );
+            m_scheduleManager->InsertTasklet( this );
 
-            bool ret = scheduleManager->Run( this );
-
-            scheduleManager->Decref();
+            bool ret = m_scheduleManager->Run( this );
 
             return ret;
 		}
     }
-
-    scheduleManager->Decref();
 
     return true;
 }
@@ -572,14 +543,10 @@ bool Tasklet::Kill( bool pending /*=false*/ )
     // Raise TaskletExit error
 	SetExceptionState( m_taskletExitException );
 
-    ScheduleManager* scheduleManager = ScheduleManager::GetScheduler();
-
-    if( scheduleManager->GetCurrentTasklet() == this )
+    if( m_scheduleManager->GetCurrentTasklet() == this )
 	{
         // Continue on this tasklet and raise error immediately
 		SetPythonExceptionStateFromTaskletExceptionState();
-
-        scheduleManager->Decref();
 
 		return false;
     }
@@ -587,11 +554,9 @@ bool Tasklet::Kill( bool pending /*=false*/ )
 	{
 		if( pending )
 		{
-            scheduleManager->InsertTasklet( this );
+            m_scheduleManager->InsertTasklet( this );
 
             m_killPending = true;
-
-            scheduleManager->Decref();
 
             if( blockedStore )
 			{
@@ -613,8 +578,6 @@ bool Tasklet::Kill( bool pending /*=false*/ )
 				{
 					ClearException();
 
-                    scheduleManager->Decref();
-
 					return true;
 				}
 				else
@@ -623,8 +586,6 @@ bool Tasklet::Kill( bool pending /*=false*/ )
 					ClearException();
 
                     PyErr_SetString( PyExc_RuntimeError, "Invalid exception called on dead tasklet." );
-
-                    scheduleManager->Decref();
 
                     return false;
                 }
@@ -636,8 +597,6 @@ bool Tasklet::Kill( bool pending /*=false*/ )
 
 			if( result )
 			{
-				scheduleManager->Decref();
-
 				return true;
 			}
 			else
@@ -649,15 +608,11 @@ bool Tasklet::Kill( bool pending /*=false*/ )
 					Block( blockChannelStore );
 				}
 
-                scheduleManager->Decref();
-
 				return false;
 			}
 			
 		}
 	}
-
-    scheduleManager->Decref();
 
     return false;
 }
@@ -814,14 +769,10 @@ bool Tasklet::ThrowException( PyObject* exception, PyObject* value, PyObject* tb
 
     SetExceptionState( exception, value );
 
-    ScheduleManager* scheduleManager = ScheduleManager::GetScheduler();
-
-    if( scheduleManager->GetCurrentTasklet() == this )
+    if( m_scheduleManager->GetCurrentTasklet() == this )
 	{
 		// Continue on this tasklet and raise error immediately
 		SetPythonExceptionStateFromTaskletExceptionState();
-
-        scheduleManager->Decref();
 
         return false;
 	}
@@ -831,7 +782,7 @@ bool Tasklet::ThrowException( PyObject* exception, PyObject* value, PyObject* tb
 		{
 			if(m_alive)
 			{
-                scheduleManager->InsertTasklet( this );
+                m_scheduleManager->InsertTasklet( this );
             }
 			else
 			{
@@ -840,8 +791,6 @@ bool Tasklet::ThrowException( PyObject* exception, PyObject* value, PyObject* tb
 				{
 					ClearException();
 
-                    scheduleManager->Decref();
-
 					return true;
 				}
 				else
@@ -849,8 +798,6 @@ bool Tasklet::ThrowException( PyObject* exception, PyObject* value, PyObject* tb
 					ClearException();
 
 					PyErr_SetString( PyExc_RuntimeError, "You cannot throw to a dead tasklet." );
-
-                    scheduleManager->Decref();
 
 					return false;
 				}
@@ -868,16 +815,12 @@ bool Tasklet::ThrowException( PyObject* exception, PyObject* value, PyObject* tb
 
 				if(Run())
 				{
-					scheduleManager->Decref();
-
 					return true;
                 }
 				else
 				{
                     // On failure return to original state
 					Block( block_channel_store );
-
-                    scheduleManager->Decref();
 
 					return false;
                 }
@@ -892,8 +835,6 @@ bool Tasklet::ThrowException( PyObject* exception, PyObject* value, PyObject* tb
 					{
 						ClearException();
 
-                        scheduleManager->Decref();
-
 						return true;
 					}
 					else
@@ -901,8 +842,6 @@ bool Tasklet::ThrowException( PyObject* exception, PyObject* value, PyObject* tb
 						ClearException();
 
 						PyErr_SetString( PyExc_RuntimeError, "You cannot throw to a dead tasklet" );
-
-                        scheduleManager->Decref();
 
 						return false;
 					}
@@ -912,15 +851,11 @@ bool Tasklet::ThrowException( PyObject* exception, PyObject* value, PyObject* tb
 				{
 					bool ret = Run();
 
-                    scheduleManager->Decref();
-
 					return ret;
                 }
             }
 			
 		}
-
-        scheduleManager->Decref();
 
 		return true;
     }
@@ -1020,4 +955,16 @@ int Tasklet::GetBlockedDirection()
 void Tasklet::SetBlockedDirection(int direction)
 {
 	m_blockedDirection = direction;
+}
+
+void Tasklet::SetScheduleManager( ScheduleManager* scheduleManager )
+{
+    // This is something only used for main Tasklets
+    // The resulting will store only a weak reference
+	m_scheduleManager = scheduleManager;
+}
+
+ScheduleManager* Tasklet::GetScheduleManager()
+{
+	return m_scheduleManager;
 }

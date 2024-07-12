@@ -148,6 +148,10 @@ public:
 
     void SetBlockedDirection( int direction );
 
+    void SetScheduleManager( ScheduleManager* scheduleManager );
+
+    ScheduleManager* GetScheduleManager( );
+
 private:
 
     void SetExceptionState( PyObject* exception, PyObject* arguments = Py_None );
