@@ -654,7 +654,10 @@ extern "C"
 
 		bool ret = self->m_implementation->Send( Py_None, args, true );
 
-        Py_DecRef( args );
+        if (!ret)
+        {
+			Py_DecRef( args );
+        }
 
 		return ret ? 0 : -1;
 	}
