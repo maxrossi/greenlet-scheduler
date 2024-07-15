@@ -33,7 +33,7 @@ public:
 
 	void Decref();
 
-    int ReferenceCount();
+    Py_ssize_t ReferenceCount();
 
     PyObject* PythonObject();
 

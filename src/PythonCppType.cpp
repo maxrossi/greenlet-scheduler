@@ -21,7 +21,7 @@ void PythonCppType::Decref()
 	Py_DecRef( m_pythonObject );
 }
 
-int PythonCppType::ReferenceCount()
+Py_ssize_t PythonCppType::ReferenceCount()
 {
 	return m_pythonObject->ob_refcnt;
 }

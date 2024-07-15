@@ -542,7 +542,7 @@ bool Tasklet::Kill( bool pending /*=false*/ )
 			{
 				blockChannelStore->UnblockTaskletFromChannel( this );
 
-				SetBlockedDirection( 0 );
+				SetBlockedDirection( ChannelDirection::NEITHER );
 			}
 
             return true;
@@ -789,7 +789,7 @@ bool Tasklet::ThrowException( PyObject* exception, PyObject* value, PyObject* tb
 			if(m_blocked)
 			{
 				Channel* block_channel_store = m_channelBlockedOn;
-				int blocked_direction_store = m_blockedDirection;
+				ChannelDirection blocked_direction_store = m_blockedDirection;
 
 				Unblock();
 
@@ -927,12 +927,12 @@ bool Tasklet::RequiresRemoval()
 	return m_remove;
 }
 
-int Tasklet::GetBlockedDirection()
+ChannelDirection Tasklet::GetBlockedDirection()
 {
 	return m_blockedDirection;
 }
 
-void Tasklet::SetBlockedDirection(int direction)
+void Tasklet::SetBlockedDirection( ChannelDirection direction )
 {
 	m_blockedDirection = direction;
 }
