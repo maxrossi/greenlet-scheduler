@@ -896,3 +896,32 @@ class TestChannels(SchedulerTestCaseBase):
 
         channel.send(None)
         channel.send(None)
+
+    def test_yielding_to_blocked_tasklet_yields_to_parent(self):
+        channel = scheduler.channel()
+
+        r = []
+
+        def otherBlocker(c):
+            r.append(c.receive())
+
+        def blocker(c):
+            for i in range(10):
+                t = scheduler.tasklet(otherBlocker)(c)
+                t.run()
+
+            value = c.receive()
+            self.assertEqual(10, value)
+            r.append(value)
+
+            
+        t = scheduler.tasklet(blocker)(channel)
+        t.run()
+
+        for i in range(10):
+            channel.send(i)
+
+        channel.send(10)
+
+        self.assertEqual(channel.balance, 0)
+        self.assertEqual(r, [0,1,2,3,4,5,6,7,8,9,10])

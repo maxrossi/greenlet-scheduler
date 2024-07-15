@@ -150,7 +150,7 @@ public:
 
     void SetBlockedDirection( int direction );
 
-    PyGreenlet* get_greenlet();
+    PyGreenlet* GetGreenlet();
 
 private:
 
