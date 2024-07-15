@@ -151,6 +151,8 @@ public:
     void SetScheduleManager( ScheduleManager* scheduleManager );
 
     ScheduleManager* GetScheduleManager( );
+    
+    PyGreenlet* GetGreenlet();
 
 private:
 

@@ -968,3 +968,8 @@ ScheduleManager* Tasklet::GetScheduleManager()
 {
 	return m_scheduleManager;
 }
+PyGreenlet* Tasklet::GetGreenlet()
+{
+	return m_greenlet;
+}
+

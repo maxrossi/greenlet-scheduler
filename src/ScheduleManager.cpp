@@ -249,7 +249,7 @@ bool ScheduleManager::Yield()
 {
 	Tasklet* yieldingTasklet = ScheduleManager::GetCurrentTasklet();
 
-	if( ScheduleManager::GetMainTasklet() == ScheduleManager::GetCurrentTasklet() )
+	if( ScheduleManager::GetMainTasklet() == yieldingTasklet )
 	{
 
 		if( yieldingTasklet->IsBlocked() && yieldingTasklet->Next() == nullptr )
@@ -290,6 +290,21 @@ bool ScheduleManager::Yield()
 		{
 			return false;
 		}
+
+        // guard against re-entry to this tasklet, if it is still blocked
+        while (yieldingTasklet->IsBlocked())
+		{
+			auto parentTasklet = yieldingTasklet->GetParent();
+            while (parentTasklet->IsBlocked() && !parentTasklet->IsMain())
+            {
+				parentTasklet = parentTasklet->GetParent();
+            }
+
+			if( !parent_tasklet->SwitchTo() )
+			{
+				return false;
+			}
+        }
 	}
 
 	return true;

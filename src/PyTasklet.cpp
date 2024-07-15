@@ -398,6 +398,29 @@ static PyObject*
 	return self->m_implementation->IsPaused() ? Py_True : Py_False;
 }
 
+static PyObject*
+    Tasklet_frame_get(PyTaskletObject* self, void* closure)
+{
+
+    // Ensure PyTaskletObject is in a valid state
+	if( !PyTaskletObjectIsValid( self ) )
+	{
+		return nullptr;
+	}
+
+	PyObject* greenlet = reinterpret_cast<PyObject*>( self->m_implementation->GetGreenlet() );
+
+    if (greenlet == nullptr)
+    {
+		PyErr_SetString( PyExc_RuntimeError, "Attempting to access a frame from a tasklet with no greenlet." );
+		return nullptr;
+    }
+
+    // Accessing greenlet.gr_frame is disabled, as accessing frame can produce un-expected crashes
+    Py_IncRef( Py_None );
+    return Py_None;
+}
+
 static PyGetSetDef Tasklet_getsetters[] = {
 	{ "alive", 
         (getter)TaskletAliveGet,
@@ -457,6 +480,11 @@ static PyGetSetDef Tasklet_getsetters[] = {
         (getter)TaskletPausedGet,
         NULL,
         "This attribute is True when a tasklet is alive, but not scheduled or blocked on a channel.",
+        NULL },
+	{ "frame",
+        (getter)Tasklet_frame_get,
+        NULL,
+	    "Get the current frame of a tasklet. Frame has been dissabled due to instability in greenlet. This attribute will always be None",
         NULL },
 
 	{ NULL } /* Sentinel */
