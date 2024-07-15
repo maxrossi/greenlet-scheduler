@@ -21,6 +21,8 @@
 
 #include "stdafx.h"
 
+#include "PythonCppType.h"
+
 #include <map>
 #include <chrono>
 
@@ -28,18 +30,12 @@ typedef int( schedule_hook_func )( struct PyTaskletObject* from, struct PyTaskle
 
 class Tasklet;
 
-class ScheduleManager
+class ScheduleManager : public PythonCppType
 {
 public:
 	ScheduleManager( PyObject* pythonObject );
 
 	~ScheduleManager();
-
-    PyObject* PythonObject();
-
-    void Incref();
-
-    void Decref();
 
     static int NumberOfActiveScheduleManagers();
 
@@ -100,8 +96,6 @@ public:
     inline static Py_tss_t s_threadLocalStorageKey = Py_tss_NEEDS_INIT;
 
 private:
-
-    PyObject* m_pythonObject;
 
     long m_threadId;
 

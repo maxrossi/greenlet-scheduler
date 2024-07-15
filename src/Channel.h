@@ -21,6 +21,8 @@
 
 #include "stdafx.h"
 
+#include "PythonCppType.h"
+
 #include <list>
 
 const int SENDER = 1;
@@ -29,21 +31,13 @@ const int PREFER_NEITHER = 0;
 
 class Tasklet;
 
-class Channel
+class Channel : public PythonCppType
 {
 public:
 	
 	Channel( PyObject* pythonObject );
 
     ~Channel();
-
-    void Incref();
-
-	void Decref();
-
-    int ReferenceCount();
-
-    PyObject* PythonObject();
 
 	bool Send( PyObject* args, PyObject* exception = nullptr );
 
@@ -103,8 +97,6 @@ private:
 
 private:
 
-    PyObject* m_pythonObject;
-
     int m_balance;
 
 	int m_preference;
@@ -128,9 +120,6 @@ private:
     Tasklet* m_lastBlockedOnSend;
 
     inline static std::list<Channel*> s_activeChannels;
-
-    
-    
 };
 
 #endif // Channel_H

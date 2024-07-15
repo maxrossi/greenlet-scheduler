@@ -5,7 +5,7 @@
 #include "PyScheduleManager.h"
 
 ScheduleManager::ScheduleManager( PyObject* pythonObject ) :
-	m_pythonObject( pythonObject ),
+	PythonCppType( pythonObject ),
 	m_threadId( PyThread_get_thread_ident() ),
 	m_schedulerTasklet( nullptr ), // Created in constructor
 	m_currentTasklet( nullptr ),   // Set in constructor
@@ -60,21 +60,6 @@ void ScheduleManager::CreateSchedulerTasklet()
 	m_schedulerTasklet->SetToCurrentGreenlet();
 
 	m_schedulerTasklet->SetScheduled( true );
-}
-
-PyObject* ScheduleManager::PythonObject()
-{
-	return m_pythonObject;
-}
-
-void ScheduleManager::Incref()
-{
-	Py_IncRef( m_pythonObject );
-}
-
-void ScheduleManager::Decref()
-{
-	Py_DecRef( m_pythonObject );
 }
 
 int ScheduleManager::NumberOfActiveScheduleManagers()

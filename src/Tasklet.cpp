@@ -4,7 +4,7 @@
 #include "Channel.h"
 
 Tasklet::Tasklet( PyObject* pythonObject, PyObject* taskletExitException, bool isMain ) :
-	m_pythonObject( pythonObject ),
+	PythonCppType( pythonObject ),
 	m_greenlet( nullptr ),
 	m_callable( nullptr ),
 	m_arguments( nullptr ),
@@ -88,26 +88,6 @@ void Tasklet::SetPreviousBlocked(Tasklet* tasklet)
 Tasklet* Tasklet::PreviousBlocked() const
 {
 	return m_previousBlocked;
-}
-
-PyObject* Tasklet::PythonObject()
-{
-	return m_pythonObject;
-}
-
-void Tasklet::Incref()
-{
-	Py_IncRef( m_pythonObject );
-}
-
-void Tasklet::Decref()
-{
-	Py_DecRef( m_pythonObject );
-}
-
-int Tasklet::ReferenceCount()
-{
-	return m_pythonObject->ob_refcnt;
 }
 
 void Tasklet::SetKwArguments( PyObject* kwarguments )

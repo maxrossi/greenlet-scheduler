@@ -21,24 +21,18 @@
 
 #include "stdafx.h"
 
+#include "PythonCppType.h"
+
 class Channel;
 class ScheduleManager;
 
-class Tasklet
+class Tasklet : public PythonCppType
 {
 public:
 
 	Tasklet( PyObject* pythonObject, PyObject* taskletExitException, bool isMain );
 
     ~Tasklet();
-
-    PyObject* PythonObject();
-
-    void Incref();
-
-	void Decref();
-
-    int ReferenceCount();
 
 	void SetToCurrentGreenlet();
 
@@ -163,8 +157,6 @@ private:
     void ClearException();
 
 private:
-
-    PyObject* m_pythonObject;
 
 	PyGreenlet* m_greenlet;
 

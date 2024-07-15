@@ -7,7 +7,7 @@
 
 
 Channel::Channel( PyObject* pythonObject ) :
-	m_pythonObject( pythonObject ),
+	PythonCppType( pythonObject ),
 	m_balance(0),
 	m_preference(-1),
 	m_lock( PyThread_allocate_lock() ),
@@ -32,26 +32,6 @@ Channel::~Channel()
 	s_activeChannels.remove( this );
 
 	Py_DECREF( m_lock );
-}
-
-void Channel::Incref()
-{
-	Py_IncRef( m_pythonObject );
-}
-
-void Channel::Decref()
-{
-	Py_DecRef( m_pythonObject );
-}
-
-int Channel::ReferenceCount()
-{
-	return m_pythonObject->ob_refcnt;
-}
-
-PyObject* Channel::PythonObject()
-{
-	return m_pythonObject;
 }
 
 bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */)
