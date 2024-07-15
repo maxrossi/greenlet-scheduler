@@ -62,7 +62,7 @@ public:
 
 	void ClearTransferArguments();
 
-	void SetTransferArguments( PyObject * args, PyObject* exception, bool transfer_exception_is_from_send_throw );
+	void SetTransferArguments( PyObject* args, PyObject* exception, bool restoreException );
 
     void Block( Channel* channel );
 
@@ -120,7 +120,7 @@ public:
 
     PyObject* TransferException() const;
 
-    bool TransferExceptionIsFromSendThrow() const;
+    bool ShouldRestoreTransferException() const;
 
     bool ThrowException( PyObject* exception, PyObject* value, PyObject* tb, bool pending );
 
@@ -196,7 +196,7 @@ private:
 
     PyObject* m_transferException;
 
-	bool m_transferExceptionIsFromSendThrow;
+	bool m_restoreException;
 
     Channel* m_channelBlockedOn;
 
