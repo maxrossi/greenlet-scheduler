@@ -7,7 +7,7 @@
 
 
 Channel::Channel( PyObject* pythonObject ) :
-	m_pythonObject( pythonObject ),
+	PythonCppType( pythonObject ),
 	m_balance(0),
 	m_preference(-1),
 	m_lock( PyThread_allocate_lock() ),
@@ -26,43 +26,25 @@ Channel::Channel( PyObject* pythonObject ) :
 
 Channel::~Channel()
 {
-	// Destructor will never be called while there are tasklets blocking
+	// Note: Destructor will never be called while there are tasklets blocking
 
 	// Remove weak ref from store
 	s_activeChannels.remove( this );
-	
+
 	Py_DECREF( m_lock );
 }
 
-void Channel::Incref()
-{
-	Py_IncRef( m_pythonObject );
-}
 
-void Channel::Decref()
-{
-	Py_DecRef( m_pythonObject );
-}
-
-int Channel::ReferenceCount()
-{
-	return m_pythonObject->ob_refcnt;
-}
-
-PyObject* Channel::PythonObject()
-{
-	return m_pythonObject;
-}
 
 bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */, bool restoreException /* = false */)
 {
     PyThread_acquire_lock( m_lock, 1 );
 
-    ScheduleManager* scheduleManager = ScheduleManager::GetScheduler();
+    ScheduleManager* scheduleManager = ScheduleManager::GetThreadScheduleManager();
 
     Tasklet* current = scheduleManager->GetCurrentTasklet(); //TODO naming clean up
 
-	RunChannelCallback( this, current, true, m_firstBlockedOnReceive == nullptr );  //TODO will_block logic here will change with addition of preference
+	RunChannelCallback( this, current, true, m_firstBlockedOnReceive == nullptr );
 
     current->SetTransferInProgress(true);
 	int direction = SENDER;
@@ -106,7 +88,7 @@ bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */, bool re
         }
 
 		// Block as there is no tasklet receiving
-		Py_IncRef( current->PythonObject() );
+		current->Incref();
 
         AddTaskletToWaitingToSend( current );
 
@@ -174,7 +156,7 @@ bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */, bool re
 
 bool Channel::ChannelSwitch(Tasklet* caller, Tasklet* other, int dir, int callerDir)
 {
-	ScheduleManager* scheduleManager = ScheduleManager::GetScheduler();
+	ScheduleManager* scheduleManager = ScheduleManager::GetThreadScheduleManager();
 
     //if preference is opposit from direction, switch away from caller
 	if( ( -dir == m_preference && dir == callerDir ) || (dir == m_preference && dir != callerDir))
@@ -224,14 +206,14 @@ PyObject* Channel::Receive()
 {
 	PyThread_acquire_lock( m_lock, 1 );
 
-    ScheduleManager* scheduleManager = ScheduleManager::GetScheduler();
+    ScheduleManager* scheduleManager = ScheduleManager::GetThreadScheduleManager();
 
     scheduleManager->GetCurrentTasklet()->SetTransferInProgress( true );
 
 	// Block as there is no tasklet sending
 	Tasklet* current = scheduleManager->GetCurrentTasklet();
 
-	RunChannelCallback( this , current, false, m_firstBlockedOnSend == nullptr );    //TODO will_block logic here will change with addition of preference
+	RunChannelCallback( this , current, false, m_firstBlockedOnSend == nullptr );
 
     if( current == nullptr )
 	{
@@ -478,27 +460,19 @@ void Channel::RunChannelCallback( Channel* channel, Tasklet* tasklet, bool sendi
 {
 	if( s_channelCallback )
 	{
-		PyObject* args = PyTuple_New( 4 ); // TODO don't create this each time
+        channel->Incref();
 
-        PyObject* pyChannel = channel->PythonObject();
+		PyTuple_SetItem( s_callbackArguments, 0, channel->PythonObject() );
 
-        PyObject* pyTasklet = tasklet->PythonObject();
+		tasklet->Incref();
 
-		Py_IncRef( pyChannel );
+		PyTuple_SetItem( s_callbackArguments, 1, tasklet->PythonObject() );
 
-		Py_IncRef( pyTasklet );
+        PyTuple_SetItem( s_callbackArguments, 2, sending ? Py_True : Py_False );
 
-		PyTuple_SetItem( args, 0, pyChannel );
+        PyTuple_SetItem( s_callbackArguments, 3, willBlock ? Py_True : Py_False );
 
-		PyTuple_SetItem( args, 1, pyTasklet );
-
-        PyTuple_SetItem( args, 2, sending ? Py_True : Py_False );
-
-        PyTuple_SetItem( args, 3, willBlock ? Py_True : Py_False );
-
-		PyObject_Call( s_channelCallback, args, nullptr );
-
-		Py_DecRef( args );
+		PyObject_Call( s_channelCallback, s_callbackArguments, nullptr );
 	}
 }
 
@@ -571,7 +545,23 @@ PyObject* Channel::ChannelCallback()
 
 void Channel::SetChannelCallback( PyObject* callback )
 {
-	s_channelCallback = callback;
+	Py_XDECREF( s_channelCallback ); 
+
+    if (callback)
+    {
+		if( !s_callbackArguments )
+		{
+			s_callbackArguments = PyTuple_New( 4 );
+		}
+    }
+    else
+    {
+		Py_XDECREF( s_callbackArguments ); 
+
+        s_callbackArguments = nullptr;
+    }
+
+    s_channelCallback = callback;
 }
 
 int Channel::Preference() const
@@ -705,4 +695,10 @@ void Channel::UpdateCloseState()
 		m_closed = true;
 
 	}
+}
+
+// Called by module destructor
+void Channel::Clean()
+{
+	Py_XDECREF( s_callbackArguments );
 }

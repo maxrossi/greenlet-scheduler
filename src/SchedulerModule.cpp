@@ -19,23 +19,29 @@
 static PyObject*
 	SetChannelCallback( PyObject* self, PyObject* args )
 {
-    //TODO what if a callback is supplied which requires the wrong number of arguments?
 	PyObject* temp;
 
 	if( PyArg_ParseTuple( args, "O:set_channel_callback", &temp ) )
 	{
-		if( !PyCallable_Check( temp ) )
+		if( !PyCallable_Check( temp ) && temp != Py_None )
 		{
-			PyErr_SetString( PyExc_TypeError, "parameter must be callable" );
+			PyErr_SetString( PyExc_TypeError, "parameter must be callable or None." );
 
 			return nullptr;
 		}
 
-		Py_IncRef( temp );
-
 		PyObject* previousCallback = Channel::ChannelCallback();
 
-		Channel::SetChannelCallback(temp);
+        if( PyCallable_Check( temp ) )
+		{
+			Py_IncRef( temp );
+
+			Channel::SetChannelCallback( temp );
+		}
+        else
+        {
+			Channel::SetChannelCallback( nullptr );
+        }
 
 		if( previousCallback )
 		{
@@ -83,7 +89,7 @@ static PyObject*
 static PyObject*
 	SchedulerGetCurrent( PyObject* self, PyObject* Py_UNUSED( ignored ) )
 {
-	ScheduleManager* currentScheduler = ScheduleManager::GetScheduler();
+	ScheduleManager* currentScheduler = ScheduleManager::GetThreadScheduleManager();
 
     Tasklet* currentTasklet = currentScheduler->GetCurrentTasklet();
 
@@ -97,21 +103,21 @@ static PyObject*
 static PyObject*
 	SchedulerGetMain( PyObject* self, PyObject* Py_UNUSED( ignored ) )
 {
-	ScheduleManager* currentScheduler = ScheduleManager::GetScheduler();
+	ScheduleManager* currentScheduler = ScheduleManager::GetThreadScheduleManager();
 
-    PyObject* pyMainTasklet = currentScheduler->GetMainTasklet()->PythonObject();
+    Tasklet* mainTasklet = currentScheduler->GetMainTasklet();
 
-	Py_IncRef( pyMainTasklet );
+    mainTasklet->Incref();
 
     currentScheduler->Decref();
 
-	return pyMainTasklet;
+	return mainTasklet->PythonObject();
 }
 
 static PyObject*
 	SchedulerGetRunCount( PyObject* self, PyObject* Py_UNUSED( ignored ) )
 {
-	ScheduleManager* currentScheduler = ScheduleManager::GetScheduler();
+	ScheduleManager* currentScheduler = ScheduleManager::GetThreadScheduleManager();
 
     PyObject* ret = PyLong_FromLong( currentScheduler->GetCachedTaskletCount() );
 
@@ -123,7 +129,7 @@ static PyObject*
 static PyObject*
 	SchedulerCalculateRunCount( PyObject* self, PyObject* Py_UNUSED( ignored ) )
 {
-	ScheduleManager* currentScheduler = ScheduleManager::GetScheduler();
+	ScheduleManager* currentScheduler = ScheduleManager::GetThreadScheduleManager();
 
 	PyObject* ret = PyLong_FromLong( currentScheduler->GetCalculatedTaskletCount() );
 
@@ -135,7 +141,7 @@ static PyObject*
 static PyObject*
 	SchedulerSchedule( PyObject* self, PyObject* Py_UNUSED( ignored ) )
 {
-	ScheduleManager* currentScheduler = ScheduleManager::GetScheduler();
+	ScheduleManager* currentScheduler = ScheduleManager::GetThreadScheduleManager();
 
     bool scheduleSuccessful = currentScheduler->Schedule();
 
@@ -156,7 +162,7 @@ static PyObject*
 static PyObject*
 	SchedulerScheduleRemove( PyObject* self, PyObject* Py_UNUSED( ignored ) )
 {
-	ScheduleManager* currentScheduler = ScheduleManager::GetScheduler();
+	ScheduleManager* currentScheduler = ScheduleManager::GetThreadScheduleManager();
 
     bool scheduleRemoveSuccessful = currentScheduler->Schedule( true );
 
@@ -177,7 +183,7 @@ static PyObject*
 static PyObject*
 	SchedulerRun( PyObject* self, PyObject* Py_UNUSED( ignored ) )
 {
-	ScheduleManager* currentScheduler = ScheduleManager::GetScheduler();
+	ScheduleManager* currentScheduler = ScheduleManager::GetThreadScheduleManager();
 
     bool ret = currentScheduler->Run();
 
@@ -202,7 +208,7 @@ static PyObject*
 
     if( PyArg_ParseTuple( args, "I:set_channel_callback", &numberOfTasklets ) )
 	{
-		ScheduleManager* currentScheduler = ScheduleManager::GetScheduler();
+		ScheduleManager* currentScheduler = ScheduleManager::GetThreadScheduleManager();
 
 		bool ret = currentScheduler->RunNTasklets( numberOfTasklets );
 
@@ -228,24 +234,30 @@ static PyObject*
 static PyObject*
 	SchedulerSetScheduleCallback( PyObject* self, PyObject* args, PyObject* kwds )
 {
-	//TODO what if a callback is supplied which requires the wrong number of arguments?
     PyObject* temp;
 
 	if( PyArg_ParseTuple( args, "O:set_schedule_callback", &temp ) )
 	{
-		if( !PyCallable_Check( temp ) )
+		if( !PyCallable_Check( temp ) && temp != Py_None )
 		{
-			PyErr_SetString( PyExc_TypeError, "parameter must be callable" );
-			return NULL;    //TODO convert all to nullptr - left so I remember
+			PyErr_SetString( PyExc_TypeError, "parameter must be callable or None." );
+			return nullptr;    //TODO convert all to nullptr - left so I remember
 		}
 
-        ScheduleManager* currentScheduler = ScheduleManager::GetScheduler();
-
-		Py_IncRef( temp );
+        ScheduleManager* currentScheduler = ScheduleManager::GetThreadScheduleManager();
 
         PyObject* previousCallback = currentScheduler->SchedulerCallback();
 
-        currentScheduler->SetSchedulerCallback( temp );
+        if( PyCallable_Check( temp ) )
+		{
+			Py_IncRef( temp );
+
+			currentScheduler->SetSchedulerCallback( temp );
+		}
+        else
+        {
+			currentScheduler->SetSchedulerCallback( nullptr );
+        }
 
         currentScheduler->Decref();
 
@@ -267,7 +279,7 @@ static PyObject*
 static PyObject*
 	SchedulerGetScheduleCallback( PyObject* self, PyObject* Py_UNUSED( ignored ) )
 {
-	ScheduleManager* currentScheduler = ScheduleManager::GetScheduler();
+	ScheduleManager* currentScheduler = ScheduleManager::GetThreadScheduleManager();
 
     PyObject* callable = currentScheduler->SchedulerCallback();
 
@@ -282,17 +294,21 @@ static PyObject*
 static PyObject*
 	SchedulerGetThreadInfo( PyObject* self, PyObject* args, PyObject* kwds )
 {
-	ScheduleManager* currentScheduler = ScheduleManager::GetScheduler();
+	ScheduleManager* currentScheduler = ScheduleManager::GetThreadScheduleManager();
 
 	PyObject* threadInfoTuple = PyTuple_New( 3 );
 
-	Py_IncRef( currentScheduler->GetMainTasklet()->PythonObject() );
+    Tasklet* mainTasklet = currentScheduler->GetMainTasklet();
 
-	PyTuple_SetItem( threadInfoTuple, 0, currentScheduler->GetMainTasklet()->PythonObject());
+    mainTasklet->Incref();
 
-	Py_IncRef( currentScheduler->GetCurrentTasklet()->PythonObject() );
+	PyTuple_SetItem( threadInfoTuple, 0, mainTasklet->PythonObject() );
 
-	PyTuple_SetItem( threadInfoTuple, 1, currentScheduler->GetCurrentTasklet()->PythonObject());
+    Tasklet* currentTasklet = currentScheduler->GetCurrentTasklet();
+
+    currentTasklet->Incref();
+
+	PyTuple_SetItem( threadInfoTuple, 1, currentTasklet->PythonObject() );
 
 	PyTuple_SetItem( threadInfoTuple, 2, PyLong_FromLong( currentScheduler->GetCachedTaskletCount() + 1 ) );
 
@@ -304,7 +320,7 @@ static PyObject*
 static PyObject*
 	SchedulerSwitchTrap( PyObject* self, PyObject* args, PyObject* kwds )
 {
-	ScheduleManager* currentScheduler = ScheduleManager::GetScheduler();
+	ScheduleManager* currentScheduler = ScheduleManager::GetThreadScheduleManager();
 
 	//TODO: channels need to track this and raise runtime error if appropriet
 	int delta;
@@ -326,7 +342,7 @@ static PyObject*
 static PyObject*
 	SchedulerGetScheduleManager( PyObject* self, PyObject* Py_UNUSED( ignored ) )
 {
-	ScheduleManager* scheduleManager = ScheduleManager::GetScheduler( );
+	ScheduleManager* scheduleManager = ScheduleManager::GetThreadScheduleManager();
 
     if (scheduleManager)
     {
@@ -368,6 +384,12 @@ static PyObject*
 void ModuleDestructor( void* )
 {
 	Py_DECREF( ScheduleManager::s_scheduleManagerLock );
+
+    // Destroy thread local storage key
+	PyThread_tss_delete( &ScheduleManager::s_threadLocalStorageKey );
+
+    // Destroy any left over structures in Channel
+	Channel::Clean();
 }
 
 /*
@@ -669,7 +691,7 @@ extern "C"
     /// @note returns a new reference
 	static PyObject* PyScheduler_GetScheduler( )
 	{
-		return ScheduleManager::GetScheduler()->PythonObject();
+		return ScheduleManager::GetThreadScheduleManager()->PythonObject();
 	}
 
     /// @brief Yield execution of current tasklet. Tasklet is added to end of run queue
@@ -693,7 +715,7 @@ extern "C"
 	/// @return Number of tasklets in run queue
 	static int PyScheduler_GetRunCount()
 	{
-		ScheduleManager* scheduleManager = ScheduleManager::GetScheduler();
+		ScheduleManager* scheduleManager = ScheduleManager::GetThreadScheduleManager();
 
         int ret = scheduleManager->GetCachedTaskletCount();
 
@@ -707,15 +729,15 @@ extern "C"
 	/// @note Returns a new reference
 	static PyObject* PyScheduler_GetCurrent()
 	{
-		ScheduleManager* scheduleManager = ScheduleManager::GetScheduler();
+		ScheduleManager* scheduleManager = ScheduleManager::GetThreadScheduleManager();
 
-		PyObject* current = scheduleManager->GetCurrentTasklet()->PythonObject();
+        Tasklet* currentTasklet = scheduleManager->GetCurrentTasklet();
 
-        Py_IncRef( current );
+        currentTasklet->Incref();
 
         scheduleManager->Decref();
 
-		return current;
+		return currentTasklet->PythonObject();
 	}
 
 	/// @brief Run scheduler for specified number of nanoseconds
@@ -725,7 +747,7 @@ extern "C"
 	/// @todo rename and remove deprecated flags parameter
 	static PyObject* PyScheduler_RunWatchdogEx( long long timeout, int flags )
 	{
-		ScheduleManager* scheduleManager = ScheduleManager::GetScheduler();
+		ScheduleManager* scheduleManager = ScheduleManager::GetThreadScheduleManager();
 
 		bool ret = scheduleManager->RunTaskletsForTime( timeout );
         
@@ -748,7 +770,7 @@ extern "C"
 	/// @return Py_None on success, NULL on failure
     static PyObject* PyScheduler_RunNTasklets( int number_of_tasklets_to_run )
 	{
-		ScheduleManager* scheduleManager = ScheduleManager::GetScheduler();
+		ScheduleManager* scheduleManager = ScheduleManager::GetThreadScheduleManager();
 
 		bool ret = scheduleManager->RunNTasklets( number_of_tasklets_to_run );
 
@@ -801,7 +823,7 @@ extern "C"
 			return -1;
         }
 
-		ScheduleManager* currentScheduler = ScheduleManager::GetScheduler();
+		ScheduleManager* currentScheduler = ScheduleManager::GetThreadScheduleManager();
 
 		currentScheduler->SetSchedulerCallback( callable );
 
@@ -814,7 +836,7 @@ extern "C"
 	/// @param func c++ function
 	static void PyScheduler_SetScheduleFastCallback( schedule_hook_func func )
 	{
-		ScheduleManager* currentScheduler = ScheduleManager::GetScheduler();
+		ScheduleManager* currentScheduler = ScheduleManager::GetThreadScheduleManager();
 
 		currentScheduler->SetSchedulerFastCallback( func );
 
@@ -992,6 +1014,12 @@ PyMODINIT_FUNC
 	static SchedulerCAPI api;
 	PyObject* c_api_object;
 
+    // Initialise thread local storage key
+	if( PyThread_tss_create( &ScheduleManager::s_threadLocalStorageKey ) )
+	{
+		return NULL;
+	}
+
 	//Add custom types
 	if( PyType_Ready( &TaskletType ) < 0 )
 		return NULL;
@@ -1126,6 +1154,8 @@ PyMODINIT_FUNC
 	ScheduleManager::s_scheduleManagerType = &ScheduleManagerType;
 	ScheduleManager::s_taskletType = &TaskletType;
 	ScheduleManager::s_scheduleManagerLock = PyThread_allocate_lock();
+
+    
 
     //Setup initial channel callback static
 	Channel::SetChannelCallback(nullptr);

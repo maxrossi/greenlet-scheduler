@@ -27,7 +27,7 @@ typedef struct PyChannelObject
 
 	Channel* m_implementation;
 
-    PyObject* m_weakrefList; // TODO: This is apparently the old style, new style crashes
+    PyObject* m_weakrefList; // TODO: This is apparently the old style, new style crashes unless GC is turned on for type
 
 } _PyChannelObject;
 

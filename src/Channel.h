@@ -21,6 +21,8 @@
 
 #include "stdafx.h"
 
+#include "PythonCppType.h"
+
 #include <list>
 
 const int SENDER = 1;
@@ -29,7 +31,7 @@ const int PREFER_NEITHER = 0;
 
 class Tasklet;
 
-class Channel
+class Channel : public PythonCppType
 {
 public:
 	
@@ -37,15 +39,7 @@ public:
 
     ~Channel();
 
-    void Incref();
-
-	void Decref();
-
-    int ReferenceCount();
-
-    PyObject* PythonObject();
-
-	bool Send( PyObject* args, PyObject* exception = nullptr, bool restoreException = false );
+	bool Send( PyObject * args, PyObject* exception = nullptr, bool restoreException = false );
 
     PyObject* Receive();
 
@@ -76,6 +70,9 @@ public:
     static int NumberOfActiveChannels();
 
     static int UnblockAllActiveChannels();
+
+    static void Clean();
+
 private:
 
     void RemoveTaskletFromBlocked( Tasklet* tasklet );
@@ -100,8 +97,6 @@ private:
 
 private:
 
-    PyObject* m_pythonObject;
-
     int m_balance;
 
 	int m_preference;
@@ -114,6 +109,8 @@ private:
 
     inline static PyObject* s_channelCallback; // This is global, not per channel
 
+    inline static PyObject* s_callbackArguments = nullptr;
+
     Tasklet* m_firstBlockedOnReceive;
 
 	Tasklet* m_lastBlockedOnReceive;
@@ -123,7 +120,6 @@ private:
     Tasklet* m_lastBlockedOnSend;
 
     inline static std::list<Channel*> s_activeChannels;
-    
 };
 
 #endif // Channel_H

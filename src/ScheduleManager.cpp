@@ -5,7 +5,7 @@
 #include "PyScheduleManager.h"
 
 ScheduleManager::ScheduleManager( PyObject* pythonObject ) :
-	m_pythonObject( pythonObject ),
+	PythonCppType( pythonObject ),
 	m_threadId( PyThread_get_thread_ident() ),
 	m_schedulerTasklet( nullptr ), // Created in constructor
 	m_currentTasklet( nullptr ),   // Set in constructor
@@ -13,6 +13,7 @@ ScheduleManager::ScheduleManager( PyObject* pythonObject ) :
 	m_switchTrapLevel(0),
     m_currentTaskletChangedCallback(nullptr),
     m_schedulerCallback(nullptr),
+	m_callbackArguments(nullptr),
     m_schedulerFastCallback(nullptr),
     m_taskletLimit(-1),
 	m_totalTaskletRunTimeLimit(-1),
@@ -30,12 +31,13 @@ ScheduleManager::ScheduleManager( PyObject* pythonObject ) :
 
 ScheduleManager::~ScheduleManager()
 {
-	Py_DecRef( m_schedulerTasklet->PythonObject() );
+	m_schedulerTasklet->Decref();
 
     Py_XDECREF( m_schedulerCallback );
 
-    // Remove from thread schedulers list
-	s_schedulers.erase( m_threadId );
+    PyThread_tss_set( &s_threadLocalStorageKey, nullptr );
+
+    s_numberOfActiveScheduleManagers--;
 }
 
 void ScheduleManager::CreateSchedulerTasklet()
@@ -60,88 +62,41 @@ void ScheduleManager::CreateSchedulerTasklet()
 	m_schedulerTasklet->SetScheduled( true );
 }
 
-PyObject* ScheduleManager::PythonObject()
-{
-	return m_pythonObject;
-}
-
-void ScheduleManager::Incref()
-{
-	Py_IncRef( m_pythonObject );
-}
-
-void ScheduleManager::Decref()
-{
-	Py_DecRef( m_pythonObject );
-}
-
 int ScheduleManager::NumberOfActiveScheduleManagers()
 {
-	return s_schedulers.size();
-}
-
-// TODO this and below are very similar and need joinging
-// Doesn't create new reference
-ScheduleManager* ScheduleManager::FindScheduler( long threadId )
-{
-	auto scheduler_find = s_schedulers.find( threadId );
-
-    if( scheduler_find == s_schedulers.end() )
-	{
-		return nullptr;
-	}
-	else
-	{
-		// Return existing scheduler for the thread
-		return scheduler_find->second;
-	}
+	return s_numberOfActiveScheduleManagers;
 }
 
 // Returns a new schedule manager reference
-ScheduleManager* ScheduleManager::GetScheduler( long threadId /* = -1*/ )
+ScheduleManager* ScheduleManager::GetThreadScheduleManager()
 {
-	PyThread_acquire_lock( s_scheduleManagerLock, 1 );
+    ScheduleManager* scheduleManager = reinterpret_cast<ScheduleManager*>( PyThread_tss_get( &s_threadLocalStorageKey ) );
 
-	long schedulerThreadId = threadId;
-
-    // If thread_id is less than 0 then use the current thread id
-    if(threadId < 0)
+    if( !scheduleManager )
 	{
-		schedulerThreadId = PyThread_get_thread_ident();
-    }
+		// Create new scheduler for the thread
+		PyObject* pyScheduleManager = PyObject_CallObject( reinterpret_cast<PyObject*>( s_scheduleManagerType ), nullptr );
 
-    auto schedulerFind = s_schedulers.find( schedulerThreadId );
+		scheduleManager = reinterpret_cast<PyScheduleManagerObject*>( pyScheduleManager )->m_implementation;
 
-    ScheduleManager* ret = nullptr;
+        scheduleManager->m_schedulerTasklet->SetScheduleManager( scheduleManager );
 
-	if( schedulerFind == s_schedulers.end() )
-	{
-        // Create new scheduler for the thread
-		PyObject* scheduleManager = PyObject_CallObject( reinterpret_cast<PyObject*>(s_scheduleManagerType), nullptr );
+        PyThread_tss_set( &s_threadLocalStorageKey, reinterpret_cast<void*>(scheduleManager) );
 
-		ScheduleManager* threadScheduler = reinterpret_cast<PyScheduleManagerObject*>( scheduleManager )->m_implementation;
-		
-        // Store scheduler against thread id
-		s_schedulers[schedulerThreadId] = threadScheduler;
-
-        ret = threadScheduler;
-    }
+        s_numberOfActiveScheduleManagers++;
+	}
     else
     {
-        // Incref and return existing scheduler for the thread
-		schedulerFind->second->Incref();
-
-		ret = schedulerFind->second;
+		scheduleManager->Incref();
     }
 
-    PyThread_release_lock( s_scheduleManagerLock );
-
-    return ret;
-	
+    return scheduleManager;
 }
 
 void ScheduleManager::SetCurrentTasklet( Tasklet* tasklet )
 {
+	RunSchedulerCallback( m_currentTasklet, tasklet );
+
 	m_currentTasklet = tasklet;
 
 }
@@ -154,17 +109,15 @@ Tasklet* ScheduleManager::GetCurrentTasklet()
 //TODO naming correct here?
 void ScheduleManager::InsertTaskletAtBeginning( Tasklet* tasklet )
 {
-	Py_IncRef( tasklet->PythonObject() );
+	tasklet->Incref();
 
-    ScheduleManager* currentScheduler = GetScheduler( tasklet->ThreadId() ); 
+    ScheduleManager* taskletScheduleManager = tasklet->GetScheduleManager();
 
-    tasklet->SetPrevious( currentScheduler->m_currentTasklet );
+    tasklet->SetPrevious( taskletScheduleManager->m_currentTasklet );
 
-    tasklet->SetNext( currentScheduler->m_currentTasklet->Next() );
+    tasklet->SetNext( taskletScheduleManager->m_currentTasklet->Next() );
 
-    currentScheduler->m_currentTasklet->SetNext( tasklet );
-
-    currentScheduler->Decref();
+    taskletScheduleManager->m_currentTasklet->SetNext( tasklet );
 
     tasklet->SetScheduled( true );
 
@@ -173,20 +126,20 @@ void ScheduleManager::InsertTaskletAtBeginning( Tasklet* tasklet )
 
 void ScheduleManager::InsertTasklet( Tasklet* tasklet )
 {
-
-    ScheduleManager* currentScheduler = GetScheduler( tasklet->ThreadId() );
+	ScheduleManager* taskletScheduleManager = tasklet->GetScheduleManager();
 
     if( !tasklet->IsScheduled() )
 	{
-		Py_IncRef( tasklet->PythonObject() );
-		currentScheduler->m_previousTasklet->SetNext( tasklet );
+		tasklet->Incref();
 
-		tasklet->SetPrevious( currentScheduler->m_previousTasklet );
+		taskletScheduleManager->m_previousTasklet->SetNext( tasklet );
+
+		tasklet->SetPrevious( taskletScheduleManager->m_previousTasklet );
 
 		// Clear out possible old next
 		tasklet->SetNext( nullptr );
 
-		currentScheduler->m_previousTasklet = tasklet;
+		taskletScheduleManager->m_previousTasklet = tasklet;
 
 		tasklet->Unblock();	// TODO should probably not be here and replaced with error path
 
@@ -198,8 +151,6 @@ void ScheduleManager::InsertTasklet( Tasklet* tasklet )
 	{
 		tasklet->SetReschedule( true );
 	}
-
-    currentScheduler->Decref();
 }
 
 bool ScheduleManager::RemoveTasklet( Tasklet* tasklet )
@@ -430,7 +381,6 @@ bool ScheduleManager::Run( Tasklet* startTasklet /* = nullptr */ )
 
 		Tasklet* currentTasklet = baseTasklet->Next();
 
-        RunSchedulerCallback( currentTasklet->Previous(), currentTasklet );
 
         // Store the parent to the tasklet
 		// Required for nested scheduling calls
@@ -574,12 +524,23 @@ void ScheduleManager::SetSchedulerCallback( PyObject* callback )
     //TODO so far this is specific to the thread it was called on
     //Check what stackless does, docs are not clear on this
     //Looks global but imo makes more logical sense as local to thread
+	Py_XDECREF( m_schedulerCallback );
 
-    Py_XDECREF( m_schedulerCallback );
+    if( callback )
+	{
+		if( !m_callbackArguments )
+		{
+			m_callbackArguments = PyTuple_New( 2 );
+		}
+	}
+	else
+	{
+		Py_XDECREF( m_callbackArguments );
 
-    Py_IncRef( callback );
+        m_callbackArguments = nullptr;
+	}
 
-    m_schedulerCallback = callback;
+	m_schedulerCallback = callback;
 }
 
 void ScheduleManager::RunSchedulerCallback( Tasklet* previous, Tasklet* next )

@@ -21,6 +21,8 @@
 
 #include "stdafx.h"
 
+#include "PythonCppType.h"
+
 #include <map>
 #include <chrono>
 
@@ -28,24 +30,16 @@ typedef int( schedule_hook_func )( struct PyTaskletObject* from, struct PyTaskle
 
 class Tasklet;
 
-class ScheduleManager
+class ScheduleManager : public PythonCppType
 {
 public:
 	ScheduleManager( PyObject* pythonObject );
 
 	~ScheduleManager();
 
-    PyObject* PythonObject();
-
-    void Incref();
-
-    void Decref();
-
     static int NumberOfActiveScheduleManagers();
 
-    static ScheduleManager* FindScheduler( long threadId );
-
-    static ScheduleManager* GetScheduler( long threadId = -1 );
+    static ScheduleManager* GetThreadScheduleManager();
 
 	void SetCurrentTasklet( Tasklet* tasklet );
 
@@ -99,9 +93,9 @@ public:
 
     inline static PyThread_type_lock s_scheduleManagerLock;
 
-private:
+    inline static Py_tss_t s_threadLocalStorageKey = Py_tss_NEEDS_INIT;
 
-    PyObject* m_pythonObject;
+private:
 
     long m_threadId;
 
@@ -117,6 +111,8 @@ private:
 
 	PyObject* m_schedulerCallback;
 
+    PyObject* m_callbackArguments;
+
     schedule_hook_func* m_schedulerFastCallback;
 
     int m_taskletLimit;
@@ -129,7 +125,7 @@ private:
 
     int m_numberOfTaskletsInQueue;
 
-    inline static std::map<long, ScheduleManager*> s_schedulers;    //Each thread has its own scheduler
+    static inline int s_numberOfActiveScheduleManagers = 0;
     
 };
 
