@@ -9,7 +9,7 @@
 Channel::Channel( PyObject* pythonObject ) :
 	PythonCppType( pythonObject ),
 	m_balance(0),
-	m_preference(-1),
+	m_preference(ChannelPreference::RECEIVER),
 	m_lock( PyThread_allocate_lock() ),
 	m_lastBlockedOnSend( nullptr ),
 	m_firstBlockedOnSend( nullptr ),
@@ -40,15 +40,18 @@ bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */)
 
     ScheduleManager* scheduleManager = ScheduleManager::GetThreadScheduleManager();
 
-    Tasklet* current = scheduleManager->GetCurrentTasklet(); //TODO naming clean up
+    Tasklet* current = scheduleManager->GetCurrentTasklet();
 
 	RunChannelCallback( this, current, true, m_firstBlockedOnReceive == nullptr );
 
     current->SetTransferInProgress(true);
-	int direction = SENDER;
+
+	ChannelDirection direction = ChannelDirection::SENDER;
+
 	if( m_firstBlockedOnReceive == nullptr )
 	{
-		direction = RECEIVER;
+		direction = ChannelDirection::RECEIVER;
+
 		// Block as there is no tasklet sending
         if( !current )
 		{
@@ -134,7 +137,7 @@ bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */)
 
     Tasklet* current_tasklet = scheduleManager->GetCurrentTasklet();
 
-    if (!ChannelSwitch(current_tasklet, receivingTasklet, direction, SENDER))
+    if (!ChannelSwitch(current_tasklet, receivingTasklet, direction, ChannelDirection::SENDER))
     {
 		scheduleManager->Decref();
 
@@ -152,12 +155,17 @@ bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */)
 
 }
 
-bool Channel::ChannelSwitch(Tasklet* caller, Tasklet* other, int dir, int callerDir)
+bool Channel::ChannelSwitch( Tasklet* caller, Tasklet* other, ChannelDirection directionOfChannelOperation, ChannelDirection callerDir )
 {
 	ScheduleManager* scheduleManager = ScheduleManager::GetThreadScheduleManager();
 
+    ChannelDirection inverseChannelOperation = InvertDirection( directionOfChannelOperation );
+
+    bool operationDirectionMatchesCallerDirection = directionOfChannelOperation == callerDir;
+
     //if preference is opposit from direction, switch away from caller
-	if( ( -dir == m_preference && dir == callerDir ) || (dir == m_preference && dir != callerDir))
+	if( ( inverseChannelOperation == m_preference && operationDirectionMatchesCallerDirection ) || 
+        ( directionOfChannelOperation == m_preference && !operationDirectionMatchesCallerDirection ) )
     {
         scheduleManager->InsertTasklet( caller );
         if (!other->SwitchTo())
@@ -170,7 +178,7 @@ bool Channel::ChannelSwitch(Tasklet* caller, Tasklet* other, int dir, int caller
     //if preference is towards caller, schedule other tasklet and continue
 	else
     {
-		if( m_preference == PREFER_NEITHER && -callerDir == dir )
+		if( m_preference == ChannelPreference::NEITHER && InvertDirection(callerDir) == directionOfChannelOperation )
         {
             scheduleManager->InsertTasklet( caller );
             if (!other->SwitchTo())
@@ -441,16 +449,16 @@ void Channel::RemoveTaskletFromBlocked( Tasklet* tasklet )
     tasklet->SetNextBlocked( nullptr );
 	tasklet->SetPreviousBlocked( nullptr );
 
-    if (tasklet->GetBlockedDirection() == SENDER)
+    if (tasklet->GetBlockedDirection() == ChannelDirection::SENDER)
     {
 		DecrementBalance();
     }
-    else if (tasklet->GetBlockedDirection() == RECEIVER)
+	else if( tasklet->GetBlockedDirection() == ChannelDirection ::RECEIVER)
     {
 		IncrementBalance();
     }
 
-    tasklet->SetBlockedDirection( 0 );
+    tasklet->SetBlockedDirection( ChannelDirection::NEITHER );
     
 }
 
@@ -488,7 +496,7 @@ void Channel::AddTaskletToWaitingToSend( Tasklet* tasklet )
 		m_firstBlockedOnSend = tasklet;
     }
 
-    tasklet->SetBlockedDirection( SENDER );
+    tasklet->SetBlockedDirection( ChannelDirection::SENDER );
     IncrementBalance();
 }
 
@@ -506,7 +514,7 @@ void Channel::AddTaskletToWaitingToReceive( Tasklet* tasklet )
 		m_firstBlockedOnReceive = tasklet;
     }
 
-    tasklet->SetBlockedDirection( RECEIVER );
+    tasklet->SetBlockedDirection( ChannelDirection::RECEIVER );
     DecrementBalance();
 }
 
@@ -562,17 +570,17 @@ void Channel::SetChannelCallback( PyObject* callback )
     s_channelCallback = callback;
 }
 
-int Channel::Preference() const
+int Channel::PreferenceAsInt() const
 {
-	return m_preference;
+	return DirectionToInt( m_preference );
 }
 
-void Channel::SetPreference( int value )
+void Channel::SetPreferenceFromInt( int value )
 {
-	m_preference = value;
+	m_preference = DirectionFromInt( value );
 }
 
-Tasklet* Channel::BlockedQueueFront()
+Tasklet* Channel::BlockedQueueFront() const
 {
     if (m_firstBlockedOnReceive != nullptr)
     {
@@ -608,9 +616,9 @@ void Channel::ClearBlocked( bool pending )
 
 }
 
-int Channel::NumberOfActiveChannels()
+long Channel::NumberOfActiveChannels()
 {
-	return s_activeChannels.size();
+	return static_cast<long>(s_activeChannels.size());
 }
 
 int Channel::UnblockAllActiveChannels()
@@ -659,12 +667,12 @@ void Channel::Open()
 	m_closed = false;
 }
 
-bool Channel::IsClosed()
+bool Channel::IsClosed() const
 {
 	return m_closed;
 }
 
-bool Channel::IsClosing()
+bool Channel::IsClosing() const
 {
 	return m_closing;
 }
@@ -699,4 +707,60 @@ void Channel::UpdateCloseState()
 void Channel::Clean()
 {
 	Py_XDECREF( s_callbackArguments );
+}
+
+int Channel::DirectionToInt( ChannelDirection preference ) const
+{
+    switch (preference)
+	{
+	
+        case ChannelDirection::RECEIVER:
+		    return -1;
+
+        case ChannelDirection::NEITHER:
+            return 0;
+
+        case ChannelDirection::SENDER:
+			return 1;
+
+        default:
+			return -1;
+
+    }
+}
+
+ChannelDirection Channel::DirectionFromInt( int preference ) const
+{
+	switch( preference )
+	{
+        case -1: 
+	        return ChannelDirection::RECEIVER;
+
+        case 0:
+			return ChannelDirection::NEITHER;
+
+        case 1:
+			return ChannelDirection::SENDER;
+
+        default:
+			return ChannelDirection::RECEIVER;
+	}
+}
+
+ChannelDirection Channel::InvertDirection( ChannelDirection direction ) const
+{
+	switch( direction )
+	{
+	case ChannelDirection::RECEIVER:
+		return ChannelDirection::SENDER;
+
+	case ChannelDirection::SENDER:
+		return ChannelDirection::RECEIVER;
+
+	case ChannelDirection::NEITHER:
+		return ChannelDirection::NEITHER;
+
+    default:
+		return ChannelDirection::NEITHER;
+	}
 }

@@ -25,6 +25,7 @@
 
 class Channel;
 class ScheduleManager;
+enum class ChannelDirection;
 
 class Tasklet : public PythonCppType
 {
@@ -138,9 +139,9 @@ public:
 
     bool RequiresRemoval();
 
-    int GetBlockedDirection();
+    ChannelDirection GetBlockedDirection();
 
-    void SetBlockedDirection( int direction );
+    void SetBlockedDirection( ChannelDirection direction );
 
     void SetScheduleManager( ScheduleManager* scheduleManager );
 
@@ -194,8 +195,7 @@ private:
 
 	bool m_blocked;
 
-    // TODO should be handled as an enum rather than int
-    int m_blockedDirection;
+	ChannelDirection m_blockedDirection;
 
     bool m_hasStarted;
 

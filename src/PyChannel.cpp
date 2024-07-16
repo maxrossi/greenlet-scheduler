@@ -102,7 +102,7 @@ static PyObject*
 		return nullptr;
 	}
 
-	return PyLong_FromLong( self->m_implementation->Preference() );
+	return PyLong_FromLong( self->m_implementation->PreferenceAsInt() );
 }
 
 static int
@@ -134,7 +134,7 @@ static int
     // 1    - Prefer sender
     if( ( newPreference > -2 ) && ( newPreference < 2 ) )
 	{
-		self->m_implementation->SetPreference( newPreference );
+		self->m_implementation->SetPreferenceFromInt( newPreference );
     }
 
 	return 0;

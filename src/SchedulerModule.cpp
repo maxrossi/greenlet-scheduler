@@ -368,7 +368,7 @@ static PyObject*
 static PyObject*
 	SchedulerGetNumberOfActiveChannels( PyObject* self, PyObject* Py_UNUSED( ignored ) )
 {
-	int numberOfChannels = Channel::NumberOfActiveChannels();
+	long numberOfChannels = Channel::NumberOfActiveChannels();
 
 	return PyLong_FromLong( numberOfChannels );
 }
@@ -416,7 +416,7 @@ extern "C"
 	/// @return 1 if obj is a Tasklet type, otherwise return 0
 	static int PyTasklet_Check( PyObject* obj )
 	{
-		return obj && PyObject_TypeCheck( obj, &TaskletType );
+		return obj && PyObject_TypeCheck( obj, &TaskletType ) ? 1 : 0;
 	}
 
     /// @brief Make tasklet ready to run by binding parameters to it and inserting into run queue. 
@@ -601,7 +601,7 @@ extern "C"
 			sanitisedPreferenceValue = 1;
         }
 
-		self->m_implementation->SetPreference( sanitisedPreferenceValue );
+		self->m_implementation->SetPreferenceFromInt( sanitisedPreferenceValue );
 	}
 
     /// @brief Get the channel's preference
@@ -609,7 +609,7 @@ extern "C"
 	/// @return The channel's preference
     static int PyChannel_GetPreference( PyChannelObject* self )
 	{
-		return self->m_implementation->Preference();
+		return self->m_implementation->PreferenceAsInt();
 	}
 
     /// @brief Set the channel's balance
@@ -625,7 +625,7 @@ extern "C"
 	/// @return 1 if obj is a Tasklet type, otherwise return 0
     static int PyChannel_Check( PyObject* obj )
 	{
-		return obj && PyObject_TypeCheck( obj, &ChannelType );
+		return obj && PyObject_TypeCheck( obj, &ChannelType ) ? 1 : 0;
 	}
 
     /// @deprecated Please use PyChannel_SendException instead

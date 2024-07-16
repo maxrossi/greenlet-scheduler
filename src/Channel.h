@@ -25,9 +25,14 @@
 
 #include <list>
 
-const int SENDER = 1;
-const int RECEIVER = -1;
-const int PREFER_NEITHER = 0;
+enum class ChannelDirection
+{
+    SENDER,
+    RECEIVER,
+    NEITHER
+};
+
+typedef ChannelDirection ChannelPreference;
 
 class Tasklet;
 
@@ -51,11 +56,11 @@ public:
 
     static void SetChannelCallback(PyObject* callback);
 
-    int Preference() const;
+    int PreferenceAsInt() const;
 
-    void SetPreference( int value );
+    void SetPreferenceFromInt( int value );
 
-    Tasklet* BlockedQueueFront();
+    Tasklet* BlockedQueueFront() const;
 
     void ClearBlocked(bool pending);
 
@@ -63,11 +68,11 @@ public:
 
     void Open();
 
-    bool IsClosed();
+    bool IsClosed() const;
 
-	bool IsClosing(); 
+	bool IsClosing() const; 
 
-    static int NumberOfActiveChannels();
+    static long NumberOfActiveChannels();
 
     static int UnblockAllActiveChannels();
 
@@ -91,15 +96,21 @@ private:
 
     Tasklet* PopNextTaskletBlockedOnReceive();
 
-    bool ChannelSwitch( Tasklet* caller, Tasklet* other, int dir, int callerDir );
+    bool ChannelSwitch( Tasklet* caller, Tasklet* other, ChannelDirection directionOfChannelOperation, ChannelDirection callerDir );
 
     void UpdateCloseState();
+
+    int DirectionToInt( ChannelDirection preference ) const;
+
+    ChannelDirection DirectionFromInt( int preference ) const;
+
+    ChannelDirection InvertDirection( ChannelDirection direction ) const;
 
 private:
 
     int m_balance;
 
-	int m_preference;
+	ChannelPreference m_preference;
 
     bool m_closing;
 
