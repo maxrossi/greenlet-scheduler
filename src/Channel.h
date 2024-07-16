@@ -44,7 +44,7 @@ public:
 
     ~Channel();
 
-	bool Send( PyObject* args, PyObject* exception = nullptr );
+	bool Send( PyObject * args, PyObject* exception = nullptr, bool restoreException = false );
 
     PyObject* Receive();
 

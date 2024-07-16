@@ -305,10 +305,20 @@ static PyObject*
     if (PyTuple_Size(args) > 1)
     {
 		exceptionArguments = PyTuple_GetSlice( args, 1, PyTuple_Size( args ) );
+
+        // if only one argument was passed, then we want to extract it, and pass it along as is
+        if( PyTuple_Size( exceptionArguments ) == 1 )
+        {
+			auto argument = PyTuple_GetItem( exceptionArguments, 0 );
+			Py_IncRef( argument );
+			Py_DecRef( exceptionArguments );
+			exceptionArguments = argument;
+        }
     }
     else
     {
-		exceptionArguments = PyTuple_New( 0 );
+		Py_IncRef( Py_None );
+		exceptionArguments = Py_None;
     }
 
 	if( !self->m_implementation->Send( exceptionArguments, exception ) )
@@ -366,7 +376,7 @@ static PyObject*
 	PyTuple_SetItem( exceptionDataTuple, 1, value );
 	PyTuple_SetItem( exceptionDataTuple, 2, tb );
 
-    if( !self->m_implementation->Send( Py_None, exceptionDataTuple ) )
+	if( !self->m_implementation->Send( Py_None, exceptionDataTuple, true ) )
 	{
 		Py_DecRef( exceptionDataTuple );
 		return NULL;

@@ -562,13 +562,12 @@ extern "C"
 		
         if (value)
         {
-			args = PyTuple_New( 1 );
-
-			PyTuple_SetItem( args, 0, value );
+			args = value;
         }
         else
         {
-			args = PyTuple_New( 0 );
+			Py_IncRef( Py_None );
+			args = Py_None;
         }
 
 		bool ret = self->m_implementation->Send( args, klass );
@@ -649,33 +648,38 @@ extern "C"
 			return -1;
 		}
 
-		PyObject* args = PyTuple_New( 2 );
+		PyObject* args = PyTuple_New( 3 );
+
+        PyTuple_SetItem( args, 0, exc );
 
         if (val)
         {
-			PyTuple_SetItem( args, 0, val );
+			PyTuple_SetItem( args, 1, val );
         }
         else
         {
 			Py_IncRef( Py_None );
 
-			PyTuple_SetItem( args, 0, Py_None );
+			PyTuple_SetItem( args, 1, Py_None );
         }
 		
         if (tb)
         {
-			PyTuple_SetItem( args, 1, tb );
+			PyTuple_SetItem( args, 2, tb );
         }
         else
         {
 			Py_IncRef( Py_None );
 			
-			PyTuple_SetItem( args, 1, Py_None );
+			PyTuple_SetItem( args, 2, Py_None );
         }
 
-        bool ret = self->m_implementation->Send( args, exc );
+		bool ret = self->m_implementation->Send( Py_None, args, true );
 
-        Py_DecRef( args );
+        if (!ret)
+        {
+			Py_DecRef( args );
+        }
 
 		return ret ? 0 : -1;
 	}
