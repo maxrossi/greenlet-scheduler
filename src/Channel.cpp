@@ -34,8 +34,6 @@ Channel::~Channel()
 	Py_DECREF( m_lock );
 }
 
-
-
 bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */, bool restoreException /* = false */)
 {
     PyThread_acquire_lock( m_lock, 1 );
