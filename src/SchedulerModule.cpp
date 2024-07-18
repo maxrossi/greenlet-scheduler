@@ -628,7 +628,7 @@ extern "C"
 	}
 
     /// @deprecated Please use PyChannel_SendException instead
-    /// @brief Throw an exception on first tasklet waiting to receive on channel
+    /// @brief Throw an exception on first tasklet waiting to receive on channel. This function increments the refcount of exc,val and tb.
 	/// @param self python object type derived from PyChannelType
 	/// @param exc python exception
 	/// @param val python exception value
@@ -649,6 +649,10 @@ extern "C"
 		}
 
 		PyObject* args = PyTuple_New( 3 );
+
+        Py_XINCREF( exc );
+		Py_XINCREF( val );
+		Py_XINCREF( tb );
 
         PyTuple_SetItem( args, 0, exc );
 

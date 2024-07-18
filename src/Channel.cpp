@@ -345,7 +345,7 @@ PyObject* Channel::Receive()
 
             Py_DECREF( transferException );
             
-            PyErr_Restore( exceptionType, exceptionValue, exceptionTb );
+			PyErr_Restore( exceptionType, exceptionValue == Py_None ? nullptr : exceptionValue, exceptionTb == Py_None ? nullptr : exceptionTb );
         }
         else
         {
