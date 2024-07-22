@@ -584,23 +584,15 @@ Tasklet* Channel::BlockedQueueFront() const
 
 void Channel::ClearBlocked( bool pending )
 {
-    // Kill all blocked tasklets
-    Tasklet* current = m_firstBlockedOnReceive;
-
-	while( current )
-    {
-		current->Kill( pending );
-
-        current = current->NextBlocked();
-    }
-
-    current = m_firstBlockedOnSend;
-
-    while( current )
+	// Kill all blocked tasklets
+	while( m_lastBlockedOnReceive )
 	{
-		current->Kill( pending );
+		m_lastBlockedOnReceive->Kill( pending );
+	}
 
-        current = current->NextBlocked();
+	while( m_lastBlockedOnSend )
+	{
+		m_lastBlockedOnSend->Kill( pending );
 	}
 
 }

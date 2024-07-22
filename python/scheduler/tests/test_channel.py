@@ -1042,3 +1042,57 @@ class TestChannels(SchedulerTestCaseBase):
 
         # Channel callback is global, clean up here to not leak into other tests when running all as one
         scheduler.set_channel_callback(None)
+
+    def testChannelTestClearBlocked(self):
+        exitOutput = []
+
+        TASKLET1_ID = "TASKLET1"
+        TASKLET2_ID = "TASKLET2"
+
+        channel = scheduler.channel()
+
+        # Function to block when run in a tasklet.
+        def f(taskletId):
+            try:
+                channel.send(taskletId)
+            except scheduler.TaskletExit:
+                exitOutput.append(taskletId)
+
+        # Get the tasklet blocked on the channel.
+        tasklet1 = scheduler.tasklet(f)(TASKLET1_ID)
+        tasklet2 = scheduler.tasklet(f)(TASKLET2_ID)
+
+        self.assertEqual(self.getruncount(), 3)
+
+        scheduler.run()
+
+        self.assertEqual(self.getruncount(), 1)
+
+        # The tasklet should be blocked.
+        self.assertTrue(tasklet1.blocked)
+        self.assertTrue(tasklet2.blocked)
+
+        # The channel should have a balance indicating one blocked sender.
+        self.assertEqual(channel.balance, 2)
+
+        # Tasklets should be blocked
+        self.assertEqual(len(exitOutput),0)
+
+        # Clear all blocked tasklets
+        channel.clear()
+
+        # All has been unblocked on channel
+        self.assertEqual(channel.balance, 0)
+
+        # Tasklets reflect cleanup
+        self.assertFalse(tasklet1.blocked)
+        self.assertFalse(tasklet1.alive)
+
+        self.assertFalse(tasklet2.blocked)
+        self.assertFalse(tasklet2.alive)
+
+        # Ensure TaskletExit was called
+        self.assertEqual(len(exitOutput), 2)
+        self.assertEqual(exitOutput[0],TASKLET1_ID)
+        self.assertEqual(exitOutput[1],TASKLET2_ID)
+
