@@ -104,13 +104,9 @@ bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */, bool re
 
 			current->SetTransferInProgress( false );
 
-            if( current->IsOnChannelBlockList() )
-            {
-				current->Unblock();
+            RemoveTaskletFromBlocked( current );
 
-				PopNextTaskletBlockedOnSend();
-
-            }
+            current->Unblock();
 
 			current->Decref();
             
@@ -276,16 +272,13 @@ PyObject* Channel::Receive()
 		{
 			PyThread_acquire_lock( m_lock, 1 );
 
-            if( current->IsOnChannelBlockList() )
-            {
-				RemoveTaskletFromBlocked( current );
-            }
+			RemoveTaskletFromBlocked( current );
 
 			current->Unblock();
 
-            current->Decref();
-
 			current->SetTransferInProgress( false );
+
+            current->Decref();
 
             scheduleManager->Decref();
 
@@ -442,8 +435,14 @@ void Channel::RemoveTaskletFromBlocked( Tasklet* tasklet )
 
     if (!endNode)
     {
-		tasklet->PreviousBlocked()->SetNextBlocked( tasklet->NextBlocked() );
-		tasklet->NextBlocked()->SetPreviousBlocked( tasklet->PreviousBlocked() );
+        if (tasklet->PreviousBlocked())
+        {
+			tasklet->PreviousBlocked()->SetNextBlocked( tasklet->NextBlocked() );
+        }
+        if (tasklet->NextBlocked())
+        {
+			tasklet->NextBlocked()->SetPreviousBlocked( tasklet->PreviousBlocked() );
+        }
     }
 
     tasklet->SetNextBlocked( nullptr );

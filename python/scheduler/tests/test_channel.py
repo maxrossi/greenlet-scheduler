@@ -925,3 +925,25 @@ class TestChannels(SchedulerTestCaseBase):
 
         self.assertEqual(channel.balance, 0)
         self.assertEqual(r, [0,1,2,3,4,5,6,7,8,9,10])
+
+    def test_kill_tasklet_blocked_on_channel_receive(self):
+        def receive(c):
+            c.receive()
+
+        channel = scheduler.channel()
+        t = scheduler.tasklet(receive)(channel)
+
+        scheduler.run()
+        t.kill()
+        self.assertEqual(channel.balance, 0)
+
+    def test_kill_tasklet_blocked_on_channel_send(self):
+        def send(c):
+            c.send(1)
+
+        channel = scheduler.channel()
+        t = scheduler.tasklet(send)(channel)
+
+        scheduler.run()
+        t.kill()
+        self.assertEqual(channel.balance, 0)
