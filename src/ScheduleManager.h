@@ -77,8 +77,6 @@ public:
 
     bool IsSwitchTrapped();
 
-    void SetCurrentTaskletChangedCallback( PyObject* callback );
-
     int SwitchTrapLevel();
 
     void SetSwitchTrapLevel( int level );
@@ -107,11 +105,7 @@ private:
 
     long m_switchTrapLevel;
 
-    PyObject* m_currentTaskletChangedCallback;
-
 	PyObject* m_schedulerCallback;
-
-    PyObject* m_callbackArguments;
 
     schedule_hook_func* m_schedulerFastCallback;
 

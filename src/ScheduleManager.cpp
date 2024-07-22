@@ -11,9 +11,7 @@ ScheduleManager::ScheduleManager( PyObject* pythonObject ) :
 	m_currentTasklet( nullptr ),   // Set in constructor
 	m_previousTasklet( nullptr ),  // Set in constructor
 	m_switchTrapLevel(0),
-    m_currentTaskletChangedCallback(nullptr),
     m_schedulerCallback(nullptr),
-	m_callbackArguments(nullptr),
     m_schedulerFastCallback(nullptr),
     m_taskletLimit(-1),
 	m_totalTaskletRunTimeLimit(-1),
@@ -521,24 +519,10 @@ void ScheduleManager::SetSchedulerFastCallback( schedule_hook_func* func )
 
 void ScheduleManager::SetSchedulerCallback( PyObject* callback )
 {
-    //TODO so far this is specific to the thread it was called on
-    //Check what stackless does, docs are not clear on this
-    //Looks global but imo makes more logical sense as local to thread
+	//TODO so far this is specific to the thread it was called on
+	//Check what stackless does, docs are not clear on this
+	//Looks global but imo makes more logical sense as local to thread
 	Py_XDECREF( m_schedulerCallback );
-
-    if( callback )
-	{
-		if( !m_callbackArguments )
-		{
-			m_callbackArguments = PyTuple_New( 2 );
-		}
-	}
-	else
-	{
-		Py_XDECREF( m_callbackArguments );
-
-        m_callbackArguments = nullptr;
-	}
 
 	m_schedulerCallback = callback;
 }
@@ -548,7 +532,7 @@ void ScheduleManager::RunSchedulerCallback( Tasklet* previous, Tasklet* next )
     // Run Callback through python
 	if(m_schedulerCallback)
 	{
-		PyObject* args = PyTuple_New( 2 ); // TODO don't create this each time
+		PyObject* args = PyTuple_New( 2 );
 
         PyObject* pyPrevious = Py_None;
 
@@ -592,12 +576,6 @@ bool ScheduleManager::IsSwitchTrapped()
 PyObject* ScheduleManager::SchedulerCallback()
 {
 	return m_schedulerCallback;
-}
-
-void ScheduleManager::SetCurrentTaskletChangedCallback( PyObject* callback )
-{
-    //TODO xdecref?
-	m_currentTaskletChangedCallback = callback;
 }
 
 int ScheduleManager::SwitchTrapLevel()

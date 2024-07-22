@@ -222,6 +222,59 @@ class TestSchedule(test_utils.SchedulerTestCaseBase):
         t = scheduler.tasklet(nestedTasklet)()
         t.run()
 
+    def testSetScheduleCallback(self):
+
+        def callback1(previousTasklet,nextTasklet):
+            pass
+
+        def callback2(previousTasklet,nextTasklet):
+            pass
+
+        self.assertEqual(scheduler.get_schedule_callback(),None)
+        self.assertEqual(None, scheduler.set_schedule_callback(callback1))
+        self.assertEqual(scheduler.get_schedule_callback(),callback1)
+        self.assertEqual(callback1, scheduler.set_schedule_callback(callback2))
+        self.assertEqual(scheduler.get_schedule_callback(),callback2)
+        self.assertEqual(callback2, scheduler.set_schedule_callback(None))
+        self.assertEqual(scheduler.get_schedule_callback(),None)
+
+
+    def testScheduleCallbackBasic(self):
+        callbackOutput = []
+
+        def scheduleCallback(previousTasklet, nextTasklet):
+            callbackOutput.append(previousTasklet)
+            callbackOutput.append(nextTasklet)
+
+        scheduler.set_schedule_callback(scheduleCallback)
+
+        main = scheduler.getmain()
+        t1 = scheduler.tasklet(lambda: None)()
+        t2 = scheduler.tasklet(lambda: None)()
+        t3 = scheduler.tasklet(lambda: None)()
+
+        scheduler.run()
+
+        self.assertEqual(self.getruncount(), 1)
+        self.assertEqual(len(callbackOutput), 12)
+
+        self.assertEqual(callbackOutput[0],main)
+        self.assertEqual(callbackOutput[1],t1)
+        self.assertEqual(callbackOutput[2],t1)
+        self.assertEqual(callbackOutput[3],main)
+
+        self.assertEqual(callbackOutput[4],main)
+        self.assertEqual(callbackOutput[5],t2)
+        self.assertEqual(callbackOutput[6],t2)
+        self.assertEqual(callbackOutput[7],main)
+
+        self.assertEqual(callbackOutput[8],main)
+        self.assertEqual(callbackOutput[9],t3)
+        self.assertEqual(callbackOutput[10],t3)
+        self.assertEqual(callbackOutput[11],main)
+
+        scheduler.set_schedule_callback(None)   # TODO Though this should be here to clean up after this test, if it isn't it blocks the schedule manager from cleaning up which needs looking at
+
 
 class TestRun(test_utils.SchedulerTestCaseBase):
     def testCallingRunFromNonMainTasklet(self):

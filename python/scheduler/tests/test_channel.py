@@ -947,3 +947,98 @@ class TestChannels(SchedulerTestCaseBase):
         scheduler.run()
         t.kill()
         self.assertEqual(channel.balance, 0)
+
+    def testSetChannelCallback(self):
+
+        def callback1(channel, tasklet, is_sending, will_block):
+            pass
+
+        def callback2(channel, tasklet, is_sending, will_block):
+            pass
+
+        self.assertEqual(scheduler.get_channel_callback(),None)
+        self.assertEqual(None, scheduler.set_channel_callback(callback1))
+        self.assertEqual(scheduler.get_channel_callback(),callback1)
+        self.assertEqual(callback1, scheduler.set_channel_callback(callback2))
+        self.assertEqual(scheduler.get_channel_callback(),callback2)
+        self.assertEqual(callback2, scheduler.set_channel_callback(None))
+        self.assertEqual(scheduler.get_channel_callback(),None)
+
+    def testChannelCallbackWithBlockingSend(self):
+        callbackOutput = []
+
+        def channelCallback(channel, tasklet, is_sending, will_block):
+            callbackOutput.append([channel,tasklet,is_sending,will_block])
+
+        scheduler.set_channel_callback(channelCallback)
+    
+        c = scheduler.channel()
+        testValue = "VALUE"
+
+        def SendingTasklet(val):
+            c.send(val)
+
+        def ReceivingTasklet(expected):
+            value = c.receive()
+            self.assertEqual(value,expected)
+
+        # Test Blocking send    
+        t1 = scheduler.tasklet(SendingTasklet)(testValue)
+        t2 = scheduler.tasklet(ReceivingTasklet)(testValue)
+
+        scheduler.run()
+
+        self.assertEqual(callbackOutput[0][0],c)
+        self.assertEqual(callbackOutput[0][1],t1)
+        self.assertEqual(callbackOutput[0][2],True)
+        self.assertEqual(callbackOutput[0][3],True)
+
+        self.assertEqual(callbackOutput[1][0],c)
+        self.assertEqual(callbackOutput[1][1],t2)
+        self.assertEqual(callbackOutput[1][2],False)
+        self.assertEqual(callbackOutput[1][3],False)
+
+        self.assertEqual(c.balance, 0)
+
+        # Channel callback is global, clean up here to not leak into other tests when running all as one
+        scheduler.set_channel_callback(None)
+        
+
+    def testChannelCallbackWithBlockingReceive(self):
+        callbackOutput = []
+
+        def channelCallback(channel, tasklet, is_sending, will_block):
+            callbackOutput.append([channel,tasklet,is_sending,will_block])
+
+        scheduler.set_channel_callback(channelCallback)
+    
+        c = scheduler.channel()
+        testValue = "VALUE"
+
+        def SendingTasklet(val):
+            c.send(val)
+
+        def ReceivingTasklet(expected):
+            value = c.receive()
+            self.assertEqual(value,expected)
+
+        # Test Blocking send    
+        t1 = scheduler.tasklet(ReceivingTasklet)(testValue)
+        t2 = scheduler.tasklet(SendingTasklet)(testValue)
+
+        scheduler.run()
+
+        self.assertEqual(callbackOutput[0][0],c)
+        self.assertEqual(callbackOutput[0][1],t1)
+        self.assertEqual(callbackOutput[0][2],False)
+        self.assertEqual(callbackOutput[0][3],True)
+
+        self.assertEqual(callbackOutput[1][0],c)
+        self.assertEqual(callbackOutput[1][1],t2)
+        self.assertEqual(callbackOutput[1][2],True)
+        self.assertEqual(callbackOutput[1][3],False)
+
+        self.assertEqual(c.balance, 0)
+
+        # Channel callback is global, clean up here to not leak into other tests when running all as one
+        scheduler.set_channel_callback(None)

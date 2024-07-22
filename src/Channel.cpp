@@ -465,19 +465,23 @@ void Channel::RunChannelCallback( Channel* channel, Tasklet* tasklet, bool sendi
 {
 	if( s_channelCallback )
 	{
-        channel->Incref();
+		PyObject* args = PyTuple_New( 4 );
 
-		PyTuple_SetItem( s_callbackArguments, 0, channel->PythonObject() );
+		channel->Incref();
+
+		PyTuple_SetItem( args, 0, channel->PythonObject() );
 
 		tasklet->Incref();
 
-		PyTuple_SetItem( s_callbackArguments, 1, tasklet->PythonObject() );
+		PyTuple_SetItem( args, 1, tasklet->PythonObject() );
 
-        PyTuple_SetItem( s_callbackArguments, 2, sending ? Py_True : Py_False );
+		PyTuple_SetItem( args, 2, sending ? Py_True : Py_False );
 
-        PyTuple_SetItem( s_callbackArguments, 3, willBlock ? Py_True : Py_False );
+		PyTuple_SetItem( args, 3, willBlock ? Py_True : Py_False );
 
-		PyObject_Call( s_channelCallback, s_callbackArguments, nullptr );
+		PyObject_Call( s_channelCallback, args, nullptr );
+
+		Py_DecRef( args );
 	}
 }
 
@@ -551,20 +555,6 @@ PyObject* Channel::ChannelCallback()
 void Channel::SetChannelCallback( PyObject* callback )
 {
 	Py_XDECREF( s_channelCallback ); 
-
-    if (callback)
-    {
-		if( !s_callbackArguments )
-		{
-			s_callbackArguments = PyTuple_New( 4 );
-		}
-    }
-    else
-    {
-		Py_XDECREF( s_callbackArguments ); 
-
-        s_callbackArguments = nullptr;
-    }
 
     s_channelCallback = callback;
 }
@@ -700,12 +690,6 @@ void Channel::UpdateCloseState()
 		m_closed = true;
 
 	}
-}
-
-// Called by module destructor
-void Channel::Clean()
-{
-	Py_XDECREF( s_callbackArguments );
 }
 
 int Channel::DirectionToInt( ChannelDirection preference ) const

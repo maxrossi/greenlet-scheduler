@@ -63,9 +63,23 @@ static PyObject*
 {
 	PyObject* callable = Channel::ChannelCallback();
 
-	Py_IncRef( callable );
+	PyObject* ret = nullptr;
 
-	return callable;
+	if( callable )
+	{
+
+		Py_IncRef( callable );
+
+		ret = callable;
+	}
+	else
+	{
+		Py_IncRef( Py_None );
+
+		ret = Py_None;
+	}
+
+	return ret;
 }
 
 static PyObject*
@@ -281,13 +295,27 @@ static PyObject*
 {
 	ScheduleManager* currentScheduler = ScheduleManager::GetThreadScheduleManager();
 
-    PyObject* callable = currentScheduler->SchedulerCallback();
+	PyObject* callable = currentScheduler->SchedulerCallback();
 
-	Py_IncRef( callable );
+	PyObject* ret = nullptr;
 
-    currentScheduler->Decref();
+	if( callable )
+	{
 
-    return callable;
+		Py_IncRef( callable );
+
+		ret = callable;
+	}
+	else
+	{
+		Py_IncRef( Py_None );
+
+		ret = Py_None;
+	}
+
+	currentScheduler->Decref();
+
+	return ret;
     
 }
 
@@ -387,9 +415,6 @@ void ModuleDestructor( void* )
 
     // Destroy thread local storage key
 	PyThread_tss_delete( &ScheduleManager::s_threadLocalStorageKey );
-
-    // Destroy any left over structures in Channel
-	Channel::Clean();
 }
 
 /*
