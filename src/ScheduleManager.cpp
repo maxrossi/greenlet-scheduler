@@ -93,10 +93,12 @@ ScheduleManager* ScheduleManager::GetThreadScheduleManager()
 
 void ScheduleManager::SetCurrentTasklet( Tasklet* tasklet )
 {
-	RunSchedulerCallback( m_currentTasklet, tasklet );
+    if (m_currentTasklet != tasklet)
+    {
+		RunSchedulerCallback( m_currentTasklet, tasklet );
 
-	m_currentTasklet = tasklet;
-
+		m_currentTasklet = tasklet;
+    }
 }
 
 Tasklet* ScheduleManager::GetCurrentTasklet()
@@ -438,28 +440,34 @@ bool ScheduleManager::Run( Tasklet* startTasklet /* = nullptr */ )
 				}
 
                 // Test Tasklet Run Limit
-				if( m_taskletLimit > -1 )
-				{
-					if( m_taskletLimit > 0 )
-					{
-						m_taskletLimit--;
-					}
-					if( m_taskletLimit == 0 )
-					{
-						m_stopScheduler = true;
-					}
-				}
-
-                // Test Total tasklet Run Limit
-                if (m_totalTaskletRunTimeLimit > 0)
+                // Currently only checking this for main tasklets as the teardown buildup
+                // Is not working correctly when used with nested tasklets with channels
+                // TODO reinstate nested tasklet with channel support.
+                if (GetCurrentTasklet()->IsMain())
                 {
-					std::chrono::steady_clock::time_point current_time = std::chrono::steady_clock::now();
+				    if( m_taskletLimit > -1 )
+				    {
+					    if( m_taskletLimit > 0 )
+					    {
+						    m_taskletLimit--;
+					    }
+					    if( m_taskletLimit == 0 )
+					    {
+						    m_stopScheduler = true;
+					    }
+				    }
 
-                    if( std::chrono::duration_cast<std::chrono::nanoseconds>( current_time - m_startTime ).count() >= m_totalTaskletRunTimeLimit )
-					{
-						m_stopScheduler = true;
-					}
-                }
+                    // Test Total tasklet Run Limit
+                    if (m_totalTaskletRunTimeLimit > 0)
+                    {
+					    std::chrono::steady_clock::time_point current_time = std::chrono::steady_clock::now();
+
+                        if( std::chrono::duration_cast<std::chrono::nanoseconds>( current_time - m_startTime ).count() >= m_totalTaskletRunTimeLimit )
+					    {
+						    m_stopScheduler = true;
+					    }
+                    }
+				}
                
 			}
         }

@@ -175,6 +175,100 @@ class TestScheduleOrderBase(object):
 
         self.assertEqual(completedSendTasklets[0],"t1t2t3t4t5t6")
 
+    def testChannelUsageScheduleOrderPreferenceReceiver(self):
+
+        completedTasklets = []
+        testValue = "TEST_VALUE"
+
+        c = scheduler.channel()
+
+        c.preference = -1
+
+        def sendingTaskletCallable(valueToSend):
+            c.send(valueToSend)
+
+        def receivingTaskletCallable(expectedValue):
+            self.assertEqual(expectedValue, c.receive())
+
+        main = scheduler.getmain()
+        sendingTasklet = scheduler.tasklet(sendingTaskletCallable)(testValue)
+        receivingTasklet = scheduler.tasklet(receivingTaskletCallable)(testValue)
+
+        def callback(previousTasklet, nextTasklet):
+            completedTasklets.append(previousTasklet)
+            completedTasklets.append(nextTasklet)
+
+        scheduler.set_schedule_callback(callback)
+
+        self.run_scheduler()
+
+        self.assertEqual(completedTasklets[0],main)
+        self.assertEqual(completedTasklets[1],sendingTasklet)
+
+        self.assertEqual(completedTasklets[2],sendingTasklet)
+        self.assertEqual(completedTasklets[3],main)
+
+        self.assertEqual(completedTasklets[4],main)
+        self.assertEqual(completedTasklets[5],receivingTasklet)
+
+        self.assertEqual(completedTasklets[6],receivingTasklet)
+        self.assertEqual(completedTasklets[7],sendingTasklet)
+
+        self.assertEqual(completedTasklets[8],sendingTasklet)
+        self.assertEqual(completedTasklets[9],receivingTasklet)
+
+        self.assertEqual(completedTasklets[10],receivingTasklet)
+        self.assertEqual(completedTasklets[11],main)
+
+        self.assertEqual(completedTasklets[12],main)
+        self.assertEqual(completedTasklets[13],sendingTasklet)
+
+        self.assertEqual(completedTasklets[14],sendingTasklet)
+        self.assertEqual(completedTasklets[15],main)
+
+        scheduler.set_schedule_callback(None)
+
+
+
+    def testMultiLevelNestedTaskletRunOrderWithYieldToBlocked(self):
+        completedSendTasklets = [""]
+        
+        c = scheduler.channel()
+
+        def TaskletCallable(x):
+            completedSendTasklets[0] += "t" + str(x)
+
+        def Nest2():
+            c.receive() 
+            t2 = scheduler.tasklet(TaskletCallable)(2)
+            scheduler.tasklet(TaskletCallable)(3)
+            t2.run()
+
+        def Nest1():
+            t1 = scheduler.tasklet(TaskletCallable)(1)
+            scheduler.tasklet(Nest2)()
+            t1.run()
+            c.receive()
+            
+        def Sender():
+            c.send(None)
+
+        scheduler.tasklet(TaskletCallable)(0)
+        scheduler.tasklet(Nest1)()
+        scheduler.tasklet(Sender)()
+
+        self.run_scheduler()
+
+        self.assertEqual(self.getruncount(), 1)
+
+        self.assertEqual(completedSendTasklets[0],"t0t1t2t3")
+
+        c.send(None)
+
+        self.assertEqual(c.balance, 0)
+
+
+
 # Run all tasklets in queue
 class TestScheduleOrderRunAll(test_utils.SchedulerTestCaseBase, TestScheduleOrderBase):
     Watchdog = False
