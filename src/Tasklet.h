@@ -139,6 +139,8 @@ public:
 
     void SetCallable( PyObject* callable );
 
+    PyObject* GetCallable();
+
     bool RequiresRemoval();
 
     ChannelDirection GetBlockedDirection();

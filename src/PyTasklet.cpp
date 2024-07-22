@@ -193,6 +193,9 @@ static int
 static void
 	TaskletDealloc( PyTaskletObject* self )
 {
+	// Untrack garbage
+	PyObject_GC_UnTrack( self );
+
     // Call destructor
 	if( self->m_implementation )
     {
@@ -711,6 +714,59 @@ static PyObject*
 }
 
 
+static int
+	TaskletTraverse( PyTaskletObject* self, visitproc visit, void* arg )
+{
+	Tasklet* tasklet = self->m_implementation;
+
+	if( !tasklet )
+	{
+		return 0;
+	}
+
+	PyObject* callable = tasklet->GetCallable();
+
+	if( callable )
+	{
+		Py_VISIT( callable );
+	}
+
+	PyObject* bind_args = tasklet->Arguments();
+
+	if( bind_args )
+	{
+		Py_VISIT( bind_args );
+	}
+
+	return 0;
+}
+
+static int
+	TaskletClear( PyTaskletObject* self )
+{
+
+	if( !self->m_implementation )
+	{
+		return 0;
+	}
+
+	PyObject* callable = self->m_implementation->GetCallable();
+
+	if( callable )
+	{
+		self->m_implementation->SetCallable( nullptr );
+	}
+
+	PyObject* bind_args = self->m_implementation->Arguments();
+
+	if( bind_args )
+	{
+		self->m_implementation->SetArguments( nullptr );
+	}
+
+	return 0;
+}
+
 static PyObject*
     TaskletSetup( PyObject* callable, PyObject* args, PyObject* kwargs )
 {
@@ -880,10 +936,10 @@ static PyTypeObject TaskletType = {
 	0, /*tp_getattro*/
 	0, /*tp_setattro*/
 	0, /*tp_as_buffer*/
-	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /*tp_flags*/
+	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
 	PyDoc_STR( "Tasklet objects" ), /*tp_doc*/
-	0, /*tp_traverse*/
-	0, /*tp_clear*/
+	(traverseproc)TaskletTraverse, /*tp_traverse*/
+	(inquiry)TaskletClear, /*tp_clear*/
 	0, /*tp_richcompare*/
 	offsetof( PyTaskletObject, m_weakrefList ), /*tp_weaklistoffset*/
 	0, /*tp_iter*/

@@ -924,6 +924,11 @@ void Tasklet::SetCallable(PyObject* callable)
 	m_callable = callable;
 }
 
+PyObject* Tasklet::GetCallable()
+{
+	return m_callable;
+}
+
 bool Tasklet::RequiresRemoval()
 {
 	return m_remove;

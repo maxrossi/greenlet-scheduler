@@ -169,6 +169,45 @@ class TestTasklets(test_utils.SchedulerTestCaseBase):
         # Single check to ensure t is valid
         self.assertFalse(t.alive)
 
+    def testCyclicalCallableReferenceCleansUp(self):
+        # when wrapper is set to None the tasklet should clean up
+        # The tasklet holds a reference to the scheduleManager
+        # So when the tasklet is cleaned there should remain only
+        # 1 ref to schedule manager
+        class DummyWrapper:
+            def __init__(self):
+                def inner():
+                    print(self)
+                    
+                self.tasklet = scheduler.tasklet(inner)
+
+        wrapperInstance = DummyWrapper()
+        wrapperInstance = None
+
+        import gc
+        gc.collect()
+
+        self.assertEqual(sys.getrefcount(self.scheduleManager), 2)
+
+    def testTaskletsWithCyclicalArgumentCleansUp(self):
+        # If Tasklet has itself in an argument ensure that 
+        # cyclic dep is handled
+
+        def test(x):
+            print("world")
+
+        t = scheduler.tasklet(test)
+        t.bind(test,(t,))
+
+        t = None
+
+        import gc
+        gc.collect()
+
+        self.assertEqual(sys.getrefcount(self.scheduleManager), 2)
+
+
+
 
 
 class TestTaskletThrowBase(object):
