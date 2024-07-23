@@ -106,7 +106,7 @@ static PyObject*
 }
 
 static int
-	ChannelPreferenceSet( PyChannelObject* self, PyObject* value, void* closure ) //TODO just test
+	ChannelPreferenceSet( PyChannelObject* self, PyObject* value, void* closure )
 {
 	// Ensure PyChannelObject is in a valid state
 	if( !PyChannelObjectIsValid( self ) )
@@ -400,24 +400,18 @@ static PyObject*
 	ChannelNext( PyChannelObject* self )
 {
     // Run receive until unblocked
-    // Note: behaviour is slightly different to stackless but probably better
-    // At end of iteration there will be an error due to DEADLOCK
-    // This will return a nullptr
-    // This null then returned here will turn this into a StopIteration error
-    // Which makes more sense
+    // It is possible that this will raise a nullptr in case of deadlock
+    // Doesn't raise a StopIteration error as iteration never really stops
 	PyObject* ret = ChannelReceive( self, nullptr );
 
     if (!ret)
     {
-		PyErr_SetString( PyExc_StopIteration, "Channel is closed" );    //TODO: This is not technically true, requires Stackless investigation
-
         return nullptr;
     }
     else
     {
 		return ret;
     }
-
 }
 
 static PyObject*
