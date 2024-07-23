@@ -28,15 +28,15 @@ def switch_trapped():
 
 class TestTaskletRunOrder(test_utils.SchedulerTestCaseBase):
     
-    def testTaskletRunOrder(self):
+    def test_tasklet_run_order(self):
         completedSendTasklets = [""]
 
-        def taskletCallable(x):
+        def tasklet_callable(x):
             completedSendTasklets[0] += "t" + str(x)
 
-        t1 = scheduler.tasklet(taskletCallable)(1)
-        scheduler.tasklet(taskletCallable)(2)
-        scheduler.tasklet(taskletCallable)(3)
+        t1 = scheduler.tasklet(tasklet_callable)(1)
+        scheduler.tasklet(tasklet_callable)(2)
+        scheduler.tasklet(tasklet_callable)(3)
 
         self.assertEqual(self.getruncount(), 4)
 
@@ -46,15 +46,15 @@ class TestTaskletRunOrder(test_utils.SchedulerTestCaseBase):
 
         self.assertEqual(completedSendTasklets[0],"t1t2t3")
 
-    def testTaskletRunOrder2(self):
+    def test_tasklet_run_order_2(self):
         completedSendTasklets = [""]
 
-        def taskletCallable(x):
+        def tasklet_callable(x):
             completedSendTasklets[0] += "t" + str(x)
 
-        t1 = scheduler.tasklet(taskletCallable)(1)
-        t2 = scheduler.tasklet(taskletCallable)(2)
-        scheduler.tasklet(taskletCallable)(3)
+        t1 = scheduler.tasklet(tasklet_callable)(1)
+        t2 = scheduler.tasklet(tasklet_callable)(2)
+        scheduler.tasklet(tasklet_callable)(3)
 
         self.assertEqual(self.getruncount(), 4)
 
@@ -70,15 +70,15 @@ class TestTaskletRunOrder(test_utils.SchedulerTestCaseBase):
 
 class TestScheduleOrderBase(object):
 
-    def testSchedulerRunOrder(self):
+    def test_scheduler_run_order(self):
         completedSendTasklets = [""]
 
-        def taskletCallable(x):
+        def tasklet_callable(x):
             completedSendTasklets[0] += "t" + str(x)
 
-        scheduler.tasklet(taskletCallable)(1)
-        scheduler.tasklet(taskletCallable)(2)
-        scheduler.tasklet(taskletCallable)(3)
+        scheduler.tasklet(tasklet_callable)(1)
+        scheduler.tasklet(tasklet_callable)(2)
+        scheduler.tasklet(tasklet_callable)(3)
 
         self.assertEqual(self.getruncount(), 4)
 
@@ -88,21 +88,21 @@ class TestScheduleOrderBase(object):
 
         self.assertEqual(completedSendTasklets[0],"t1t2t3")
 
-    def testNestedTaskletRunOrder(self):
+    def test_nested_tasklet_run_order(self):
         completedSendTasklets = [""]
 
-        def taskletCallable(x):
+        def tasklet_callable(x):
             completedSendTasklets[0] += "t" + str(x)
 
-        def createNestedTaskletRun():
-            t2 = scheduler.tasklet(taskletCallable)(2)
-            scheduler.tasklet(taskletCallable)(3)
-            scheduler.tasklet(taskletCallable)(4)
+        def create_nested_tasklet_run():
+            t2 = scheduler.tasklet(tasklet_callable)(2)
+            scheduler.tasklet(tasklet_callable)(3)
+            scheduler.tasklet(tasklet_callable)(4)
             t2.run()
 
-        scheduler.tasklet(taskletCallable)(1)
-        scheduler.tasklet(createNestedTaskletRun)()
-        scheduler.tasklet(taskletCallable)(5)
+        scheduler.tasklet(tasklet_callable)(1)
+        scheduler.tasklet(create_nested_tasklet_run)()
+        scheduler.tasklet(tasklet_callable)(5)
 
         self.assertEqual(self.getruncount(), 4)
 
@@ -113,24 +113,24 @@ class TestScheduleOrderBase(object):
         self.assertEqual(completedSendTasklets[0],"t1t2t3t4t5")
 
 
-    def testNestedTaskletRunOrderWithSchedule(self):
+    def test_nested_tasklet_run_order_with_schedule(self):
         completedSendTasklets = [""]
 
-        def taskletCallable(x):
+        def tasklet_callable(x):
             completedSendTasklets[0] += "t" + str(x)
 
         def schedule():
             scheduler.schedule()
 
-        def createNestedTaskletRun():
-            t2 = scheduler.tasklet(taskletCallable)(2)
+        def create_nested_tasklet_run():
+            t2 = scheduler.tasklet(tasklet_callable)(2)
             scheduler.tasklet(schedule)()
-            scheduler.tasklet(taskletCallable)(3)
+            scheduler.tasklet(tasklet_callable)(3)
             t2.run()
 
-        scheduler.tasklet(taskletCallable)(1)
-        scheduler.tasklet(createNestedTaskletRun)()
-        scheduler.tasklet(taskletCallable)(4)
+        scheduler.tasklet(tasklet_callable)(1)
+        scheduler.tasklet(create_nested_tasklet_run)()
+        scheduler.tasklet(tasklet_callable)(4)
 
         self.assertEqual(self.getruncount(), 4)
 
@@ -141,31 +141,31 @@ class TestScheduleOrderBase(object):
         self.assertEqual(completedSendTasklets[0],"t1t2t3t4")
 
 
-    def testMultiLevelNestedTaskletRunOrderWithSchedule(self):
+    def test_multi_level_nested_tasklet_run_order_with_schedule(self):
         completedSendTasklets = [""]
 
-        def taskletCallable(x):
+        def tasklet_callable(x):
             completedSendTasklets[0] += "t" + str(x)
 
         def schedule():
             scheduler.schedule()
 
-        def createNestedTaskletRun2():
-            t2 = scheduler.tasklet(taskletCallable)(3)
+        def create_nested_tasklet_run_2():
+            t2 = scheduler.tasklet(tasklet_callable)(3)
             scheduler.tasklet(schedule)()
-            scheduler.tasklet(taskletCallable)(4)
+            scheduler.tasklet(tasklet_callable)(4)
             t2.run()
 
-        def createNestedTaskletRun():
-            t2 = scheduler.tasklet(taskletCallable)(2)
+        def create_nested_tasklet_run():
+            t2 = scheduler.tasklet(tasklet_callable)(2)
             scheduler.tasklet(schedule)()
-            scheduler.tasklet(createNestedTaskletRun2)()
-            scheduler.tasklet(taskletCallable)(5)
+            scheduler.tasklet(create_nested_tasklet_run_2)()
+            scheduler.tasklet(tasklet_callable)(5)
             t2.run()
 
-        scheduler.tasklet(taskletCallable)(1)
-        scheduler.tasklet(createNestedTaskletRun)()
-        scheduler.tasklet(taskletCallable)(6)
+        scheduler.tasklet(tasklet_callable)(1)
+        scheduler.tasklet(create_nested_tasklet_run)()
+        scheduler.tasklet(tasklet_callable)(6)
 
         self.assertEqual(self.getruncount(), 4)
 
@@ -175,7 +175,7 @@ class TestScheduleOrderBase(object):
 
         self.assertEqual(completedSendTasklets[0],"t1t2t3t4t5t6")
 
-    def testChannelUsageScheduleOrderPreferenceReceiver(self):
+    def test_channel_usage_schedule_order_preference_receiver(self):
 
         completedTasklets = []
         testValue = "TEST_VALUE"
@@ -184,15 +184,15 @@ class TestScheduleOrderBase(object):
 
         c.preference = -1
 
-        def sendingTaskletCallable(valueToSend):
+        def sending_tasklet_callable(valueToSend):
             c.send(valueToSend)
 
-        def receivingTaskletCallable(expectedValue):
+        def receiving_tasklet_callable(expectedValue):
             self.assertEqual(expectedValue, c.receive())
 
         main = scheduler.getmain()
-        sendingTasklet = scheduler.tasklet(sendingTaskletCallable)(testValue)
-        receivingTasklet = scheduler.tasklet(receivingTaskletCallable)(testValue)
+        sendingTasklet = scheduler.tasklet(sending_tasklet_callable)(testValue)
+        receivingTasklet = scheduler.tasklet(receiving_tasklet_callable)(testValue)
 
         def callback(previousTasklet, nextTasklet):
             completedTasklets.append(previousTasklet)
@@ -230,32 +230,32 @@ class TestScheduleOrderBase(object):
 
 
 
-    def testMultiLevelNestedTaskletRunOrderWithYieldToBlocked(self):
+    def test_multi_level_nested_tasklet_run_order_with_yield_to_blocked(self):
         completedSendTasklets = [""]
         
         c = scheduler.channel()
 
-        def TaskletCallable(x):
+        def tasklet_callable(x):
             completedSendTasklets[0] += "t" + str(x)
 
-        def Nest2():
+        def nest_2():
             c.receive() 
-            t2 = scheduler.tasklet(TaskletCallable)(2)
-            scheduler.tasklet(TaskletCallable)(3)
+            t2 = scheduler.tasklet(tasklet_callable)(2)
+            scheduler.tasklet(tasklet_callable)(3)
             t2.run()
 
-        def Nest1():
-            t1 = scheduler.tasklet(TaskletCallable)(1)
-            scheduler.tasklet(Nest2)()
+        def nest_1():
+            t1 = scheduler.tasklet(tasklet_callable)(1)
+            scheduler.tasklet(nest_2)()
             t1.run()
             c.receive()
             
-        def Sender():
+        def sender():
             c.send(None)
 
-        scheduler.tasklet(TaskletCallable)(0)
-        scheduler.tasklet(Nest1)()
-        scheduler.tasklet(Sender)()
+        scheduler.tasklet(tasklet_callable)(0)
+        scheduler.tasklet(nest_1)()
+        scheduler.tasklet(sender)()
 
         self.run_scheduler()
 
@@ -290,7 +290,7 @@ class TestSchedule(test_utils.SchedulerTestCaseBase):
         super().setUp()
         self.events = []
 
-    def testSchedule(self):
+    def test_schedule(self):
         def foo(previous):
             self.events.append("foo")
             self.assertTrue(previous.scheduled)
@@ -301,22 +301,24 @@ class TestSchedule(test_utils.SchedulerTestCaseBase):
         self.assertEqual(self.getruncount(), 1)
         self.assertEqual(self.events, ["foo"])
 
-    def testScheduleRemoveFail(self):
-        def nestedTasklet():
+    def test_schedule_remove_fail(self):
+
+        def nested_tasklet():
             def foo(previous):
                 self.events.append("foo")
                 self.assertFalse(previous.scheduled)
                 previous.insert()
                 self.assertTrue(previous.scheduled)
+
             t = scheduler.tasklet(foo)(scheduler.getcurrent())
             self.assertEqual(self.getruncount(), 3)
             scheduler.schedule_remove()
             self.assertEqual(self.getruncount(), 2)
             self.assertEqual(self.events, ["foo"])
-        t = scheduler.tasklet(nestedTasklet)()
+        t = scheduler.tasklet(nested_tasklet)()
         t.run()
 
-    def testSetScheduleCallback(self):
+    def test_set_schedule_callback(self):
 
         def callback1(previousTasklet,nextTasklet):
             pass
@@ -333,14 +335,14 @@ class TestSchedule(test_utils.SchedulerTestCaseBase):
         self.assertEqual(scheduler.get_schedule_callback(),None)
 
 
-    def testScheduleCallbackBasic(self):
+    def test_schedule_callback_basic(self):
         callbackOutput = []
 
-        def scheduleCallback(previousTasklet, nextTasklet):
+        def schedule_callback(previousTasklet, nextTasklet):
             callbackOutput.append(previousTasklet)
             callbackOutput.append(nextTasklet)
 
-        scheduler.set_schedule_callback(scheduleCallback)
+        scheduler.set_schedule_callback(schedule_callback)
 
         main = scheduler.getmain()
         t1 = scheduler.tasklet(lambda: None)()
@@ -371,7 +373,7 @@ class TestSchedule(test_utils.SchedulerTestCaseBase):
 
 
 class TestRun(test_utils.SchedulerTestCaseBase):
-    def testCallingRunFromNonMainTasklet(self):
+    def test_calling_run_from_non_main_tasklet(self):
 
         values = []
         def foo(x):

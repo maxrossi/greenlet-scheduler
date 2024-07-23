@@ -18,7 +18,7 @@ from test_utils import SchedulerTestCaseBase
 
 
 class TestChannels(SchedulerTestCaseBase):
-    def testBlockingSend(self):
+    def test_blocking_send(self):
         ''' Test that when a tasklet sends to a channel without waiting receivers, the tasklet is blocked. '''
 
         # Function to block when run in a tasklet.
@@ -38,7 +38,7 @@ class TestChannels(SchedulerTestCaseBase):
         # The channel should have a balance indicating one blocked sender.
         self.assertTrue(channel.balance == 1, "The channel balance should indicate one blocked sender waiting for a corresponding receiver")
 
-    def testBlockingReceive(self):
+    def test_blocking_receive(self):
         ''' Test that when a tasklet receives from a channel without waiting senders, the tasklet is blocked. '''
 
         # Function to block when run in a tasklet.
@@ -58,7 +58,7 @@ class TestChannels(SchedulerTestCaseBase):
         # The channel should have a balance indicating one blocked sender.
         self.assertEqual(channel.balance, -1, "The channel balance should indicate one blocked receiver waiting for a corresponding sender")
 
-    def testNonBlockingSend(self):
+    def test_non_blocking_send(self):
         ''' Test that when there is a waiting receiver, we can send without blocking with normal channel behaviour. '''
 
         originalValue = 1
@@ -87,7 +87,7 @@ class TestChannels(SchedulerTestCaseBase):
 
         self.assertTrue(len(receivedValues) == 1 and receivedValues[0] == originalValue, "We sent a value, but it was not the one we received.  Completely unexpected.")
 
-    def testNonBlockingReceive(self):
+    def test_non_blocking_receive(self):
         ''' Test that when there is a waiting sender, we can receive without blocking with normal channel behaviour. '''
         originalValue = 1
 
@@ -116,7 +116,7 @@ class TestChannels(SchedulerTestCaseBase):
 
         self.assertEqual(value, originalValue, "We received a value, but it was not the one we sent.  Completely unexpected.")
 
-    def testBlockTrapSend(self):
+    def test_block_trap_send(self):
         '''Test that block trapping works when receiving'''
         channel = scheduler.channel()
         count = [0]
@@ -135,7 +135,7 @@ class TestChannels(SchedulerTestCaseBase):
         self.assertEqual(self.getruncount(), 1)
         self.assertEqual(count[0], 2)
 
-    def testBlockTrapRecv(self):
+    def test_block_trap_recv(self):
         '''Test that block trapping works when receiving'''
         channel = scheduler.channel()
         count = [0]
@@ -152,12 +152,12 @@ class TestChannels(SchedulerTestCaseBase):
         self.assertEqual(self.getruncount(), 1)
         self.assertEqual(count[0], 2)
 
-    def testMainTaskletBlockingWithoutASender(self):
+    def test_main_tasklet_blocking_without_a_sender(self):
         ''' Test that the last runnable tasklet cannot be blocked on a channel receive. '''
         c = scheduler.channel()
         self.assertRaises(RuntimeError, c.receive)
 
-    def testMainTaskletBlockingWithoutReceiver(self):
+    def test_main_tasklet_blocking_without_receiver(self):
         ''' Test that the last runnable tasklet cannot be blocked on a channel send. '''
         c = scheduler.channel()
         def test_send():
@@ -165,7 +165,7 @@ class TestChannels(SchedulerTestCaseBase):
 
         self.assertRaises(RuntimeError, test_send)
 
-    def testMainTaskletReceiveDeadlockAfterRunningChildTasklets(self):
+    def test_main_tasklet_receive_deadlock_after_running_child_tasklets(self):
         runOrder = []
 
         def noop(i):
@@ -178,7 +178,7 @@ class TestChannels(SchedulerTestCaseBase):
         self.assertRaisesRegex(RuntimeError, "Deadlock", chan.receive)
         self.assertEqual([0,1,2,3,4,5,6,7,8,9], runOrder)
 
-    def testMainTaskletSendDeadlockAfterRunningChildTasklets(self):
+    def test_main_tasklet_send_deadlock_after_running_child_tasklets(self):
         runOrder = []
 
         def noop(i):
@@ -194,7 +194,7 @@ class TestChannels(SchedulerTestCaseBase):
         self.assertRaisesRegex(RuntimeError, "Deadlock", send)
         self.assertEqual([0,1,2,3,4,5,6,7,8,9], runOrder)
 
-    def testInterthreadCommunication(self):
+    def test_inter_thread_communication(self):
         ''' Test that tasklets in different threads sending over channels to each other work. '''
         import threading
         commandChannel = scheduler.channel()
@@ -222,7 +222,7 @@ class TestChannels(SchedulerTestCaseBase):
         scheduler_run(slave_func)
         thread.join()
 
-    def testSendingTaskletsRescheduledByChannelAreRun(self):
+    def test_sending_tasklets_rescheduled_by_channel_are_run(self):
         run_order = []
 
         def sender(chan, x):
@@ -259,26 +259,7 @@ class TestChannels(SchedulerTestCaseBase):
 
         self.assertEqual(run_order, [1,2])
 
-    def testReceivingTaskletsRescheduledByChannelAreRun(self):
-        run_order = []
-
-        def sender(chan, x):
-          chan.send(x)
-          run_order.append(1)
-
-        def receiver(chan):
-          r = chan.receive()
-          run_order.append(2)
-
-        channel = scheduler.channel()
-        channel.preference = 1
-        _tasklet_A = scheduler.tasklet(receiver)(channel)
-        _tasklet_B = scheduler.tasklet(sender)(channel, "Joe")
-
-        scheduler.run()
-
-        self.assertEqual(run_order, [1,2])
-
+    def test_receiving_tasklets_rescheduled_by_channel_are_run(self):
         run_order = []
 
         def sender(chan, x):
@@ -291,6 +272,25 @@ class TestChannels(SchedulerTestCaseBase):
 
         channel = scheduler.channel()
         channel.preference = 1
+        _tasklet_A = scheduler.tasklet(receiver)(channel)
+        _tasklet_B = scheduler.tasklet(sender)(channel, "Joe")
+
+        scheduler.run()
+
+        self.assertEqual(run_order, [1,2])
+
+        run_order = []
+
+        def sender(chan, x):
+          chan.send(x)
+          run_order.append(1)
+
+        def receiver(chan):
+          r = chan.receive()
+          run_order.append(2)
+
+        channel = scheduler.channel()
+        channel.preference = 1
         _tasklet_B = scheduler.tasklet(sender)(channel, "Joe")
         _tasklet_A = scheduler.tasklet(receiver)(channel)
 
@@ -298,7 +298,7 @@ class TestChannels(SchedulerTestCaseBase):
 
         self.assertEqual(run_order, [1,2])
 
-    def testSendException(self):
+    def test_send_exception(self):
 
         # Function to send the exception
         def f(testChannel):
@@ -320,7 +320,7 @@ class TestChannels(SchedulerTestCaseBase):
         except ValueError as e:
             self.assertEqual(e.args, (1, 2, 3))
 
-    def testSendThrowPrefenceSend(self):
+    def test_send_throw_prefence_send(self):
         import traceback
 
         channel = scheduler.channel()
@@ -355,7 +355,7 @@ class TestChannels(SchedulerTestCaseBase):
 
         self.assertTrue(run[0])
 
-    def testSendThrow(self):
+    def test_send_throw(self):
         import traceback
 
         # subfunction in tasklet
@@ -392,7 +392,7 @@ class TestChannels(SchedulerTestCaseBase):
             l = traceback.extract_tb(tb)
             self.assertEqual(l[-1][2], "bar")
 
-    def testBlockingReceiveOnMainTasklet(self):
+    def test_blocking_receive_on_main_tasklet(self):
 
         sentValues = []
 
@@ -418,7 +418,7 @@ class TestChannels(SchedulerTestCaseBase):
         scheduler.run()
         self.assertEqual(sentValues, [0,1,2,3,4,5,6,7,8,9])
 
-    def testBlockedTaskletsGreenletIsNotParent(self):
+    def test_blocked_tasklets_greenlet_is_not_parent(self):
         taskletOrder = []
         def foo(x):
             taskletOrder.append(x)
@@ -450,7 +450,7 @@ class TestChannels(SchedulerTestCaseBase):
         self.assertEqual(taskletOrder, [1, 'a', 2, 'b', 3])
 
 
-    def testBlockingSendOnMainTasklet(self):
+    def test_blocking_send_on_main_tasklet(self):
 
         receivedValues = []
 
@@ -475,7 +475,7 @@ class TestChannels(SchedulerTestCaseBase):
         self.assertEqual(channel.balance, 0)
         self.assertEqual(receivedValues, [0,1,2,3,4,5,6,7,8,9])
 
-    def testPreferenceSender(self):
+    def test_preference_sender(self):
         completedTasklets = []
 
         c = scheduler.channel()
@@ -520,7 +520,7 @@ class TestChannels(SchedulerTestCaseBase):
         self.assertEqual(expectedExecutionOrder, completedTasklets)
 
 
-    def testPreferenceReceiver(self):
+    def test_preference_receiver(self):
         completedSendTasklets = []
 
         c = scheduler.channel()
@@ -544,7 +544,7 @@ class TestChannels(SchedulerTestCaseBase):
 
         self.assertEqual(10, len(completedSendTasklets))
 
-    def testPreferenceNeitherSimple(self):
+    def test_preference_neither_simple(self):
         taskletComplete = [False]
 
         c = scheduler.channel()
@@ -570,7 +570,7 @@ class TestChannels(SchedulerTestCaseBase):
         self.assertTrue(taskletComplete[0])
 
 
-    def testPreferenceNeither(self):
+    def test_preference_neither(self):
         completedTasklets = []
 
         c = scheduler.channel()
@@ -615,7 +615,7 @@ class TestChannels(SchedulerTestCaseBase):
 
         self.assertEqual(len(completedTasklets), 47)
 
-    def testChannelIteratorInterface(self):
+    def test_channel_iterator_interface(self):
         channel = scheduler.channel()
 
         def send_value(x):
@@ -652,17 +652,17 @@ class TestChannels(SchedulerTestCaseBase):
 
         self.assertEqual(count,6)
 
-    def testSendOnClosed(self):
+    def test_send_on_closed(self):
         c = scheduler.channel()
         c.close()
         self.assertRaises(ValueError, c.send, None)
 
-    def testReceiveOnClosed(self):
+    def test_receive_on_closed(self):
         c = scheduler.channel()
         c.close()
         self.assertRaises(ValueError, c.receive)
 
-    def testClosing(self):
+    def test_closing(self):
         c = scheduler.channel()
         testSendValue = 101
 
@@ -686,7 +686,7 @@ class TestChannels(SchedulerTestCaseBase):
 
         self.assertRaises(ValueError, c.receive)
 
-    def testOpen(self):
+    def test_open(self):
         testValue = 101
         c = scheduler.channel()
         c.close()
@@ -708,7 +708,7 @@ class TestChannels(SchedulerTestCaseBase):
         self.assertEqual(c.receive(), testValue)
 
 
-    def testIteratorOnClosed(self):
+    def test_iterator_on_closed(self):
         c = scheduler.channel()
         c.close()
         i = iter(c)
@@ -948,7 +948,7 @@ class TestChannels(SchedulerTestCaseBase):
         t.kill()
         self.assertEqual(channel.balance, 0)
 
-    def testSetChannelCallback(self):
+    def test_set_channel_callback(self):
 
         def callback1(channel, tasklet, is_sending, will_block):
             pass
@@ -964,27 +964,27 @@ class TestChannels(SchedulerTestCaseBase):
         self.assertEqual(callback2, scheduler.set_channel_callback(None))
         self.assertEqual(scheduler.get_channel_callback(),None)
 
-    def testChannelCallbackWithBlockingSend(self):
+    def test_channel_callback_with_blocking_send(self):
         callbackOutput = []
 
-        def channelCallback(channel, tasklet, is_sending, will_block):
+        def channel_callback(channel, tasklet, is_sending, will_block):
             callbackOutput.append([channel,tasklet,is_sending,will_block])
 
-        scheduler.set_channel_callback(channelCallback)
+        scheduler.set_channel_callback(channel_callback)
     
         c = scheduler.channel()
         testValue = "VALUE"
 
-        def SendingTasklet(val):
+        def sending_tasklet(val):
             c.send(val)
 
-        def ReceivingTasklet(expected):
+        def receiving_tasklet(expected):
             value = c.receive()
             self.assertEqual(value,expected)
 
         # Test Blocking send    
-        t1 = scheduler.tasklet(SendingTasklet)(testValue)
-        t2 = scheduler.tasklet(ReceivingTasklet)(testValue)
+        t1 = scheduler.tasklet(sending_tasklet)(testValue)
+        t2 = scheduler.tasklet(receiving_tasklet)(testValue)
 
         scheduler.run()
 
@@ -1004,27 +1004,27 @@ class TestChannels(SchedulerTestCaseBase):
         scheduler.set_channel_callback(None)
         
 
-    def testChannelCallbackWithBlockingReceive(self):
+    def test_channel_callback_with_blocking_receive(self):
         callbackOutput = []
 
-        def channelCallback(channel, tasklet, is_sending, will_block):
+        def channel_callback(channel, tasklet, is_sending, will_block):
             callbackOutput.append([channel,tasklet,is_sending,will_block])
 
-        scheduler.set_channel_callback(channelCallback)
+        scheduler.set_channel_callback(channel_callback)
     
         c = scheduler.channel()
         testValue = "VALUE"
 
-        def SendingTasklet(val):
+        def sending_tasklet(val):
             c.send(val)
 
-        def ReceivingTasklet(expected):
+        def receiving_tasklet(expected):
             value = c.receive()
             self.assertEqual(value,expected)
 
         # Test Blocking send    
-        t1 = scheduler.tasklet(ReceivingTasklet)(testValue)
-        t2 = scheduler.tasklet(SendingTasklet)(testValue)
+        t1 = scheduler.tasklet(receiving_tasklet)(testValue)
+        t2 = scheduler.tasklet(sending_tasklet)(testValue)
 
         scheduler.run()
 
@@ -1043,7 +1043,7 @@ class TestChannels(SchedulerTestCaseBase):
         # Channel callback is global, clean up here to not leak into other tests when running all as one
         scheduler.set_channel_callback(None)
 
-    def testChannelTestClearBlocked(self):
+    def test_channel_test_clear_blocked(self):
         exitOutput = []
 
         TASKLET1_ID = "TASKLET1"

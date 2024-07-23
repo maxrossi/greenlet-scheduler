@@ -19,7 +19,7 @@ else:
 
 
 class TestQueueChannels(SchedulerTestCaseBase):
-    def testNonBlockingSend(self):
+    def test_non_blocking_send(self):
         def send(test_channel):
             test_channel.send((1, 2, 3))
 
@@ -33,7 +33,7 @@ class TestQueueChannels(SchedulerTestCaseBase):
         self.assertFalse(tasklet.blocked, "The tasklet should have been run and not been blocked on a channel waiting "
                                           "for a receiver")
 
-    def testChannelBalance(self):
+    def test_channel_balance(self):
         def send(test_channel):
             test_channel.send((1, 2, 3))
 
@@ -50,7 +50,7 @@ class TestQueueChannels(SchedulerTestCaseBase):
         self.assertEqual(channel.balance, len(channel.data_queue),
                          "The channel balance should equal the length of the channel's data queue")
 
-    def testQueueData(self):
+    def test_queue_data(self):
         def send(test_channel):
             test_channel.send((1, 2, 3))
 
@@ -71,7 +71,7 @@ class TestQueueChannels(SchedulerTestCaseBase):
 
         self.assertEqual(len(channel), len(data_to_send), "len(channel) does not match queue length")
 
-    def testBlockingReceive(self):
+    def test_blocking_receive(self):
         def receive(test_channel):
             return test_channel.receive()
 
@@ -96,7 +96,7 @@ class TestQueueChannels(SchedulerTestCaseBase):
 
         self.assertFalse(receiving_tasklet.blocked, "Channel should unblock receiving tasklets when it accrues senders")
 
-    def testSendException(self):
+    def test_send_exception(self):
         # Function to send the exception
         def foo(test_channel):
             test_channel.send_exception(ValueError, *(1, 2, 3))
@@ -115,7 +115,7 @@ class TestQueueChannels(SchedulerTestCaseBase):
 
         self.assertTrue(exception_received, "Failed to receive the exception sent over the channel")
 
-    def testSendThrow(self):
+    def test_send_throw(self):
         import traceback
 
         # subfunction in tasklet
@@ -149,7 +149,7 @@ class TestQueueChannels(SchedulerTestCaseBase):
 
         self.assertTrue(exc)
 
-    def testMainTaskletBlockingWithoutReceiver(self):
+    def test_main_tasklet_blocking_without_receiver(self):
         c = QueueChannel()
 
         def test_send():
@@ -157,7 +157,7 @@ class TestQueueChannels(SchedulerTestCaseBase):
 
         self.assertRaises(RuntimeError, test_send)
 
-    def testBlockedTaskletsGreenletIsNotParent(self):
+    def test_blocked_tasklets_greenlet_is_not_parent(self):
         taskletOrder = []
 
         def foo(x):
@@ -188,7 +188,7 @@ class TestQueueChannels(SchedulerTestCaseBase):
 
         self.assertEqual(taskletOrder, ['a', 1, 2, 'b', 'c'])
 
-    def testBlockTrapSend(self):
+    def test_block_trap_send(self):
         """
         Test that block trapping works when receiving
         """
@@ -208,7 +208,7 @@ class TestQueueChannels(SchedulerTestCaseBase):
         self.assertEqual(self.getruncount(), 1)
         self.assertEqual(count[0], 2)
 
-    def testBlockingReceiveOnMainTasklet(self):
+    def test_blocking_receive_on_main_tasklet(self):
         receivedValues = []
 
         def sender(chan):

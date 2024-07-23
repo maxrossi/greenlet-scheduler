@@ -169,7 +169,7 @@ class TestTasklets(test_utils.SchedulerTestCaseBase):
         # Single check to ensure t is valid
         self.assertFalse(t.alive)
 
-    def testCyclicalCallableReferenceCleansUp(self):
+    def test_cyclical_callable_reference_cleans_up(self):
         # when wrapper is set to None the tasklet should clean up
         # The tasklet holds a reference to the scheduleManager
         # So when the tasklet is cleaned there should remain only
@@ -189,7 +189,7 @@ class TestTasklets(test_utils.SchedulerTestCaseBase):
 
         self.assertEqual(sys.getrefcount(self.scheduleManager), 2)
 
-    def testTaskletsWithCyclicalArgumentCleansUp(self):
+    def test_tasklets_with_cyclical_argument_cleans_up(self):
         # If Tasklet has itself in an argument ensure that 
         # cyclic dep is handled
 
@@ -212,7 +212,7 @@ class TestTasklets(test_utils.SchedulerTestCaseBase):
 
 class TestTaskletThrowBase(object):
 
-    def aftercheck(self, s):
+    def after_check(self, s):
         # the tasklet ran immediately
         self.assertFalse(s.alive)
 
@@ -234,7 +234,7 @@ class TestTaskletThrowBase(object):
 
         self.throw(s, IndexError)
 
-        self.aftercheck(s)
+        self.after_check(s)
 
     def test_throw_args(self):
         c = scheduler.channel()
@@ -251,7 +251,7 @@ class TestTaskletThrowBase(object):
         self.assertEqual(self.getruncount(), 1)
         self.assertEqual(c.balance, -1)
         self.throw(s, IndexError, (1, 2, 3))
-        self.aftercheck(s)
+        self.after_check(s)
 
     def test_throw_inst(self):
         c = scheduler.channel()
@@ -268,7 +268,7 @@ class TestTaskletThrowBase(object):
         self.assertEqual(self.getruncount(), 1)
         self.assertEqual(c.balance,-1)
         self.throw(s, IndexError(1, 2, 3))
-        self.aftercheck(s)
+        self.after_check(s)
 
     def test_throw_exc_info(self):
         c = scheduler.channel()
@@ -290,7 +290,7 @@ class TestTaskletThrowBase(object):
             errfunc()
         except Exception:
             self.throw(s, *sys.exc_info())
-        self.aftercheck(s)
+        self.after_check(s)
 
     def test_throw_traceback(self):
         c = scheduler.channel()
@@ -313,7 +313,7 @@ class TestTaskletThrowBase(object):
             errfunc()
         except Exception:
             self.throw(s, *sys.exc_info())
-        self.aftercheck(s)
+        self.after_check(s)
 
     def test_new(self):
         c = scheduler.channel()
@@ -413,7 +413,7 @@ class TestTaskletThrowImmediate(test_utils.SchedulerTestCaseBase, TestTaskletThr
     def throw(cls, s, *args):
         s.throw(*args, pending=cls.pending)
 
-    def aftercheck(self, s):
+    def after_check(self, s):
         # the tasklet ran immediately
         self.assertFalse(s.alive)
 
@@ -421,7 +421,7 @@ class TestTaskletThrowImmediate(test_utils.SchedulerTestCaseBase, TestTaskletThr
 class TestTaskletThrowNonImmediate(TestTaskletThrowImmediate):
     pending = True
 
-    def aftercheck(self, s):
+    def after_check(self, s):
         # After the throw, the tasklet still hasn't run
         self.assertTrue(s.alive)
         s.run()
@@ -602,8 +602,6 @@ class TestExceptions(test_utils.SchedulerTestCaseBase):
 
         self.assertTrue(taskletExceptHit[0])
 
-
-
 class TestBind(test_utils.SchedulerTestCaseBase):
 
     def setUp(self):
@@ -620,7 +618,7 @@ class TestBind(test_utils.SchedulerTestCaseBase):
         finally:
             self.finally_run_count += 1
 
-    def argstest(self, *args, **kwargs):
+    def args_test(self, *args, **kwargs):
         self.args = args
         self.kwargs = dict(kwargs)
 
@@ -710,14 +708,14 @@ class TestBind(test_utils.SchedulerTestCaseBase):
     def test_bind_noargs(self):
         t = scheduler.tasklet(self.task)
         self.assertEqual(self.getruncount(), 1)
-        t.bind(self.argstest)
+        t.bind(self.args_test)
         self.assertRaises(RuntimeError, t.run)
 
     def test_bind_args(self):
         args = "foo", "bar"
         t = scheduler.tasklet(self.task)
         self.assertEqual(self.getruncount(), 1)
-        t.bind(self.argstest, args)
+        t.bind(self.args_test, args)
         self.assertEqual(self.getruncount(), 1)
         t.run()
         self.assertEqual(self.getruncount(), 1)
@@ -725,7 +723,7 @@ class TestBind(test_utils.SchedulerTestCaseBase):
 
         t = scheduler.tasklet(self.task)
         self.assertEqual(self.getruncount(), 1)
-        t.bind(self.argstest, args=args)
+        t.bind(self.args_test, args=args)
         self.assertEqual(self.getruncount(), 1)
         t.run()
         self.assertEqual(self.getruncount(), 1)
@@ -735,7 +733,7 @@ class TestBind(test_utils.SchedulerTestCaseBase):
         t = scheduler.tasklet(self.task)
         self.assertEqual(self.getruncount(), 1)
         kwargs = {"hello": "world"}
-        t.bind(self.argstest, None, kwargs)
+        t.bind(self.args_test, None, kwargs)
         self.assertEqual(self.getruncount(), 1)
         t.run()
         self.assertEqual(self.getruncount(), 1)
@@ -743,7 +741,7 @@ class TestBind(test_utils.SchedulerTestCaseBase):
 
         t = scheduler.tasklet(self.task)
         self.assertEqual(self.getruncount(), 1)
-        t.bind(self.argstest, kwargs=kwargs)
+        t.bind(self.args_test, kwargs=kwargs)
         self.assertEqual(self.getruncount(), 1)
         t.run()
         self.assertEqual(self.getruncount(), 1)
@@ -755,7 +753,7 @@ class TestBind(test_utils.SchedulerTestCaseBase):
 
         t = scheduler.tasklet(self.task)
         self.assertEqual(self.getruncount(), 1)
-        t.bind(self.argstest, args, kwargs)
+        t.bind(self.args_test, args, kwargs)
         self.assertEqual(self.getruncount(), 1)
         t.run()
         self.assertEqual(self.getruncount(), 1)
@@ -763,7 +761,7 @@ class TestBind(test_utils.SchedulerTestCaseBase):
 
         t = scheduler.tasklet(self.task)
         self.assertEqual(self.getruncount(), 1)
-        t.bind(self.argstest, args=args, kwargs=kwargs)
+        t.bind(self.args_test, args=args, kwargs=kwargs)
         self.assertEqual(self.getruncount(), 1)
         t.run()
         self.assertEqual(self.getruncount(), 1)
@@ -773,7 +771,7 @@ class TestBind(test_utils.SchedulerTestCaseBase):
         args = ("foo", "bar")
         kwargs = {"hello": "world"}
 
-        t = scheduler.tasklet(self.argstest)
+        t = scheduler.tasklet(self.args_test)
         self.assertEqual(self.getruncount(), 1)
         t.bind(None, args, kwargs)
         self.assertEqual(self.getruncount(), 1)
@@ -781,7 +779,7 @@ class TestBind(test_utils.SchedulerTestCaseBase):
         self.assertEqual(self.getruncount(), 1)
         self.assertArgs(args, kwargs)
 
-        t = scheduler.tasklet(self.argstest)
+        t = scheduler.tasklet(self.args_test)
         self.assertEqual(self.getruncount(), 1)
         t.bind(args=args, kwargs=kwargs)
         self.assertEqual(self.getruncount(), 1)
@@ -795,7 +793,7 @@ class TestBind(test_utils.SchedulerTestCaseBase):
 
         t = scheduler.tasklet(self.task)
         self.assertEqual(self.getruncount(), 1)
-        t.bind(self.argstest, args, kwargs)
+        t.bind(self.args_test, args, kwargs)
         self.assertEqual(self.getruncount(), 1)
         self.assertFalse(t.scheduled)
         t.run()
