@@ -171,9 +171,9 @@ static PyObject*
 }
 
 static PyMethodDef SchedulerTestMethods[] = {
-	{ "channel_send", schedulertest_channel_send, METH_VARARGS, "TODO" },
-	{ "channel_send_throw", schedulertest_channel_send_throw, METH_VARARGS, "TODO" },
-	{ "channel_receive", schedulertest_channel_receive, METH_VARARGS, "TODO" },
+	{ "channel_send", schedulertest_channel_send, METH_VARARGS, "sends using c-api PyChannel_Send" },
+	{ "channel_send_throw", schedulertest_channel_send_throw, METH_VARARGS, "throws using c-api PyChannel_SendThrow" },
+	{ "channel_receive", schedulertest_channel_receive, METH_VARARGS, "receives using c-api PyChannel_Receive" },
 	{ "schedule", schedulertest_schedule, METH_VARARGS, "Schedules using c-api PyScheduler_Schedule" },
 	{ "send_exception", schedulertest_send_exception, METH_VARARGS, "Sends and exception using c-api PyScheduler_Schedule" },
 	{ "test_value", schedulertest_test_value, METH_VARARGS, "Returns the current state of the test value" },

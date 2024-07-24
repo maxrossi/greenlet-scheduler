@@ -93,7 +93,7 @@ static PyObject*
 		{
 			PyErr_SetString( PyExc_RuntimeError, "enable_soft_switch is only implemented for legacy reasons, the value cannot be changed." );
 
-			return NULL;
+			return nullptr;
         }
 	}
 
@@ -255,7 +255,7 @@ static PyObject*
 		if( !PyCallable_Check( temp ) && temp != Py_None )
 		{
 			PyErr_SetString( PyExc_TypeError, "parameter must be callable or None." );
-			return nullptr;    //TODO convert all to nullptr - left so I remember
+			return nullptr;
 		}
 
         ScheduleManager* currentScheduler = ScheduleManager::GetThreadScheduleManager();
@@ -1009,7 +1009,7 @@ static PyMethodDef SchedulerMethods[] = {
         METH_NOARGS,
         "Unblock all active channels." },
 	
-	{ NULL, NULL, 0, NULL } /* Sentinel */
+	{ nullptr, nullptr, 0, nullptr } /* Sentinel */
 };
 
 /**
@@ -1032,13 +1032,13 @@ static PyMethodDef SchedulerMethods[] = {
 static struct PyModuleDef schedulermodule = {
     PyModuleDef_HEAD_INIT,
     CONCATENATE_TO_STRING(_scheduler, CCP_BUILD_FLAVOR),   /* name of module */
-    NULL, /* module documentation, may be NULL */
+    nullptr, /* module documentation, may be NULL */
     -1,       /* size of per-interpreter state of the module,
                  or -1 if the module keeps state in global variables. */
     SchedulerMethods,
-    NULL,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
+    nullptr,
 	ModuleDestructor
 };
 
@@ -1052,29 +1052,37 @@ PyMODINIT_FUNC
     // Initialise thread local storage key
 	if( PyThread_tss_create( &ScheduleManager::s_threadLocalStorageKey ) )
 	{
-		return NULL;
+		return nullptr;
 	}
 
 	//Add custom types
-	if( PyType_Ready( &TaskletType ) < 0 )
-		return NULL;
+    if (PyType_Ready(&TaskletType) < 0)
+    {
+		return nullptr;
+    }
 
-	if( PyType_Ready( &ChannelType ) < 0 )
-		return NULL;
-
-    if( PyType_Ready( &ScheduleManagerType ) < 0 )
-		return NULL;
-
+    if (PyType_Ready(&ChannelType) < 0)
+    {
+		return nullptr;
+    }
+		
+    if (PyType_Ready(&ScheduleManagerType) < 0)
+    {
+		return nullptr;
+    }
+		
     m = PyModule_Create( &schedulermodule );
-    if (m == NULL)
-        return NULL;
-
+    if (!m)
+    {
+		return nullptr;
+    }
+        
 	Py_INCREF( &TaskletType );
 	if( PyModule_AddObject( m, "tasklet", (PyObject*)&TaskletType ) < 0 )
 	{
 		Py_DECREF( &TaskletType );
 		Py_DECREF( m );
-		return NULL;
+		return nullptr;
 	}
 
 	Py_INCREF( &ChannelType );
@@ -1083,7 +1091,7 @@ PyMODINIT_FUNC
 		Py_DECREF( &TaskletType );
 		Py_DECREF( &ChannelType );
 		Py_DECREF( m );
-		return NULL;
+		return nullptr;
 	}
 
     Py_INCREF( &ScheduleManagerType );
@@ -1093,7 +1101,7 @@ PyMODINIT_FUNC
 		Py_DECREF( &ChannelType );
 		Py_DECREF( &ScheduleManagerType );
 		Py_DECREF( m );
-		return NULL;
+		return nullptr;
 	}
 
 	//Exceptions
@@ -1108,7 +1116,7 @@ PyMODINIT_FUNC
 		Py_XDECREF( TaskletExit );
 		Py_CLEAR( TaskletExit );
         Py_DECREF(m);
-        return NULL;
+        return nullptr;
     }
 
     // Import Greenlet
@@ -1123,7 +1131,7 @@ PyMODINIT_FUNC
 		Py_XDECREF( TaskletExit );
 		Py_CLEAR( TaskletExit );
 		Py_DECREF( m );
-		return NULL;
+		return nullptr;
 	}
 
 	//C_API
@@ -1172,7 +1180,7 @@ PyMODINIT_FUNC
 
 	/* Create a Capsule containing the API pointer array's address */
 	//c_api_object = PyCapsule_New( (void*)&api, "_scheduler_debug._C_API", NULL );
-	c_api_object = PyCapsule_New( (void*)&api, "scheduler._C_API", NULL );
+	c_api_object = PyCapsule_New( (void*)&api, "scheduler._C_API", nullptr );
 
 	if( PyModule_AddObject( m, "_C_API", c_api_object ) < 0 )
 	{
@@ -1183,7 +1191,7 @@ PyMODINIT_FUNC
 		Py_CLEAR( TaskletExit );
 		Py_XDECREF( c_api_object );
 		Py_DECREF( m );
-		return NULL;
+		return nullptr;
 	}
 
 	ScheduleManager::s_scheduleManagerType = &ScheduleManagerType;

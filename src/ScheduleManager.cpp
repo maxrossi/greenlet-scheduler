@@ -17,7 +17,7 @@ ScheduleManager::ScheduleManager( PyObject* pythonObject ) :
     m_stopScheduler(false),
 	m_numberOfTaskletsInQueue(0)
 {
-    // Create scheduler tasklet TODO pull out to separate
+    // Create scheduler tasklet
 	CreateSchedulerTasklet();
 
     m_currentTasklet = m_schedulerTasklet;
