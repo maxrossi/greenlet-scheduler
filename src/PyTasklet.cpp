@@ -30,105 +30,42 @@ static PyObject*
 {
 
 	PyObject* callable = nullptr;
-	PyObject* bindArgs = nullptr;
-	PyObject* bindKwArgs = nullptr;
 
-	bool argsSupplied = false;
-	bool kwArgsSupplied = false;
+	PyObject* bindArgs = nullptr;
+
+	PyObject* bindKwArgs = nullptr;
 
 	const char* keywords[] = { "callable", "args", "kwargs", NULL };
 
-	if( PyArg_ParseTupleAndKeywords( args, kwds, "|OOO:bind", (char**)keywords, &callable, &bindArgs, &bindKwArgs ) )
+	if( !PyArg_ParseTupleAndKeywords( args, kwds, "|OOO:bind", (char**)keywords, &callable, &bindArgs, &bindKwArgs ) )
 	{
-		if( callable == Py_None && ( bindArgs == nullptr && bindKwArgs == nullptr ) )
-		{
-			ScheduleManager* scheduleManager = ScheduleManager::GetThreadScheduleManager();
-
-			auto current = reinterpret_cast<PyTaskletObject*>( scheduleManager->GetCurrentTasklet()->PythonObject() );
-
-            scheduleManager->Decref();
-
-			if( self == current )
-			{
-				PyErr_SetString( PyExc_RuntimeError, "cannot unbind current tasklet" );
-				return nullptr;
-			}
-
-			if( self->m_implementation->IsScheduled() )
-			{
-				PyErr_SetString( PyExc_RuntimeError, "cannot unbind scheduled tasklet" );
-				return nullptr;
-			}
-
-            // Clear callable
-			self->m_implementation->SetCallable( nullptr );
-
-            // Clear arguments
-			self->m_implementation->SetArguments( nullptr );
-
-            // Clear greenlet
-			self->m_implementation->Uninitialise();
-
-            self->m_implementation->SetAlive( false );
-
-			Py_IncRef( Py_None );
-
-			return Py_None;
-		}
-
-		if( callable != nullptr && callable != Py_None && !PyCallable_Check( callable ) )
-		{
-			PyErr_SetString( PyExc_TypeError, "parameter must be callable" );
-			return nullptr;
-		}
-
-	    if( callable != nullptr && callable != Py_None )
-	    {
-		    Py_INCREF( callable );
-		    // Call constructor
-			self->m_implementation->SetCallable( callable );
-	    }
-
-		if( bindArgs != nullptr )
-		{
-			if( bindArgs == Py_None )
-			{
-				bindArgs = Py_BuildValue( "()" );
-				if( bindArgs == nullptr )
-				{
-					PyErr_SetString( PyExc_TypeError, "internal error: Could not build empty tuple in place of PyNone for bind args" );
-					return nullptr;
-				}
-			}
-			else
-			{
-				Py_INCREF( bindArgs );
-			}
-
-			self->m_implementation->SetArguments( bindArgs );
-			argsSupplied = true;
-		}
-
-		if( bindKwArgs != nullptr )
-		{
-			Py_INCREF( bindKwArgs );
-			self->m_implementation->SetKwArguments( bindKwArgs );
-			kwArgsSupplied = true;
-		}
-
-
-		if( argsSupplied || kwArgsSupplied )
-		{
-			self->m_implementation->Initialise();
-			self->m_implementation->SetAlive( true );
-		}
-
-		Py_IncRef(Py_None);
-
-		return Py_None;
+		return nullptr;
 	}
 
-	return nullptr;
+    // Check if this is an unbind
+    if ((callable == Py_None)
+        && (!bindArgs)
+        && (!bindKwArgs))
+    {
+        // Unbind Tasklet
+        if (!self->m_implementation->UnBind())
+        {
+			return nullptr;
+        }
+    }
+	else
+	{
+        // Bind Tasklet
+		if( !self->m_implementation->Bind(callable, bindArgs, bindKwArgs) )
+		{
+			return nullptr;
+		}
+	}
+
+    Py_IncRef( Py_None );
+
+	return Py_None;
+
 }
 
 static int
@@ -402,26 +339,11 @@ static PyObject*
 }
 
 static PyObject*
-    Tasklet_frame_get(PyTaskletObject* self, void* closure)
+    TaskletFrameGet(PyTaskletObject* self, void* closure)
 {
+    PyErr_SetString( PyExc_RuntimeError, "frame Not implemented" );
 
-    // Ensure PyTaskletObject is in a valid state
-	if( !PyTaskletObjectIsValid( self ) )
-	{
-		return nullptr;
-	}
-
-	PyObject* greenlet = reinterpret_cast<PyObject*>( self->m_implementation->GetGreenlet() );
-
-    if (greenlet == nullptr)
-    {
-		PyErr_SetString( PyExc_RuntimeError, "Attempting to access a frame from a tasklet with no greenlet." );
-		return nullptr;
-    }
-
-    // Accessing greenlet.gr_frame is disabled, as accessing frame can produce un-expected crashes
-    Py_IncRef( Py_None );
-    return Py_None;
+	return nullptr;
 }
 
 static PyGetSetDef Tasklet_getsetters[] = {
@@ -485,7 +407,7 @@ static PyGetSetDef Tasklet_getsetters[] = {
         "This attribute is True when a tasklet is alive, but not scheduled or blocked on a channel.",
         NULL },
 	{ "frame",
-        (getter)Tasklet_frame_get,
+	  (getter)TaskletFrameGet,
         NULL,
 	    "Get the current frame of a tasklet. Frame has been dissabled due to instability in greenlet. This attribute will always be None",
         NULL },
@@ -710,7 +632,7 @@ static PyObject*
 	TaskletSetContext( PyTaskletObject* self, void* closure )
 {
 	PyErr_SetString( PyExc_RuntimeError, "Tasklet_setcontext Not yet implemented" ); //TODO
-	return NULL;
+	return nullptr;
 }
 
 
@@ -750,19 +672,7 @@ static int
 		return 0;
 	}
 
-	PyObject* callable = self->m_implementation->GetCallable();
-
-	if( callable )
-	{
-		self->m_implementation->SetCallable( nullptr );
-	}
-
-	PyObject* bind_args = self->m_implementation->Arguments();
-
-	if( bind_args )
-	{
-		self->m_implementation->SetArguments( nullptr );
-	}
+    self->m_implementation->Clear();
 
 	return 0;
 }
@@ -778,46 +688,16 @@ static PyObject*
 		return nullptr;
 	}
 
-	PyObject* result = NULL;
-
-    Py_XINCREF( args );
-
-	tasklet->m_implementation->SetArguments( args );
-
-    Py_XINCREF( kwargs );
-
-    tasklet->m_implementation->SetKwArguments( kwargs );
-
-    //Initialize the tasklet
-	if( !tasklet->m_implementation->Initialise() )
+    if (!tasklet->m_implementation->Setup(args, kwargs))
     {
-		tasklet->m_implementation->SetArguments( nullptr );
-
-        tasklet->m_implementation->SetKwArguments( nullptr );
-
 		return nullptr;
     }
-
-    //Mark alive
-	tasklet->m_implementation->SetAlive( true );
-
-    //Add to scheduler
-	if( !tasklet->m_implementation->Insert() )
+    else
     {
-		tasklet->m_implementation->SetAlive( false );
+		Py_IncRef( Py_None );
 
-        tasklet->m_implementation->Uninitialise();
-
-		tasklet->m_implementation->SetArguments( nullptr );
-
-        tasklet->m_implementation->SetKwArguments( nullptr );
-
-		return nullptr;
+		return Py_None;
     }
-
-	Py_IncRef( Py_None );
-
-	return Py_None;
 }
 
 static PyObject*

@@ -140,9 +140,16 @@ bool Tasklet::Initialise()
 
 	m_greenlet = PyGreenlet_New( m_callable, nullptr );
 
-    m_paused = true;
+    if (!m_greenlet)
+    {
+		return false;
+    }
+    else
+    {
+		m_paused = true;
 
-    return true;    //TODO handle failure
+		return true; 
+    }
 }
 
 void Tasklet::Uninitialise()
@@ -955,12 +962,171 @@ ScheduleManager* Tasklet::GetScheduleManager()
 {
 	return m_scheduleManager;
 }
-PyGreenlet* Tasklet::GetGreenlet()
-{
-	return m_greenlet;
-}
 
 bool Tasklet::ShouldRestoreTransferException() const
 {
 	return m_restoreException;
+}
+
+bool Tasklet::Setup( PyObject* args, PyObject* kwargs )
+{
+	Py_XINCREF( args );
+
+    SetArguments( args );
+
+    Py_XINCREF( kwargs );
+
+    SetKwArguments( kwargs );
+
+    if (!Initialise())
+    {
+		SetArguments( nullptr );
+
+        SetKwArguments( nullptr );
+
+        return false;
+    }
+
+    SetAlive( true );
+
+    if (!Insert())
+    {
+		SetAlive( false );
+
+        Uninitialise();
+
+        SetArguments( nullptr );
+
+        SetKwArguments( nullptr );
+
+        return false;
+    }
+
+    return true;
+
+}
+
+bool Tasklet::Bind(PyObject* callable, PyObject* args, PyObject* kwargs)
+{
+    // Check callable is valid
+	if( callable && callable != Py_None )
+	{
+        if (!PyCallable_Check(callable))
+        {
+			PyErr_SetString( PyExc_TypeError, "parameter must be callable" );
+			return false;
+        }
+        else
+        {
+			Py_IncRef( callable );
+
+            SetCallable( callable );
+        }
+    }
+
+    // Process arguments
+    bool argsSupplied = false;
+
+    if( args )
+    {
+		if( args == Py_None )
+		{
+			args = PyTuple_New( 0 );
+
+            if (!args)
+            {
+				PyErr_SetString( PyExc_TypeError, "internal error: Could not build empty tuple in place of PyNone for bind args" );
+
+                SetCallable( nullptr );
+
+				return false;
+            }
+		}
+        else
+        {
+			Py_IncRef( args );
+        }
+
+        SetArguments( args );
+
+		argsSupplied = true;
+    }
+
+    // Process kwargs
+	bool kwargsSupplied = false;
+
+    if (kwargs)
+    {
+		Py_IncRef( kwargs );
+
+        SetKwArguments( kwargs );
+
+        kwargsSupplied = true;
+    }
+
+    if (argsSupplied || kwargsSupplied)
+    {
+        if (!Initialise())
+        {
+			PyErr_SetString( PyExc_TypeError, "internal error: Failed to initialise Tasklet" );
+
+            SetCallable( nullptr );
+
+            SetArguments( nullptr );
+
+            SetKwArguments( nullptr );
+
+			return false;
+        }
+
+        SetAlive( true );
+    }
+
+    return true;
+
+}
+
+bool Tasklet::UnBind()
+{
+	Tasklet* current = m_scheduleManager->GetCurrentTasklet();
+
+	if( this == current )
+	{
+		PyErr_SetString( PyExc_RuntimeError, "cannot unbind current tasklet" );
+
+		return false;
+	}
+
+    if (IsScheduled())
+    {
+		PyErr_SetString( PyExc_RuntimeError, "cannot unbind scheduled tasklet" );
+
+        return false;
+    }
+
+    // Clear Callable
+    SetCallable( nullptr );
+
+    // Clear Arguments
+	SetArguments( nullptr );
+
+    // Clear Greenlet
+	Uninitialise();
+
+    // Mark as dead
+	SetAlive( false );
+
+    return true;
+}
+
+void Tasklet::Clear()
+{
+	// Clear Callable
+	SetCallable( nullptr );
+
+    // Clear Arguments
+	SetArguments( nullptr );
+
+    // Clear Arguments
+	SetKwArguments( nullptr );
 }

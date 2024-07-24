@@ -39,10 +39,6 @@ public:
 
     bool Remove();
 
-    bool Initialise();
-
-    void Uninitialise();
-
 	bool Insert();
 
     bool SwitchImplementation();
@@ -66,8 +62,6 @@ public:
     bool IsBlocked() const;
 
     bool IsOnChannelBlockList() const;
-
-    void SetAlive( bool value );
 
     bool IsAlive() const;
 
@@ -103,11 +97,7 @@ public:
 
     PyObject* Arguments() const;
 
-    void SetArguments(PyObject* arguments);
-
     PyObject* KwArguments() const;
-
-    void SetKwArguments( PyObject* kwarguments );
 
     bool TransferInProgress() const;
 
@@ -137,8 +127,6 @@ public:
 
     void SetTaggedForRemoval( bool value );
 
-    void SetCallable( PyObject* callable );
-
     PyObject* GetCallable();
 
     bool RequiresRemoval();
@@ -150,8 +138,14 @@ public:
     void SetScheduleManager( ScheduleManager* scheduleManager );
 
     ScheduleManager* GetScheduleManager( );
-    
-    PyGreenlet* GetGreenlet();
+   
+    bool Setup( PyObject* args, PyObject* kwargs );
+
+    bool Bind( PyObject* callable, PyObject* args, PyObject* kwargs );
+
+    bool UnBind();
+
+    void Clear();
 
 private:
 
@@ -160,6 +154,18 @@ private:
 	void SetPythonExceptionStateFromTaskletExceptionState();
 
     void ClearException();
+
+    void SetAlive( bool value );
+
+    void SetCallable( PyObject* callable );
+
+    void SetArguments( PyObject* arguments );
+
+    void SetKwArguments( PyObject* kwarguments );
+
+    bool Initialise();
+
+	void Uninitialise();
 
 private:
 
