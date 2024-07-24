@@ -647,6 +647,8 @@ class TestChannels(SchedulerTestCaseBase):
 
         count = 0
 
+        channel.close()
+
         for sent_value in iterator:
             count = count + sent_value
 
@@ -716,6 +718,107 @@ class TestChannels(SchedulerTestCaseBase):
         def n():
             return next(i)
         self.assertRaises(StopIteration, n)
+
+
+    def test_kill_blocked_on_send_on_closed(self):
+        c = scheduler.channel()
+
+        def send_tasklet():
+            c.send(None)
+
+        t1 = scheduler.tasklet(send_tasklet)()
+        t2 = scheduler.tasklet(send_tasklet)()
+
+        scheduler.run()
+
+        c.close()
+
+        self.assertFalse(c.closed)
+
+        t1.kill()
+
+        self.assertFalse(c.closed)
+
+        t2.kill()
+
+        self.assertTrue(c.closed)
+
+        self.assertEqual(c.balance,0)
+
+    def test_kill_blocked_on_receive_on_closed(self):
+        c = scheduler.channel()
+
+        def receive_tasklet():
+            c.receive()
+
+        t1 = scheduler.tasklet(receive_tasklet)()
+        t2 = scheduler.tasklet(receive_tasklet)()
+
+        scheduler.run()
+
+        c.close()
+
+        self.assertFalse(c.closed)
+
+        t1.kill()
+
+        self.assertFalse(c.closed)
+
+        t2.kill()
+
+        self.assertTrue(c.closed)
+
+        self.assertEqual(c.balance,0)
+
+    def test_raise_exception_blocked_on_send_on_closed(self):
+        c = scheduler.channel()
+
+        def send_tasklet():
+            c.send(None)
+
+        t1 = scheduler.tasklet(send_tasklet)()
+        t2 = scheduler.tasklet(send_tasklet)()
+
+        scheduler.run()
+
+        c.close()
+
+        self.assertFalse(c.closed)
+
+        t1.raise_exception(scheduler.TaskletExit)
+
+        self.assertFalse(c.closed)
+
+        t2.raise_exception(scheduler.TaskletExit)
+
+        self.assertTrue(c.closed)
+
+        self.assertEqual(c.balance,0)
+
+    def test_raise_exception_blocked_on_receive_on_closed(self):
+        c = scheduler.channel()
+
+        def receive_tasklet():
+            c.receive()
+
+        t1 = scheduler.tasklet(receive_tasklet)()
+        t2 = scheduler.tasklet(receive_tasklet)()
+
+        scheduler.run()
+
+        c.close()
+
+        self.assertFalse(c.closed)
+
+        t1.raise_exception(scheduler.TaskletExit)
+
+        self.assertFalse(c.closed)
+
+        t2.raise_exception(scheduler.TaskletExit)
+
+        self.assertTrue(c.closed)
+
+        self.assertEqual(c.balance,0)
 
 
     def test_invalid_channel_when_skipping_init(self):

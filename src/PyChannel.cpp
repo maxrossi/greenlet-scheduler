@@ -402,6 +402,13 @@ static PyObject*
     // Run receive until unblocked
     // It is possible that this will raise a nullptr in case of deadlock
     // Doesn't raise a StopIteration error as iteration never really stops
+    if (self->m_implementation->IsClosed())
+    {
+		PyErr_SetString( PyExc_StopIteration, "Channel is closed" );
+
+		return nullptr;
+    }
+
 	PyObject* ret = ChannelReceive( self, nullptr );
 
     if (!ret)

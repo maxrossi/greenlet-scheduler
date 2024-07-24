@@ -44,7 +44,7 @@ Methods
 
 .. autofunction:: scheduler.channel.__next__
 
-    Performs a :py:func:`scheduler.channel.receive` until no more Tasklets remains blocked on Channel.
+    Performs a :py:func:`scheduler.channel.receive` until no more Tasklets remains blocked on Channel, at which point it will then block on receive until unblocked with a send. Close channel to receive a StopIteration at balance 0.
 
 Attributes
 ----------

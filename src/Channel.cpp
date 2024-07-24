@@ -95,6 +95,8 @@ bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */, bool re
 
 		current->Block( this );
 
+        UpdateCloseState();
+
         PyThread_release_lock( m_lock );
 
          // Continue scheduler
@@ -111,6 +113,8 @@ bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */, bool re
 			current->Decref();
             
             scheduleManager->Decref();
+
+            UpdateCloseState();
 
             PyThread_release_lock( m_lock );
 
@@ -133,9 +137,13 @@ bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */, bool re
 
     Tasklet* current_tasklet = scheduleManager->GetCurrentTasklet();
 
+    UpdateCloseState();
+
     if (!ChannelSwitch(current_tasklet, receivingTasklet, direction, ChannelDirection::SENDER))
     {
 		scheduleManager->Decref();
+
+        UpdateCloseState();
 
 		return false;
     }
@@ -146,6 +154,8 @@ bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */, bool re
 	current->SetTransferInProgress( false );
 
     scheduleManager->Decref();
+
+    UpdateCloseState();
 
 	return true;
 
@@ -264,6 +274,8 @@ PyObject* Channel::Receive()
 		
 		current->Block( this );
 
+        UpdateCloseState();
+
 		PyThread_release_lock( m_lock );
 
 		// Continue scheduler
@@ -281,6 +293,8 @@ PyObject* Channel::Receive()
             current->Decref();
 
             scheduleManager->Decref();
+
+            UpdateCloseState();
 
             PyThread_release_lock( m_lock );
 
@@ -303,6 +317,8 @@ PyObject* Channel::Receive()
 			current->Decref();
 
 			scheduleManager->Decref();
+
+            UpdateCloseState();
 
 			return nullptr;
         }
@@ -355,6 +371,8 @@ PyObject* Channel::Receive()
 		current->SetTransferInProgress( false );
         
         scheduleManager->Decref();
+
+        UpdateCloseState();
        
         return nullptr;
 
@@ -661,15 +679,11 @@ bool Channel::IsClosing() const
 void Channel::IncrementBalance()
 {
 	m_balance++;
-
-    UpdateCloseState();
 }
 
 void Channel::DecrementBalance()
 {
 	m_balance--;
-
-    UpdateCloseState();
 }
 
 void Channel::UpdateCloseState()
