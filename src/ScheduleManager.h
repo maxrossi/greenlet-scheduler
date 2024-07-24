@@ -69,11 +69,11 @@ public:
 
     void SetSchedulerFastCallback( schedule_hook_func* func );
 
-    void SetSchedulerCallback( PyObject* callback );
+    static void SetSchedulerCallback( PyObject* callback );
 
     void RunSchedulerCallback( Tasklet* previous, Tasklet* next );
 
-    PyObject* SchedulerCallback();
+    static PyObject* SchedulerCallback();
 
     bool IsSwitchTrapped();
 
@@ -105,7 +105,7 @@ private:
 
     long m_switchTrapLevel;
 
-	PyObject* m_schedulerCallback;
+	inline static PyObject* s_schedulerCallback = nullptr; // This is global, not per schedule manager
 
     schedule_hook_func* m_schedulerFastCallback;
 

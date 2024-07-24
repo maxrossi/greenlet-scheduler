@@ -228,7 +228,34 @@ class TestScheduleOrderBase(object):
 
         scheduler.set_schedule_callback(None)
 
+    def test_schedule_callback_with_multiple_threads(self):
+        
+        import threading
 
+        callbackCalls = [0]
+
+        def callback(previousTasklet, nextTasklet):
+            callbackCalls[0]+=1
+        
+
+        scheduler.set_schedule_callback(callback)
+
+        def createTasklets():
+            for i in range(2):
+                scheduler.tasklet(lambda: None)()
+            scheduler.run()
+        
+        thread = threading.Thread(target=createTasklets, args=())
+
+        thread.start()
+
+        createTasklets()
+
+        thread.join()
+
+        self.assertEqual(callbackCalls[0],8)
+
+        scheduler.set_schedule_callback(None)
 
     def test_multi_level_nested_tasklet_run_order_with_yield_to_blocked(self):
         completedSendTasklets = [""]

@@ -411,6 +411,12 @@ static PyObject*
 
 void ModuleDestructor( void* )
 {
+    // Clear callbacks
+	Channel::SetChannelCallback( nullptr );
+
+	ScheduleManager::SetSchedulerCallback( nullptr );
+
+    // Clear lock
 	Py_DECREF( ScheduleManager::s_scheduleManagerLock );
 
     // Destroy thread local storage key

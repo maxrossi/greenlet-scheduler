@@ -116,7 +116,7 @@ private:
 
     PyThread_type_lock m_lock;
 
-    inline static PyObject* s_channelCallback; // This is global, not per channel
+    inline static PyObject* s_channelCallback = nullptr; // This is global, not per channel
 
     Tasklet* m_firstBlockedOnReceive;
 
