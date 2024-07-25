@@ -81,6 +81,8 @@ public:
 
     void SetSwitchTrapLevel( int level );
 
+private:
+
     void CreateSchedulerTasklet();
 
 public:

@@ -457,7 +457,7 @@ extern "C"
 	/// @return 0 on success -1 on failure
 	static int PyTasklet_Setup( PyTaskletObject* tasklet, PyObject* args, PyObject* kwds )
 	{
-		if(TaskletSetup( reinterpret_cast<PyObject*>( tasklet ), args, kwds ) == Py_None)
+		if(TaskletSetup( reinterpret_cast<PyObject*>( tasklet ), args, kwds ))
 		{
 			Py_DecRef( Py_None );
 

@@ -206,6 +206,235 @@ class TestTasklets(test_utils.SchedulerTestCaseBase):
 
         self.assertEqual(sys.getrefcount(self.scheduleManager), 2)
 
+    def test_remove_and_switch(self):
+        valueOut = [-1]
+        valueIn = [1]
+
+        def foo(x):
+            valueOut[0] = x
+        
+        t = scheduler.tasklet(foo)(valueIn[0])
+
+        self.assertEqual(t.remove(), t)
+
+        t.switch()
+
+        self.assertEqual(valueIn[0],valueOut[0])
+
+    def test_remove_and_run(self):
+        valueOut = [-1]
+        valueIn = [1]
+
+        def foo(x):
+            valueOut[0] = x
+        
+        t = scheduler.tasklet(foo)(valueIn[0])
+
+        self.assertEqual(t.remove(), t)
+
+        t.run()
+
+        self.assertEqual(valueIn[0],valueOut[0])
+
+
+
+    def test_insert_from_another_thread(self):
+        import threading
+
+        valueIn = ["TEST_VALUE"]
+        valueOut = []
+
+        def callable_tasklet(value):
+            valueOut.append(value)
+
+        t = scheduler.tasklet(callable_tasklet)
+        t.bind(callable_tasklet)
+        t.setup(valueIn[0])
+
+        def ThreadFunc():
+            t.insert()
+
+            # Tasklet should not add to threads queue
+            self.assertEqual(self.getruncount(), 1)
+
+        thread = threading.Thread(target=ThreadFunc)
+        thread.start()
+        thread.join()
+
+        self.assertEqual(self.getruncount(), 2)
+
+        scheduler.run()
+
+        self.assertEqual(valueOut[0],valueIn[0])
+
+
+    def test_remove_from_another_thread(self):
+        import threading
+
+        valueIn = ["TEST_VALUE"]
+        valueOut = []
+
+        def callable_tasklet(value):
+            valueOut.append(value)
+
+        t = scheduler.tasklet(callable_tasklet)(valueIn[0])
+
+        def ThreadFunc():
+            t.remove()
+
+        thread = threading.Thread(target=ThreadFunc)
+        thread.start()
+        thread.join()
+
+        self.assertEqual(self.getruncount(), 1)
+
+        scheduler.run()
+
+        self.assertEqual(len(valueOut),0)
+
+        t.kill()
+
+    def test_run_from_another_thread(self):
+        import threading
+
+        valueIn = ["TEST_VALUE"]
+        valueOut = []
+
+        def callable_tasklet(value):
+            valueOut.append(value)
+
+        t = scheduler.tasklet(callable_tasklet)(valueIn[0])
+
+        def ThreadFunc():
+            t.run()
+
+            # Tasklet should not add to threads queue
+            self.assertEqual(self.getruncount(), 1)
+
+        thread = threading.Thread(target=ThreadFunc)
+        thread.start()
+        thread.join()
+
+        self.assertEqual(self.getruncount(), 2)
+
+        scheduler.run()
+
+        self.assertEqual(valueOut[0],valueIn[0])
+
+    def test_switch_from_another_thread(self):
+        import threading
+
+        valueIn = ["TEST_VALUE"]
+        valueOut = []
+
+        def callable_tasklet(value):
+            valueOut.append(value)
+
+        t = scheduler.tasklet(callable_tasklet)(valueIn[0])
+
+        def ThreadFunc():
+            self.assertRaises(RuntimeError, t.switch())
+
+            # Tasklet should not add to threads queue
+            self.assertEqual(self.getruncount(), 1)
+
+        thread = threading.Thread(target=ThreadFunc)
+        thread.start()
+        thread.join()
+
+        self.assertEqual(self.getruncount(), 2)
+
+        scheduler.run()
+
+        self.assertEqual(valueOut[0],valueIn[0])
+
+    def test_kill_from_another_thread(self):
+        import threading
+
+        valueIn = ["TEST_VALUE"]
+        valueOut = []
+
+        def callable_tasklet(value):
+            valueOut.append(value)
+
+        t = scheduler.tasklet(callable_tasklet)(valueIn[0])
+
+        def ThreadFunc():
+            self.assertRaises(RuntimeError, t.kill())
+
+            # Tasklet should not add to threads queue
+            self.assertEqual(self.getruncount(), 1)
+
+        thread = threading.Thread(target=ThreadFunc)
+        thread.start()
+        thread.join()
+
+        self.assertEqual(self.getruncount(), 2)
+
+        scheduler.run()
+
+        self.assertEqual(valueOut[0],valueIn[0])
+
+    
+    def test_bind_from_another_thread(self):
+        import threading
+
+        valueIn = ["TEST_VALUE"]
+        valueOut = []
+
+        def callable_tasklet(value):
+            valueOut.append(value)
+
+        t = scheduler.tasklet(callable_tasklet)
+        
+        def ThreadFunc():
+            self.assertRaises(RuntimeError, t.bind())
+
+            # Tasklet should not add to threads queue
+            self.assertEqual(self.getruncount(), 1)
+
+        thread = threading.Thread(target=ThreadFunc)
+        thread.start()
+        thread.join()
+
+        self.assertEqual(t.bind(callable_tasklet),t)
+        self.assertEqual(t.setup(valueIn[0]),t)
+
+        self.assertEqual(self.getruncount(), 2)
+
+        scheduler.run()
+
+        self.assertEqual(valueOut[0],valueIn[0])
+
+    def test_setup_from_another_thread(self):
+        import threading
+
+        valueIn = ["TEST_VALUE"]
+        valueOut = []
+
+        def callable_tasklet(value):
+            valueOut.append(value)
+
+        t = scheduler.tasklet(callable_tasklet)
+        t.bind(callable_tasklet)
+
+        def ThreadFunc():
+            self.assertRaises(RuntimeError, t.setup())
+
+            # Tasklet should not add to threads queue
+            self.assertEqual(self.getruncount(), 1)
+
+        thread = threading.Thread(target=ThreadFunc)
+        thread.start()
+        thread.join()
+
+        t.setup(valueIn[0])
+
+        self.assertEqual(self.getruncount(), 2)
+
+        scheduler.run()
+
+        self.assertEqual(valueOut[0],valueIn[0])
 
 
 
@@ -650,7 +879,7 @@ class TestBind(test_utils.SchedulerTestCaseBase):
         if scheduler.enable_softswitch(None):
             self.assertTrue(t.restorable)
 
-        t.insert()
+        self.assertEqual(t.insert(),t)
         self.assertEqual(self.getruncount(), 2)
         scheduler.run()
         self.assertEqual(self.getruncount(), 1)

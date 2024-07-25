@@ -200,6 +200,13 @@ bool Tasklet::SwitchImplementation()
 		return false;
 	}
 
+    if( !BelongsToCurrentThread() )
+	{
+		PyErr_SetString( PyExc_RuntimeError, "Failed to switch tasklet: Cannot switch tasklet from another thread" );
+
+		return false;
+	}
+
 	// Run scheduler starting from this tasklet (If it is already in the scheduled)
 	if( m_scheduled )
 	{
@@ -478,6 +485,12 @@ bool Tasklet::Run()
 		return false;
 	}
 
+    if( !BelongsToCurrentThread() )
+	{
+        // Silently ignored from other thread
+		return true;
+	}
+
 	// Run scheduler starting from this tasklet (If it is already in the scheduled)
 	if(m_scheduled)
 	{
@@ -513,6 +526,13 @@ bool Tasklet::Run()
 
 bool Tasklet::Kill( bool pending /*=false*/ )
 {
+	if( !BelongsToCurrentThread() )
+	{
+		PyErr_SetString( PyExc_RuntimeError, "Failed to kill tasklet: Cannot kill tasklet from another thread" );
+
+		return false;
+	}
+
     // Quick out if kill is already pending
     if (m_killPending)
     {
@@ -755,6 +775,13 @@ PyObject* Tasklet::TransferException() const
 
 bool Tasklet::ThrowException( PyObject* exception, PyObject* value, PyObject* tb, bool pending )
 {
+
+    if( !BelongsToCurrentThread() )
+	{
+		PyErr_SetString( PyExc_RuntimeError, "Failed to throw tasklet: Cannot throw tasklet from another thread" );
+
+		return false;
+	}
 
     SetExceptionState( exception, value );
 
@@ -1008,6 +1035,13 @@ bool Tasklet::Setup( PyObject* args, PyObject* kwargs )
 
 bool Tasklet::Bind(PyObject* callable, PyObject* args, PyObject* kwargs)
 {
+	if( !BelongsToCurrentThread() )
+	{
+		PyErr_SetString( PyExc_RuntimeError, "Failed to bind tasklet: Cannot bind tasklet from another thread" );
+
+		return false;
+	}
+
     // Check callable is valid
 	if( callable && callable != Py_None )
 	{
@@ -1088,6 +1122,13 @@ bool Tasklet::Bind(PyObject* callable, PyObject* args, PyObject* kwargs)
 
 bool Tasklet::UnBind()
 {
+	if( !BelongsToCurrentThread() )
+	{
+		PyErr_SetString( PyExc_RuntimeError, "Failed to unbind tasklet: Cannot unbind tasklet from another thread" );
+
+		return false;
+	}
+
 	Tasklet* current = m_scheduleManager->GetCurrentTasklet();
 
 	if( this == current )
@@ -1129,4 +1170,17 @@ void Tasklet::Clear()
 
     // Clear Arguments
 	SetKwArguments( nullptr );
+}
+
+bool Tasklet::BelongsToCurrentThread()
+{
+	bool ret;
+
+    ScheduleManager* scheduleManager = ScheduleManager::GetThreadScheduleManager();
+
+    ret = scheduleManager == m_scheduleManager;
+
+    scheduleManager->Decref();
+
+    return ret;
 }

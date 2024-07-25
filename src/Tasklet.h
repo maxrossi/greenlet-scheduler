@@ -167,6 +167,8 @@ private:
 
 	void Uninitialise();
 
+    bool BelongsToCurrentThread();
+
 private:
 
 	PyGreenlet* m_greenlet;
