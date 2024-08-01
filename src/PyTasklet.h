@@ -4,28 +4,31 @@
 	PyTasklet.h
 
 	Author:    James Hawk
-	Created:   Feb. 2024
+	Created:   April. 2024
 	Project:   Scheduler
 
 	Description:   
 
-	  Functions related to tasklets
+	  PyTaskletObject python type definition
 
 	(c) CCP 2024
 
 	*************************************************************************
 */
 #pragma once
+#ifndef PyTasklet_H
+#define PyTasklet_H
 
-#include "stdafx.h"
+class Tasklet;
 
-class PyTaskletObject
+typedef struct PyTaskletObject
 {
 	PyObject_HEAD
 
-public:
-	bool insert();
+	Tasklet* m_implementation;
 
-public:
-	int m_alive;
-};
+    PyObject* m_weakrefList;   // TODO: This is apparently the old style, new style crashes
+
+} _PyTaskletObject;
+
+#endif // PyTasklet_H

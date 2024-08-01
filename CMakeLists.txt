@@ -22,19 +22,29 @@ include(CcpPackageConfigHelpers)
 
 
 find_package(Python REQUIRED NO_CMAKE_PATH)
+find_package(Greenlet REQUIRED NO_CMAKE_PATH)
+
+get_target_property(GREENLET_INCLUDE_DIRECTORY
+        Greenlet
+        INTERFACE_INCLUDE_DIRECTORIES)
 
 set(SRC_FILES
     include/Scheduler.h
-    src/Scheduler.cpp
-    src/PyTasklet_python.cpp
-    src/PyTasklet.cpp
+    src/SchedulerModule.cpp
     src/PyTasklet.h
-    src/PyChannel_python.cpp
+    src/PyTasklet.cpp
+    src/Tasklet.cpp
+    src/Tasklet.h
     src/PyChannel.cpp
     src/PyChannel.h
-    src/PyScheduler_python.cpp
-    src/PyScheduler.cpp
-    src/PyScheduler.h
+    src/Channel.cpp
+    src/Channel.h
+    src/PythonCppType.cpp
+    src/PythonCppType.h
+    src/PyScheduleManager.cpp
+    src/PyScheduleManager.h
+    src/ScheduleManager.cpp
+    src/ScheduleManager.h
     src/stdafx.cpp
 )
 
@@ -44,6 +54,11 @@ ccp_add_library(Scheduler SHARED ${SRC_FILES})
 target_include_directories(Scheduler PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
 
 target_link_libraries(Scheduler PRIVATE Python)
+
+target_include_directories(Scheduler
+        PRIVATE
+        ${GREENLET_INCLUDE_DIRECTORY}
+        )
 
 get_target_property(_SOURCES Scheduler SOURCES)
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -56,12 +71,68 @@ target_precompile_headers(Scheduler PRIVATE src/stdafx.h)
 set_target_properties(Scheduler PROPERTIES OUTPUT_NAME "_scheduler")
 
 
-# Build test
-add_subdirectory(tests/cpp)
 
 # Provide an install target iff this is the top level project only
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+option(BUILD_DOCUMENTATION "Build Documentation" OFF)
+
+    if(BUILD_DOCUMENTATION)
+        # Generate documentation - NOTE: experimental, Binaries only vendored manually for windows currently
+        # Documentation generation off by default
+        # Requires further work to work on TC
+        find_package(Doxygen REQUIRED NO_CMAKE_PATH)
+
+        # Evaluate config file for Doxygen to input project values
+        set(DOXYFILE_IN ${CMAKE_CURRENT_SOURCE_DIR}/doc/Doxyfile.in)
+        set(DOXYFILE_OUT ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
+        set(DOXYGEN_INDEX_FILE ${CMAKE_CURRENT_BINARY_DIR}/xml/index.xml)
+        configure_file(${DOXYFILE_IN} ${DOXYFILE_OUT} @ONLY)
+
+        # Regenerate with source changes
+        add_custom_command(OUTPUT ${DOXYGEN_INDEX_FILE}
+                            DEPENDS ${SRC_FILES}
+                            COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYFILE_OUT}
+                            MAIN_DEPENDENCY ${DOXYFILE_OUT} ${DOXYFILE_IN}
+                            COMMENT "Running Doxygen"
+                            VERBATIM)
+
+        add_custom_target(Doxygen ALL DEPENDS ${DOXYGEN_INDEX_FILE})
+        
+        # Set up sphinx build
+        set(SPHINX_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/doc/source)
+        set(SPHINX_BUILD ${CMAKE_CURRENT_BINARY_DIR}/doc/build)
+
+        # Add sphinx
+
+        # Evaluate config file to resole cmake variables
+        set(SPHINX_CONF_IN ${CMAKE_CURRENT_SOURCE_DIR}/doc/source/conf.py.in)
+        set(SPHINX_CONF_OUT ${CMAKE_CURRENT_BINARY_DIR}/conf.py.partial)
+        configure_file(${SPHINX_CONF_IN} ${SPHINX_CONF_OUT} @ONLY)
+
+        # Generate files per build flavour to resolve generator expressions
+        file (GENERATE
+                OUTPUT "$<CONFIG>/conf.py" 
+                INPUT  ${CMAKE_CURRENT_BINARY_DIR}/conf.py.partial
+            )
+
+        # Run Sphinx against build flavour specific conf file
+        # Pass in Doxygen output
+        add_custom_target(Sphinx ALL
+                  COMMAND cmd /c ${CMAKE_CURRENT_SOURCE_DIR}/doc/RunSphinx.bat ${CMAKE_CURRENT_BINARY_DIR}/docs/xml $<TARGET_FILE_DIR:Scheduler> ${SPHINX_SOURCE} ${SPHINX_BUILD}
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                  DEPENDS ${DOXYGEN_INDEX_FILE}
+                  COMMENT "Generating documentation with Sphinx")
+
+        # Install rule for documentation
+        install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doc/build/ DESTINATION documentation)
+
+    endif()
+
     enable_testing()
+
+    # Build test
+    add_subdirectory(tests/capiTest)
+
     # Install rule to ensure that our runtime and linker files are in the expected, platform-specific folders
     install(
         TARGETS Scheduler
@@ -81,28 +152,56 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     )
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/SchedulerConfig.cmake DESTINATION .)
 
-     # Install python package
-     install(DIRECTORY python/ DESTINATION python
-     FILES_MATCHING
-     PATTERN "*.py"
-)
-
-    OPTION(RUN_PYTHON_TESTS ON)
-
-    if(${RUN_PYTHON_TESTS})
-        get_filename_component(PYTHON_TEST_EXE_DIR ${PYTHON_EXECUTABLE} DIRECTORY)
-
-        if(WIN32)
-            SET(PYTHONPATH_ENV "${CMAKE_SOURCE_DIR}/python/\;$<TARGET_FILE_DIR:scheduler>\;${BRANCH_ROOT_DIR}/carbon/common/stdlib/\;${PYTHON_TEST_EXE_DIR}")
-        elseif(APPLE)
-            SET(PYTHONPATH_ENV "${CMAKE_SOURCE_DIR}/python/:$<TARGET_FILE_DIR:scheduler>:${BRANCH_ROOT_DIR}/carbon/common/stdlib/:${PYTHON_TEST_EXE_DIR}")
-        endif()
-
-        add_test(NAME SCHEDULER_PYTHON_TESTS
-            COMMAND ${PYTHON_EXECUTABLE} -m unittest discover -s scheduler/tests
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/python/
-        )
-
-        set_property(TEST SCHEDULER_PYTHON_TESTS PROPERTY ENVIRONMENT "PYTHONPATH=${PYTHONPATH_ENV}")
+    if(WIN32)
+        set(ENV{PYTHONPATH} ${CMAKE_SOURCE_DIR}/python/\;${BRANCH_ROOT_DIR}/carbon/common/stdlib\;${Python_ROOT}/${CCP_VENDOR_BIN_PATH})
+    elseif(APPLE)
+        set(ENV{PYTHONPATH} ${CMAKE_SOURCE_DIR}/python/:${BRANCH_ROOT_DIR}/carbon/common/stdlib:${Python_ROOT}/${CCP_VENDOR_BIN_PATH})
     endif()
+
+    execute_process(COMMAND ${PYTHON_EXECUTABLE} discover.py
+            OUTPUT_VARIABLE PYTHON_TESTS_STR
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_STRIP_TRAILING_WHITESPACE
+            RESULT_VARIABLE PYTHON_TEST_DISCOVERY_RETVAL
+            ERROR_VARIABLE PYTHON_TEST_DISCOVERY_ERRORS
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/python/scheduler
+    )
+
+    if(${PYTHON_TEST_DISCOVERY_RETVAL})
+        message(FATAL_ERROR "Error encountered during test discovery:\n=== stderr: ===\n${PYTHON_TEST_DISCOVERY_ERRORS}\n=== stdout: ===\n${PYTHON_TESTS_STR}")
+    endif()
+
+    get_filename_component(PYTHON_TEST_EXE_DIR ${PYTHON_EXECUTABLE} DIRECTORY)
+
+    if(WIN32)
+        SET(PYTHONPATH_ENV "${CMAKE_SOURCE_DIR}/python/\;$<TARGET_FILE_DIR:Scheduler>\;${BRANCH_ROOT_DIR}/carbon/common/stdlib/\;${PYTHON_TEST_EXE_DIR}\;${Greenlet_ROOT}/${CCP_VENDOR_BIN_PATH}\;${Greenlet_ROOT}/python")
+    elseif(APPLE)
+        SET(PYTHONPATH_ENV "${CMAKE_SOURCE_DIR}/python/:$<TARGET_FILE_DIR:Scheduler>:${BRANCH_ROOT_DIR}/carbon/common/stdlib/:${PYTHON_TEST_EXE_DIR}:${Greenlet_ROOT}/${CCP_VENDOR_BIN_PATH}:${Greenlet_ROOT}/python")
+    endif()
+
+    separate_arguments(PYTHON_TESTS UNIX_COMMAND ${PYTHON_TESTS_STR})
+
+    foreach (PYTHON_TEST ${PYTHON_TESTS})
+        message(STATUS "Found test ${PYTHON_TEST}")
+        add_test(NAME ${PYTHON_TEST}
+            COMMAND ${PYTHON_EXECUTABLE} -m unittest -v ${PYTHON_TEST}
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/python/scheduler/tests
+        )
+        set_tests_properties(${PYTHON_TEST} PROPERTIES ENVIRONMENT "PYTHONPATH=${PYTHONPATH_ENV};BUILDFLAVOR=$<LOWER_CASE:$<CONFIG>>")
+    endforeach ()
+
+    set(ALL_PYTHON_TEST RunAllPythonTestsInSingleInterpreterSession)
+    add_test(NAME ${ALL_PYTHON_TEST}
+        COMMAND ${PYTHON_EXECUTABLE} -m unittest discover -v
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/python/scheduler/tests
+        COMMAND_EXPAND_LISTS
+    )
+    set_tests_properties(${ALL_PYTHON_TEST} PROPERTIES ENVIRONMENT "PYTHONPATH=${PYTHONPATH_ENV};BUILDFLAVOR=$<LOWER_CASE:$<CONFIG>>")
+
+
+    # Install scheduler extension package
+    install(DIRECTORY python/schedulerext DESTINATION python
+            FILES_MATCHING
+            PATTERN "*.py"
+    )
 endif()

@@ -4,28 +4,31 @@
 	PyChannel.h
 
 	Author:    James Hawk
-	Created:   Feb. 2024
+	Created:   April. 2024
 	Project:   Scheduler
 
 	Description:   
 
-	  Functionality related to communication between tasklets
+	  PyChannelObject python type definition
 
 	(c) CCP 2024
 
 	*************************************************************************
 */
 #pragma once
+#ifndef PyChannel_H
+#define PyChannel_H
 
-#include "stdafx.h"
+class Channel;
 
-class PyChannelObject
+typedef struct PyChannelObject
 {
 	PyObject_HEAD
 
-public:
-	bool send();
+	Channel* m_implementation;
 
-public:
-	int m_preference;
-};
+    PyObject* m_weakrefList; // TODO: This is apparently the old style, new style crashes unless GC is turned on for type
+
+} _PyChannelObject;
+
+#endif // PyChannel_H
