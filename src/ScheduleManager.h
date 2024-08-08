@@ -71,8 +71,6 @@ public:
 
     static void SetSchedulerCallback( PyObject* callback );
 
-    void RunSchedulerCallback( Tasklet* previous, Tasklet* next );
-
     static PyObject* SchedulerCallback();
 
     bool IsSwitchTrapped();
@@ -83,6 +81,8 @@ public:
 
 private:
 
+    void RunSchedulerCallback( Tasklet* previous, Tasklet* next );
+
     void CreateSchedulerTasklet();
 
 public:
@@ -90,8 +90,6 @@ public:
     inline static PyTypeObject* s_taskletType;
 
     inline static PyTypeObject* s_scheduleManagerType;
-
-    inline static PyThread_type_lock s_scheduleManagerLock;
 
     inline static Py_tss_t s_threadLocalStorageKey = Py_tss_NEEDS_INIT;
 
@@ -107,9 +105,11 @@ private:
 
     long m_switchTrapLevel;
 
-	inline static PyObject* s_schedulerCallback = nullptr; // This is global, not per schedule manager
+    // This is global, not per schedule manager
+	inline static PyObject* s_schedulerCallback = nullptr;
 
-    schedule_hook_func* m_schedulerFastCallback;
+    // This is global, not per schedule manager 
+    inline static schedule_hook_func* s_schedulerFastCallback = nullptr; 
 
     int m_taskletLimit;
 

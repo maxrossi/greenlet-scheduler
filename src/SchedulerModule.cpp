@@ -416,9 +416,6 @@ void ModuleDestructor( void* )
 
 	ScheduleManager::SetSchedulerCallback( nullptr );
 
-    // Clear lock
-	Py_DECREF( ScheduleManager::s_scheduleManagerLock );
-
     // Destroy thread local storage key
 	PyThread_tss_delete( &ScheduleManager::s_threadLocalStorageKey );
 }
@@ -1196,9 +1193,6 @@ PyMODINIT_FUNC
 
 	ScheduleManager::s_scheduleManagerType = &ScheduleManagerType;
 	ScheduleManager::s_taskletType = &TaskletType;
-	ScheduleManager::s_scheduleManagerLock = PyThread_allocate_lock();
-
-    
 
     //Setup initial channel callback static
 	Channel::SetChannelCallback(nullptr);

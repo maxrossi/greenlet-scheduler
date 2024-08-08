@@ -916,11 +916,6 @@ int Tasklet::SetParent( Tasklet* parent )
     return ret;
 }
 
-void Tasklet::ClearParent()
-{
-	m_taskletParent = nullptr;
-}
-
 bool Tasklet::TaskletExceptionRaised()
 {
 	return PyErr_Occurred() == m_taskletExitException;
