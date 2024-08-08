@@ -11,7 +11,6 @@ ScheduleManager::ScheduleManager( PyObject* pythonObject ) :
 	m_currentTasklet( nullptr ),   // Set in constructor
 	m_previousTasklet( nullptr ),  // Set in constructor
 	m_switchTrapLevel(0),
-    m_schedulerFastCallback(nullptr),
     m_taskletLimit(-1),
 	m_totalTaskletRunTimeLimit(-1),
     m_stopScheduler(false),
@@ -512,7 +511,7 @@ Tasklet* ScheduleManager::GetMainTasklet()
 
 void ScheduleManager::SetSchedulerFastCallback( schedule_hook_func* func )
 {
-	m_schedulerFastCallback = func;
+	s_schedulerFastCallback = func;
 }
 
 void ScheduleManager::SetSchedulerCallback( PyObject* callback )
@@ -558,9 +557,9 @@ void ScheduleManager::RunSchedulerCallback( Tasklet* previous, Tasklet* next )
     }
 
     // Run fast callback bypassing python
-    if (m_schedulerFastCallback)
+    if (s_schedulerFastCallback)
     {
-		m_schedulerFastCallback( reinterpret_cast<PyTaskletObject*>(previous->PythonObject()), reinterpret_cast<PyTaskletObject*>(next->PythonObject()) );
+		s_schedulerFastCallback( reinterpret_cast<PyTaskletObject*>(previous->PythonObject()), reinterpret_cast<PyTaskletObject*>(next->PythonObject()) );
     }
 }
 
