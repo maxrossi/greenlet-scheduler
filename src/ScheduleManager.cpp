@@ -381,16 +381,6 @@ bool ScheduleManager::Run( Tasklet* startTasklet /* = nullptr */ )
 
 		Tasklet* currentTasklet = baseTasklet->Next();
 
-
-        // Store the parent to the tasklet
-		// Required for nested scheduling calls
-
-        bool currentTaskletParentBlocked = false;
-        if (currentTasklet->GetParent())
-        {
-			currentTaskletParentBlocked = currentTasklet->GetParent()->IsBlocked();
-        }
-
         if (currentTasklet->SetParent(ScheduleManager::GetCurrentTasklet()) == -1)
         {
 			return false;
@@ -488,7 +478,7 @@ bool ScheduleManager::Run( Tasklet* startTasklet /* = nullptr */ )
 			}
             
             // Switch was unsuccessful
-			currentTasklet->ClearParent();
+			currentTasklet->SetParent( nullptr );
 
 			return false;
         }

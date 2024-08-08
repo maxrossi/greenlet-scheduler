@@ -141,6 +141,8 @@ bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */, bool re
 
     if (!ChannelSwitch(current_tasklet, receivingTasklet, direction, ChannelDirection::SENDER))
     {
+		receivingTasklet->Decref();
+
 		scheduleManager->Decref();
 
         UpdateCloseState();
@@ -290,8 +292,29 @@ PyObject* Channel::Receive()
 
 			current->SetTransferInProgress( false );
 
-            current->Decref();
+            PyObject* transferArguments = current->GetTransferArguments();
 
+            if (transferArguments)
+            {
+                // If branch is entered it must mean the transfer was complete
+                // That is that the send has already set the transfer arguments
+                // This then must be the final call to finish receive
+                // If a kill or error has been raised on the tasklet before it
+                // Is processed on the queue then we need to clean up the transfer arguments
+                // We also don't need to decref the tasklet, the ref is held by the scheduler queue
+                // This tasklet is not technically blocked at this point
+				Py_DecRef( transferArguments );
+				current->ClearTransferArguments();
+            }
+            else
+            {
+                // If branch is entered it must mean that the tasklet was killed/error raised
+                // before the transfer completed
+                // No transfer arguments will have been set so no need to clean them up
+                // The tasklet reference belonged to the channel as it was in the block list
+				current->Decref();
+            }
+		
             scheduleManager->Decref();
 
             UpdateCloseState();

@@ -1199,3 +1199,48 @@ class TestChannels(SchedulerTestCaseBase):
         self.assertEqual(exitOutput[0],TASKLET1_ID)
         self.assertEqual(exitOutput[1],TASKLET2_ID)
 
+    def test_pending_kill_on_completed_transfer_prefer_sender(self):
+
+        def receive(c):
+            c.receive()
+            # Code should never get past this point
+            self.fail("Code Should not be reached")
+ 
+        def send(c):
+            c.send(None)
+
+        # Get the tasklet blocked on the channel.
+        channel = scheduler.channel()
+        channel.preference = 1
+        receiver = scheduler.tasklet(receive)(channel)
+        sender = scheduler.tasklet(send)(channel)
+
+        receiver.run()
+
+        receiver.kill(pending=True)
+        receiver = None
+        sender = None
+        scheduler.run()
+
+    def test_pending_kill_on_completed_transfer_prefer_receiver(self):
+
+        def receive(c):
+            c.receive()
+            
+        def send(c):
+            c.send(None)
+            # Code should never get past this point
+            self.fail("Code Should not be reached")
+
+        # Get the tasklet blocked on the channel.
+        channel = scheduler.channel()
+        sender = scheduler.tasklet(send)(channel)
+        receiver = scheduler.tasklet(receive)(channel)
+        
+        sender.run()
+
+        sender.kill(pending=True)
+        receiver = None
+        sender = None
+        scheduler.run()
+

@@ -115,8 +115,6 @@ public:
 
     int SetParent( Tasklet* parent );
 
-    void ClearParent();
-
     bool TaskletExceptionRaised();
 
     void ClearTaskletException();
@@ -210,8 +208,6 @@ private:
 	bool m_blocked;
 
 	ChannelDirection m_blockedDirection;
-
-    bool m_hasStarted;
 
     bool m_paused;
 
