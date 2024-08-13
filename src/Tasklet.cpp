@@ -140,6 +140,8 @@ bool Tasklet::Initialise()
 
 	m_greenlet = PyGreenlet_New( m_callable, nullptr );
 
+    SetCallable( nullptr );
+
     if (!m_greenlet)
     {
 		return false;
@@ -992,6 +994,14 @@ bool Tasklet::ShouldRestoreTransferException() const
 
 bool Tasklet::Setup( PyObject* args, PyObject* kwargs )
 {
+
+    if( !BelongsToCurrentThread() )
+	{
+		PyErr_SetString( PyExc_RuntimeError, "Failed to bind tasklet: Cannot setup tasklet from another thread" );
+
+		return false;
+	}
+
 	Py_XINCREF( args );
 
     SetArguments( args );

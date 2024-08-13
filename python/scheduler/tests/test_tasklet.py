@@ -419,7 +419,7 @@ class TestTasklets(test_utils.SchedulerTestCaseBase):
         t.bind(callable_tasklet)
 
         def ThreadFunc():
-            self.assertRaises(RuntimeError, t.setup())
+            self.assertRaises(RuntimeError, t.setup)
 
             # Tasklet should not add to threads queue
             self.assertEqual(self.getruncount(), 1)
