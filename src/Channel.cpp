@@ -31,7 +31,7 @@ Channel::~Channel()
 	// Remove weak ref from store
 	s_activeChannels.remove( this );
 
-	Py_DECREF( m_lock );
+	PyThread_free_lock( m_lock );
 }
 
 bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */, bool restoreException /* = false */)
