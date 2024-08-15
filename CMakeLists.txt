@@ -164,7 +164,7 @@ option(BUILD_DOCUMENTATION "Build Documentation" OFF)
             ERROR_STRIP_TRAILING_WHITESPACE
             RESULT_VARIABLE PYTHON_TEST_DISCOVERY_RETVAL
             ERROR_VARIABLE PYTHON_TEST_DISCOVERY_ERRORS
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/python/scheduler
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/tests/python/scheduler
     )
 
     if(${PYTHON_TEST_DISCOVERY_RETVAL})
@@ -185,7 +185,7 @@ option(BUILD_DOCUMENTATION "Build Documentation" OFF)
         message(STATUS "Found test ${PYTHON_TEST}")
         add_test(NAME ${PYTHON_TEST}
             COMMAND ${PYTHON_EXECUTABLE} -m unittest -v ${PYTHON_TEST}
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/python/scheduler/tests
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/tests/python/scheduler/tests
         )
         set_tests_properties(${PYTHON_TEST} PROPERTIES ENVIRONMENT "PYTHONPATH=${PYTHONPATH_ENV};BUILDFLAVOR=$<LOWER_CASE:$<CONFIG>>")
     endforeach ()
@@ -193,7 +193,7 @@ option(BUILD_DOCUMENTATION "Build Documentation" OFF)
     set(ALL_PYTHON_TEST RunAllPythonTestsInSingleInterpreterSession)
     add_test(NAME ${ALL_PYTHON_TEST}
         COMMAND ${PYTHON_EXECUTABLE} -m unittest discover -v
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/python/scheduler/tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/tests/python/scheduler/tests
         COMMAND_EXPAND_LISTS
     )
     set_tests_properties(${ALL_PYTHON_TEST} PROPERTIES ENVIRONMENT "PYTHONPATH=${PYTHONPATH_ENV};BUILDFLAVOR=$<LOWER_CASE:$<CONFIG>>")
