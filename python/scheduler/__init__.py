@@ -1,26 +1,34 @@
-import collections
-import os
-import threading
-import sys
-
-if "scheduler" in sys.modules:
-    import scheduler
-else:
-    flavor = os.environ.get("BUILDFLAVOR", "release")
-
-    if flavor == 'release':
-        import _scheduler as scheduler
-    elif flavor == 'debug':
-        import _scheduler_debug as scheduler
-    elif flavor == 'trinitydev':
-        import _scheduler_trinitydev as scheduler
+try:
+    import blue
+    _scheduler = blue.LoadExtension("_scheduler")
+except ImportError:
+    # TODO check if this code path is still required once blue is updated
+    import os
+    # Intentionally raise a KeyError from here:
+    # This code path should only be hit in unittest environments which always pass on the `BUILDFLAVOR` env variable
+    flavor = os.environ['BUILDFLAVOR']
+    if flavor == 'debug':
+        import _scheduler_debug as _scheduler
     elif flavor == 'internal':
-        import _scheduler_internal as scheduler
+        import _scheduler_internal as _scheduler
+    elif flavor == 'trinitydev':
+        import _scheduler_trinitydev as _scheduler
     else:
-        scheduler = None
-        raise RuntimeError("Unknown build flavor: {}".format(flavor))
+        import _scheduler
 
-class QueueChannel(scheduler.channel):
+
+for member in dir(_scheduler):
+    if member in ('__name__', '__file__'):
+        continue
+    globals()[member] = getattr(_scheduler, member)
+
+
+import collections
+import contextlib
+import threading
+
+
+class QueueChannel(_scheduler.channel):
     """
     A QueueChannel is like a channel except that it contains a queue, so that the
     sender never blocks.  If there isn't a blocked tasklet waiting for the data,
@@ -81,3 +89,15 @@ class QueueChannel(scheduler.channel):
 
     def __len__(self):
         return len(self.data_queue)
+
+
+@contextlib.contextmanager
+def block_trap(trap=True):
+    c = _scheduler.getcurrent()
+    old = c.block_trap
+    c.block_trap = trap
+
+    try:
+        yield
+    finally:
+        c.block_trap = old

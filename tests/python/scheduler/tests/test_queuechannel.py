@@ -1,21 +1,6 @@
-from schedulerext import QueueChannel, block_trap
-
-import os
 import sys
 from test_utils import SchedulerTestCaseBase
-
-flavor = os.environ.get("BUILDFLAVOR", "release")
-if flavor == 'release':
-    import _scheduler as scheduler
-elif flavor == 'debug':
-    import _scheduler_debug as scheduler
-elif flavor == 'trinitydev':
-    import _scheduler_trinitydev as scheduler
-elif flavor == 'internal':
-    import _scheduler_internal as scheduler
-else:
-    scheduler = None
-    raise RuntimeError("Unknown build flavor: {}".format(flavor))
+import scheduler
 
 
 class TestQueueChannels(SchedulerTestCaseBase):
@@ -23,7 +8,7 @@ class TestQueueChannels(SchedulerTestCaseBase):
         def send(test_channel):
             test_channel.send((1, 2, 3))
 
-        channel = QueueChannel()
+        channel = scheduler.QueueChannel()
         tasklet = scheduler.tasklet(send)(channel)
         self.assertEqual(self.getruncount(), 2)
         tasklet.run()
@@ -37,7 +22,7 @@ class TestQueueChannels(SchedulerTestCaseBase):
         def send(test_channel):
             test_channel.send((1, 2, 3))
 
-        channel = QueueChannel()
+        channel = scheduler.QueueChannel()
         self.assertEqual(channel.balance, 0, "Channel balance incorrectly instantiated")
 
         # Increment channel balance a couple of times
@@ -54,7 +39,7 @@ class TestQueueChannels(SchedulerTestCaseBase):
         def send(test_channel):
             test_channel.send((1, 2, 3))
 
-        channel = QueueChannel()
+        channel = scheduler.QueueChannel()
         tasklet = scheduler.tasklet(send)(channel)
 
         self.assertEqual(self.getruncount(), 2)
@@ -78,7 +63,7 @@ class TestQueueChannels(SchedulerTestCaseBase):
         def send(test_channel):
             test_channel.send((1, 2, 3))
 
-        channel = QueueChannel()
+        channel = scheduler.QueueChannel()
 
         receiving_tasklet = scheduler.tasklet(receive)(channel)
 
@@ -101,7 +86,7 @@ class TestQueueChannels(SchedulerTestCaseBase):
         def foo(test_channel):
             test_channel.send_exception(ValueError, *(1, 2, 3))
 
-        channel = QueueChannel()
+        channel = scheduler.QueueChannel()
         tasklet = scheduler.tasklet(foo)(channel)
         self.assertEqual(self.getruncount(), 2)
         tasklet.run()
@@ -129,7 +114,7 @@ class TestQueueChannels(SchedulerTestCaseBase):
             except Exception:
                 testChannel.send_throw(*sys.exc_info())
 
-        channel = QueueChannel()
+        channel = scheduler.QueueChannel()
         tasklet = scheduler.tasklet(sendThrow)(channel)
         self.assertEqual(self.getruncount(), 2)
         tasklet.run()
@@ -150,7 +135,7 @@ class TestQueueChannels(SchedulerTestCaseBase):
         self.assertTrue(exc)
 
     def test_main_tasklet_blocking_without_receiver(self):
-        c = QueueChannel()
+        c = scheduler.QueueChannel()
 
         def test_send():
             c.receive()
@@ -163,7 +148,7 @@ class TestQueueChannels(SchedulerTestCaseBase):
         def foo(x):
             taskletOrder.append(x)
 
-        channel = QueueChannel()
+        channel = scheduler.QueueChannel()
 
         def receiver(c):
             scheduler.tasklet(foo)('a')
@@ -192,11 +177,11 @@ class TestQueueChannels(SchedulerTestCaseBase):
         """
         Test that block trapping works when receiving
         """
-        channel = QueueChannel()
+        channel = scheduler.QueueChannel()
         count = [0]
 
         def f():
-            with block_trap():
+            with scheduler.block_trap():
                 self.assertRaises(RuntimeError, channel.receive)
             count[0] += 1
 
@@ -215,7 +200,7 @@ class TestQueueChannels(SchedulerTestCaseBase):
             for i in range(0, 10):
                 chan.send(i)
 
-        channel = QueueChannel()
+        channel = scheduler.QueueChannel()
 
         scheduler.tasklet(sender)(channel)
 

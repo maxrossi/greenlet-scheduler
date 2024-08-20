@@ -200,7 +200,7 @@ option(BUILD_DOCUMENTATION "Build Documentation" OFF)
 
 
     # Install scheduler extension package
-    install(DIRECTORY python/schedulerext DESTINATION python
+    install(DIRECTORY python/scheduler DESTINATION python
             FILES_MATCHING
             PATTERN "*.py"
     )
