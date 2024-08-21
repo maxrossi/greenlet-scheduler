@@ -41,6 +41,7 @@ std::wstring STDLIB_PATH = L\"${BRANCH_ROOT_DIR}/carbon/common/stdlib/\";
 std::wstring GREENLET_CEXTENSION_MODULE_PATH = L\"${Greenlet_ROOT}/${CCP_VENDOR_BIN_PATH}\";
 std::wstring GREENLET_MODULE_PATH = L\"${Greenlet_ROOT}/python\";
 "
+    TARGET SchedulerCapiTest
 )
 
 # Copy the python dll to target build directory
