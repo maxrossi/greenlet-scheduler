@@ -1009,26 +1009,9 @@ static PyMethodDef SchedulerMethods[] = {
 	{ nullptr, nullptr, 0, nullptr } /* Sentinel */
 };
 
-/**
- * <Name> and <Name>_DIRECT Pattern is used here because:
- * s1##s2 will not expand s1 & s2 symbols, however a parent macro will
- * So this:
- * CONCATENATE(s1, s2) s1##s2 will not expand either symbol s1 or s2
- * An Extra step is needed to expand s1 and s2, hence:
- *
- * CONCATENATE_DIRECT(s1, s2) s1##s2 // directly concatinate s1 and s2 without resolving them
- * CONCATENATE(s1, s2) CONCATENATE_DIRECT(s1, s2) // resolve s1 and s2 before "passing them" to CONCATENATE_DIRECT
- */
-#define CONCATENATE_DIRECT(s1, s2) s1##s2
-#define CONCATENATE(s1, s2) CONCATENATE_DIRECT(s1, s2)
-
-#define STRING_DIRECT(s) #s
-#define STRING(s) STRING_DIRECT(s)
-#define CONCATENATE_TO_STRING(s1, s2) STRING(CONCATENATE_DIRECT(s1, s2))
-
 static struct PyModuleDef schedulermodule = {
     PyModuleDef_HEAD_INIT,
-    CONCATENATE_TO_STRING(_scheduler, CCP_BUILD_FLAVOR),   /* name of module */
+    "_scheduler",   /* name of module */
     nullptr, /* module documentation, may be NULL */
     -1,       /* size of per-interpreter state of the module,
                  or -1 if the module keeps state in global variables. */
@@ -1039,8 +1022,7 @@ static struct PyModuleDef schedulermodule = {
 	ModuleDestructor
 };
 
-PyMODINIT_FUNC
-	CONCATENATE(PyInit__scheduler, CCP_BUILD_FLAVOR) (void)
+PyMODINIT_FUNC PyInit__scheduler(void)
 {
     PyObject *m;
 	static SchedulerCAPI api;
@@ -1102,8 +1084,8 @@ PyMODINIT_FUNC
 	}
 
 	//Exceptions
-	auto exit_exception_string = CONCATENATE_TO_STRING(_scheduler, CCP_BUILD_FLAVOR) + std::string(".TaskletExit");
-	TaskletExit = PyErr_NewException( exit_exception_string.c_str(), PyExc_SystemExit, nullptr );
+	auto exit_exception_string = "_scheduler.TaskletExit";
+	TaskletExit = PyErr_NewException( exit_exception_string, PyExc_SystemExit, nullptr );
 	Py_XINCREF( TaskletExit );
 	if( PyModule_AddObject( m, "TaskletExit", TaskletExit ) < 0 )
 	{
@@ -1176,7 +1158,6 @@ PyMODINIT_FUNC
 	api.PyScheduler_SetScheduleFastCallback = PyScheduler_SetScheduleFastCallback;
 
 	/* Create a Capsule containing the API pointer array's address */
-	//c_api_object = PyCapsule_New( (void*)&api, "_scheduler_debug._C_API", NULL );
 	c_api_object = PyCapsule_New( (void*)&api, "scheduler._C_API", nullptr );
 
 	if( PyModule_AddObject( m, "_C_API", c_api_object ) < 0 )

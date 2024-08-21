@@ -3,12 +3,7 @@
 #include "InterpreterWithSchedulerModule.h"
 
 // Include build config specific paths
-#define CONCATENATE_DIRECT( s1, s2 ) s1##s2
-#define STRING_DIRECT( s ) #s
-#define STRING( s ) STRING_DIRECT( s )
-#define CONCATENATE_TO_STRING( s1, s2 ) STRING( CONCATENATE_DIRECT( s1, s2 ) )
-#define MODULE_PATH_INCLUDE CONCATENATE_TO_STRING( CCP_BUILD_FLAVOR, _PackagePaths.h )
-#include MODULE_PATH_INCLUDE
+#include <PackagePaths.h>
 
 static SchedulerCAPI* s_schedulerApi = nullptr;
 static int s_testValue = 0;
@@ -232,6 +227,14 @@ void InterpreterWithSchedulerModule::SetUp()
 		exit( -1 );
 	}
 
+	// Setup search paths
+	status = PyWideStringList_Append( &config.module_search_paths, SCHEDULER_PACKAGE_PATH.c_str() );
+	if( PyStatus_Exception( status ) )
+	{
+		PyErr_Print();
+		exit( -1 );
+	}
+
 	status = PyWideStringList_Append( &config.module_search_paths, STDLIB_PATH.c_str() );
 	if( PyStatus_Exception( status ) )
 	{
@@ -274,23 +277,13 @@ void InterpreterWithSchedulerModule::SetUp()
 	}
 	PyConfig_Clear( &config );
 
-
-	// Import scheduler
-	m_schedulerModule = PyImport_ImportModule( CONCATENATE_TO_STRING( _scheduler, CCP_BUILD_FLAVOR ) );
-
-	if( !m_schedulerModule )
+	m_schedulerModule = PyImport_ImportModule( "_scheduler" );
+	if ( !m_schedulerModule )
 	{
 		PyErr_Print();
 		PySys_WriteStdout( "Failed to import scheduler module\n" );
 		exit( -1 );
 	}
-
-    // Set _scheduler_BUILDFLAVOR to be scheduler ( Required as capsule name refers to this and the file in constant between flavors )
-    PyObject* sysmodule = PyImport_ImportModule( "sys" );
-	PyObject* dict = PyModule_GetDict( sysmodule );
-	PyObject* modules = PyDict_GetItemString( dict, "modules" );
-	PyDict_SetItemString( modules, "scheduler", m_schedulerModule );
-    Py_DECREF( sysmodule );
 
     // Import capsule
 	m_api = SchedulerAPI();

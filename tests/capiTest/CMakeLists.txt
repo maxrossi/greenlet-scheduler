@@ -17,7 +17,7 @@ set(SRC_FILES
     StdAfx.cpp
 )
 
-ccp_add_executable(SchedulerCapiTest ${SRC_FILES})
+add_executable(SchedulerCapiTest ${SRC_FILES})
 
 target_include_directories(SchedulerCapiTest PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
 
@@ -30,12 +30,13 @@ target_link_libraries(SchedulerCapiTest PRIVATE GTest::GTest GTest::Main Python 
 # Generate paths Include for each config
 # Allows for easy use inside IDE
 file (GENERATE
-    OUTPUT "$<LOWER_CASE:$<IF:$<CONFIG:Release>,,_$<CONFIG>>>_PackagePaths.h" 
+    OUTPUT "PackagePaths.h"
     CONTENT 
 "
 #pragma once
 #include <string>
 std::wstring SCHEDULER_CEXTENSION_MODULE_PATH = L\"$<TARGET_FILE_DIR:Scheduler>\";
+std::wstring SCHEDULER_PACKAGE_PATH = L\"${CMAKE_SOURCE_DIR}/python\";
 std::wstring STDLIB_PATH = L\"${BRANCH_ROOT_DIR}/carbon/common/stdlib/\";
 std::wstring GREENLET_CEXTENSION_MODULE_PATH = L\"${Greenlet_ROOT}/${CCP_VENDOR_BIN_PATH}\";
 std::wstring GREENLET_MODULE_PATH = L\"${Greenlet_ROOT}/python\";

@@ -9,7 +9,7 @@ Simple Tasklet
 
    # Creating a tasklet and running
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    def exampleCallable(n):
       print("Running example callable {}".format(n))
@@ -37,7 +37,7 @@ Scheduling Tasklets
    # New ones are added to the end of a flat list.
    # Running the scheduler runs them in order.
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    def exampleCallable(n):
       print("Running example callable {}".format(n))
@@ -65,7 +65,7 @@ Callbacks can be installed on tasklet switch
 .. code-block:: python
 
    # Callbacks can be set to be called when tasklets are switched
-   import _scheduler_debug as scheduler
+   import scheduler
 
    def callback(previousTasklet, nextTasklet):
       print("previousTasklet {} nextTasklet {}".format(previousTasklet,
@@ -108,7 +108,7 @@ Running Tasklets Directly
 
    # Tasklets can also be run directly by calling their run method
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    def exampleCallable(n):
       print("Running example callable {}".format(n))
@@ -130,7 +130,7 @@ Output
    # Tasklets queued in a higher position remain on the scheduled queue.
    # Tasklets following the run Tasklet will also be run
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    def exampleCallable(n):
       print("Running example callable {}".format(n))
@@ -158,7 +158,7 @@ Creating Tasklets Inside Tasklets
 
    # Tasklets can be created inside a running tasklet
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    def exampleCallable(n):
       print("Running example callable {}".format(n))
@@ -191,7 +191,7 @@ Scheduler Run and Tasklet Run With Nested Tasklets
    # scheduler.run != tasklet.run when nesting tasklets
    # Tasklet.run will only evaluate tasklets that were already created when tasklet.run was called.
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    def exampleCallable(n):
       print("Running example callable {}".format(n))
@@ -224,7 +224,7 @@ Tasklet Switching Of Scheduled Tasklets
    # Tasklets that are scheduled and switched to will give the same behaviour as Tasklet.run
    # Switch behaviour is different when the Tasklet is not scheduled
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    def exampleCallable(n):
       print("Running example callable {}".format(n))
@@ -259,7 +259,7 @@ Running Tasklets With Watchdog
    # carbon-scheduler exposes a new function run_n_tasklets which similiarly runs only a portion of the queue at a time.
    # Good for determinism when testing partial queue runs.
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    def exampleCallable(n):
       print("Running example callable {}".format(n))
@@ -288,7 +288,7 @@ Creating Tasklets Outside Schedule manager
    # Switch here will now act differently than when the Tasklet was scheduled
    # In reality it still utilises the scheduler queue but for practical purposes it can be thought of as external
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    def exampleCallable(n):
       print("Running example callable {}".format(n))
@@ -315,7 +315,7 @@ Tasklet Yielding
    # Tasklets can be set to yield at any point
    # scheduler.schedule will yield the current callable and add the Tasklet to the end of the runnables queue
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    def exampleCallable(n):
       print("Start Running example callable {}".format(n))
@@ -341,7 +341,7 @@ Tasklet Yielding behaviour with Scheduler Run
 
    # Tasklet yielding with scheduler.run gives very different results here. 
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    def exampleCallable(n):
       print("Start Running example callable {}".format(n))
@@ -367,7 +367,7 @@ How external tasklets can accidently end up on queue
 
    # Tasklets that are external to the schedule manager queue can easily get added to the queue accidently
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    def exampleCallable(n):
       print("Start example callable {}".format(n))
@@ -397,7 +397,7 @@ This can be avoided
 
    # A special schedule exists which doesn't add the Tasklet to the end of the schedule queue
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    def exampleCallable(n):
       print("Start example callable {}".format(n))
@@ -431,7 +431,7 @@ Removing partially complete tasklets from queue
    # It can be reinserted or run directly.
    # It is not finished.
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    def exampleCallable(n):
       print("Start example callable {}".format(n))
@@ -461,7 +461,7 @@ Destroying Tasklets
 
    # Tasklets can be destroyed
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    def exampleCallable(n):
       print("example callable {}".format(n))
@@ -489,7 +489,7 @@ Killing runs schedule manager
    # Killing a Tasklet does more than just removing them from the queue
    # Tasklets added to run queue that appear after the killed Tasklet will be run
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    def exampleCallable(n):
       print("example callable {}".format(n))
@@ -518,7 +518,7 @@ Passing data between tasklets using channels
    # For a channel transfer to complete there first needs to be a matching send/receive pair
    # When the first command is encountered the Tasklet where the command was executed will yield and be added to an internal blocked list on the channel
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    channel = scheduler.channel()
 
@@ -544,7 +544,7 @@ Channel blocking on receive example
 
    # Channels can also block on recieve
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    channel = scheduler.channel()
 
@@ -570,7 +570,7 @@ Completing channel transfer
 
    # When a matching pair of send and receives are executed a data transfer will complete
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    def sender(chan, x):
       print("channel sending")
@@ -605,7 +605,7 @@ Channels can have many blocked tasklets at a time
 
    # Channels can have many Tasklets blocked at once
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    channel = scheduler.channel()
 
@@ -632,7 +632,7 @@ Channel transfers complete on first blocked
 
    # Data transfers will be matching simply with the first blocked Tasklet
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    channel = scheduler.channel()
 
@@ -659,7 +659,7 @@ Channels blocking main tasklet can deadlock
 
    # Blocking the main thread can cause a Deadlock
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
 
    channel = scheduler.channel()
@@ -678,7 +678,7 @@ Channels blocking main tasklet with scheduled tasklets
 
    # If a future scheduled tasklet exists to complete the channel transfer Deadlock is avoided
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
 
    channel = scheduler.channel()
@@ -705,7 +705,7 @@ Channel preference Receive
 
    # By default a channel is set to 'prefer receiver'
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    c = scheduler.channel()
 
@@ -742,7 +742,7 @@ With switched tasklet order
 
    # If the tasklet order is switched the same transfer resolution is acheived
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    c = scheduler.channel()
 
@@ -782,7 +782,7 @@ Channel preference Send
    # Changing this to 'prefer sender' will have the following effect
    # and again switching t1 and t2 will lead to the same transfer resolution order
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    c = scheduler.channel()
 
@@ -820,7 +820,7 @@ With switched tasklet order
    # Changing this to 'prefer sender' will have the following effect
    # and again switching t1 and t2 will lead to the same transfer resolution order
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    c = scheduler.channel()
 
@@ -859,7 +859,7 @@ Channel preference Neither
    # Changing this to 'prefer sender' will have the following effect
    # and again switching t1 and t2 will lead to the same transfer resolution order
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    c = scheduler.channel()
 
@@ -899,7 +899,7 @@ With switched tasklet order
    # Hence Prefer neither doesn't prefer any.
    # However it is probably better summed up as prefer either.
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    c = scheduler.channel()
 
@@ -937,7 +937,7 @@ Unblocking channels with iterators
 
    # Channels offer an iterator to unblock Tasklets blocked on send
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    channel = scheduler.channel()
 
@@ -976,7 +976,7 @@ Closing channels
 
    # Channels can be 'closed'
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    channel = scheduler.channel()
 
@@ -1007,7 +1007,7 @@ Channels only fully close when block list is empty
    # which follows that, closed channels can still complete transfer operations
    # Watch out for closing as it may not be obvious
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    channel = scheduler.channel()
 
@@ -1050,7 +1050,7 @@ Channels can call callbacks called on operation
    # Channel callbacks are global to the scheduler and so shared by all channels
 
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    def callback(channel, tasklet, is_sending, will_block):
       print("Channel {} Tasklet {} is_sending {} will_block {}".format(channel,
@@ -1098,7 +1098,7 @@ Raising exceptions on tasklets
 
    # Exceptions can be raised on Tasklets
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    def yieldingTasklet():
       scheduler.schedule()
@@ -1123,7 +1123,7 @@ Raising TaskletExit exceptions
    # A special exception is provided scheduler.TaskletExit
    # scheduler.TaskletExit exceptions will be contained in the Tasklet
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    def yieldingTasklet():
       scheduler.schedule()
@@ -1147,7 +1147,7 @@ Catching TaskletExit exceptions
 
    # scheduler.TaskletExit can be caught to deal with cleanup inside the Tasklet
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    def yieldingTasklet():
       try:
@@ -1174,7 +1174,7 @@ Raising TaskletExit on a new tasklet
 
    # Tasklet exit on a new Tasklet will cause it never to even start
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    def yieldingTasklet():
       try:
@@ -1201,7 +1201,7 @@ Sending exceptions over channels
 
    # Exceptions can be sent over channels
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    channel = scheduler.channel()
 
@@ -1227,7 +1227,7 @@ Running tasklets are still marked as scheduled
 
    # Running Tasklets are marked as 'scheduled'
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    def exampleCallable(n):
       print("Running example callable {}".format(n))
@@ -1252,7 +1252,7 @@ Complex tasklet order example
    # Schedule order can get complex to follow
    # Even though the scheduler run queue is a flat list it is often not evaluated in a linear way.
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    def taskletCallable(x):
       print("t{}".format(x))
@@ -1300,7 +1300,7 @@ Watchdog retains tasklet nesting
 
    # Watchdog will retain Nesting order of execution to retain Tasklet order during runs
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    def taskletCallable(x):
       print("t{}".format(x))
@@ -1349,7 +1349,7 @@ Python threads and schedule manager
    # The way it works is that each Python thread gets its own schedule manager
    # These are set up for you as needed and destroyed when no longer required.
 
-   import _scheduler_debug as scheduler
+   import scheduler
    import threading
 
    def log(argument):
@@ -1383,7 +1383,7 @@ Channels are threadsafe
 
    # Channels are thread safe, data can be transferred between Python threads.
 
-   import _scheduler_debug as scheduler
+   import scheduler
    import threading
 
    channel = scheduler.channel()
@@ -1415,7 +1415,7 @@ Supressing tasklet switching
 
    # Tasklets can be set to be non blocking using their block_trap property
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    def receiver(chan):
       print("about to call receive ...")
@@ -1442,7 +1442,7 @@ Blocktrap does not stop transers Completing
 
    # Blocktrap will not stop switching for a completing transfer
 
-   import _scheduler_debug as scheduler
+   import scheduler
 
    def sender(chan, x):
       print("channel sending")
@@ -1473,5 +1473,3 @@ Output
    >>>receiver receiving ...
    >>>channel sending
    >>>received  Data sent over channel
-
-

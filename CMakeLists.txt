@@ -68,7 +68,10 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}"
 
 target_precompile_headers(Scheduler PRIVATE src/stdafx.h)
 
-set_target_properties(Scheduler PROPERTIES OUTPUT_NAME "_scheduler")
+set_target_properties(Scheduler PROPERTIES
+    OUTPUT_NAME "_scheduler"
+    DEBUG_POSTFIX ""
+)
 
 
 
@@ -137,7 +140,7 @@ option(BUILD_DOCUMENTATION "Build Documentation" OFF)
     install(
         TARGETS Scheduler
         EXPORT SchedulerTargets
-        CONFIGURATIONS ${CMAKE_CONFIGURATION_TYPES}
+        CONFIGURATIONS Release
         LIBRARY DESTINATION lib/${CCP_PLATFORM}/${CCP_ARCHITECTURE}/${CCP_TOOLSET}/
         ARCHIVE DESTINATION lib/${CCP_PLATFORM}/${CCP_ARCHITECTURE}/${CCP_TOOLSET}/
         RUNTIME DESTINATION bin/${CCP_PLATFORM}/${CCP_ARCHITECTURE}/${CCP_TOOLSET}/

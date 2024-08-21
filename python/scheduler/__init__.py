@@ -1,31 +1,15 @@
-try:
-    import blue
-    _scheduler = blue.LoadExtension("_scheduler")
-except ImportError:
-    # TODO check if this code path is still required once blue is updated
-    import os
-    # Intentionally raise a KeyError from here:
-    # This code path should only be hit in unittest environments which always pass on the `BUILDFLAVOR` env variable
-    flavor = os.environ['BUILDFLAVOR']
-    if flavor == 'debug':
-        import _scheduler_debug as _scheduler
-    elif flavor == 'internal':
-        import _scheduler_internal as _scheduler
-    elif flavor == 'trinitydev':
-        import _scheduler_trinitydev as _scheduler
-    else:
-        import _scheduler
+import collections
+import contextlib
+import threading
+
+
+import _scheduler
 
 
 for member in dir(_scheduler):
     if member in ('__name__', '__file__'):
         continue
     globals()[member] = getattr(_scheduler, member)
-
-
-import collections
-import contextlib
-import threading
 
 
 class QueueChannel(_scheduler.channel):
