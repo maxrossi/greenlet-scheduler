@@ -30,8 +30,8 @@ target_link_libraries(SchedulerCapiTest PRIVATE GTest::GTest GTest::Main Python 
 # Generate paths Include for each config
 # Allows for easy use inside IDE
 file (GENERATE
-    OUTPUT "PackagePaths.h"
-    CONTENT 
+    OUTPUT "PackagePaths_$<CONFIG>.h"
+    CONTENT
 "
 #pragma once
 #include <string>
@@ -41,7 +41,6 @@ std::wstring STDLIB_PATH = L\"${BRANCH_ROOT_DIR}/carbon/common/stdlib/\";
 std::wstring GREENLET_CEXTENSION_MODULE_PATH = L\"${Greenlet_ROOT}/${CCP_VENDOR_BIN_PATH}\";
 std::wstring GREENLET_MODULE_PATH = L\"${Greenlet_ROOT}/python\";
 "
-    TARGET SchedulerCapiTest
 )
 
 # Copy the python dll to target build directory
@@ -50,6 +49,18 @@ if(WIN32)
 elseif(APPLE)
     set(PythonLibName "libpython3.12.dylib")
 endif()
+
+add_custom_command (
+        COMMAND ${CMAKE_COMMAND} "-E" "copy_if_different" "PackagePaths_$<CONFIG>.h" "PackagePaths.h"
+        VERBATIM
+        PRE_BUILD
+        DEPENDS  "PackagePaths_$<CONFIG>.h"
+        OUTPUT   "PackagePaths.h"
+        COMMENT  "Creating PackagePaths.h file"
+)
+
+add_custom_target(GeneratePackagePathsHeader DEPENDS "PackagePaths.h")
+add_dependencies(SchedulerCapiTest GeneratePackagePathsHeader)
 
 add_custom_command(
   TARGET SchedulerCapiTest POST_BUILD
