@@ -152,6 +152,7 @@ option(BUILD_DOCUMENTATION "Build Documentation" OFF)
         TARGET Scheduler
         DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/SchedulerConfig.cmake"
         DEPENDENCIES ""
+        CONFIGURATIONS Release
     )
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/SchedulerConfig.cmake DESTINATION .)
 
