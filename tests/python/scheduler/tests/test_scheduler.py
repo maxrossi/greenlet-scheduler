@@ -1,20 +1,7 @@
-import os
-flavor = os.environ.get("BUILDFLAVOR", "release")
-if flavor == 'release':
-    import _scheduler as scheduler
-elif flavor == 'debug':
-    import _scheduler_debug as scheduler
-elif flavor == 'trinitydev':
-    import _scheduler_trinitydev as scheduler
-elif flavor == 'internal':
-    import _scheduler_internal as scheduler
-else:
-    scheduler = None
-    raise RuntimeError("Unknown build flavor: {}".format(flavor))
-
 import unittest
 import contextlib
 import test_utils
+import scheduler
 
 @contextlib.contextmanager
 def switch_trapped():
@@ -24,6 +11,10 @@ def switch_trapped():
     finally:
         scheduler.switch_trap(-1)
 
+
+class TestCAPIExposure(unittest.TestCase):
+    def test_has_capi_attribute(self):
+        self.assertTrue(hasattr(scheduler, "_C_API"))
 
 
 class TestTaskletRunOrder(test_utils.SchedulerTestCaseBase):

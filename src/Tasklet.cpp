@@ -648,7 +648,7 @@ void Tasklet::SetTransferArguments( PyObject* args, PyObject* exception, bool re
 	if(m_transferArguments != nullptr)
 	{
         //TODO this needs to be converted to an assert
-		PySys_WriteStdout( "TRANSFER ARGS BROKEN %d\n", PyThread_get_thread_ident() );
+		PySys_WriteStdout( "TRANSFER ARGS BROKEN %lu\n", PyThread_get_thread_ident() );
     }
 
 	Py_IncRef( args );

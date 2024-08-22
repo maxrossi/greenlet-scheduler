@@ -27,6 +27,7 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 	    PyChannelObject* channel = m_api->PyChannel_New( m_api->PyChannelType );
 
         EXPECT_NE( channel, nullptr );
+		Py_IncRef( reinterpret_cast<PyObject*>( channel ) );
 
 	    // Create a callable which calls PyChannel_Send in c++
 		EXPECT_EQ( PyRun_SimpleString( "def send_function(channel,value):\n"
@@ -44,7 +45,6 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 	    PyTaskletObject* tasklet = m_api->PyTasklet_New( m_api->PyTaskletType, tasklet_args );
 		EXPECT_NE( tasklet, nullptr );
 	    Py_XDECREF( tasklet_args );
-		Py_XDECREF( sendCallable );
 
 	    // Setup tasklet to bind arguments and add the queue
 	    PyObject* callableArgs = PyTuple_New( 2 );
@@ -101,6 +101,7 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 		PyChannelObject* channel = m_api->PyChannel_New( m_api->PyChannelType );
 
         EXPECT_NE( channel, nullptr );
+		Py_IncRef( reinterpret_cast<PyObject*>( channel ) );
 
 		// Create a callable which calls PyChannel_Send in c++
 		EXPECT_EQ( PyRun_SimpleString( "def send_function(channel,value):\n"
@@ -119,7 +120,6 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 		EXPECT_NE( tasklet, nullptr );
 		EXPECT_TRUE( m_api->PyTasklet_Check( reinterpret_cast<PyObject*>(tasklet) ) );
 		Py_XDECREF( taskletArgs );
-		Py_XDECREF( sendCallable );
 
 		// Setup tasklet to bind arguments and add the queue
 		PyObject* callableArgs = PyTuple_New( 2 );
@@ -170,6 +170,7 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 	    PyChannelObject* channel = m_api->PyChannel_New( m_api->PyChannelType );
 
         EXPECT_NE( channel, nullptr );
+		Py_IncRef( reinterpret_cast<PyObject*>( channel ) );
 
 	    // Create callable
 		EXPECT_EQ( PyRun_SimpleString( "def foo(channel, value):\n"
@@ -188,7 +189,6 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 		EXPECT_NE( tasklet, nullptr );
 		EXPECT_TRUE( m_api->PyTasklet_Check( reinterpret_cast<PyObject*>( tasklet ) ) );
 	    Py_XDECREF( taskletArgs );
-	    Py_XDECREF( fooCallable );
 
 	    // Setup tasklet to bind arguments and add the queue
 	    PyObject* callableArgs = PyTuple_New( 2 );
@@ -247,6 +247,7 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 		PyChannelObject* channel = m_api->PyChannel_New( m_api->PyChannelType );
 
         EXPECT_NE( channel, nullptr );
+		Py_IncRef( reinterpret_cast<PyObject*>( channel ) );
 
         // Set channel preference to prefer sender
 		m_api->PyChannel_SetPreference( channel, 1 );
@@ -268,7 +269,6 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 		EXPECT_NE( tasklet, nullptr );
 		EXPECT_TRUE(m_api->PyTasklet_Check(reinterpret_cast<PyObject*>(tasklet)));
 		Py_XDECREF( taskletArgs );
-		Py_XDECREF( fooCallable );
 
 		// Setup tasklet to bind arguments and add the queue
 		PyObject* callableArgs = PyTuple_New( 1 );
@@ -491,6 +491,7 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 		PyChannelObject* channel = m_api->PyChannel_New( m_api->PyChannelType );
 
 		EXPECT_NE( channel, nullptr );
+		Py_IncRef( reinterpret_cast<PyObject*>( channel ) );
 
         // Create test scenario to which calls send_throw through capi
 		EXPECT_EQ( PyRun_SimpleString( "import sys\n"
@@ -557,7 +558,8 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 
         // Expect nothing blocked on the channel
 		EXPECT_EQ( m_api->PyChannel_GetBalance( channel ), 0 );
-	
+
+		Py_DecRef( reinterpret_cast<PyObject*>( channel ) );
 	}
 
     TEST_F( ChannelCapi, PyChannel_SendThrow_NoValueOrTb )
@@ -565,6 +567,7 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 		PyChannelObject* channel = m_api->PyChannel_New( m_api->PyChannelType );
 
 		EXPECT_NE( channel, nullptr );
+		Py_IncRef( reinterpret_cast<PyObject*>( channel ) );
 
 		// Create test scenario to which calls send_throw through capi
 		EXPECT_EQ( PyRun_SimpleString( "import sys\n"
@@ -628,5 +631,5 @@ struct ChannelCapi : public InterpreterWithSchedulerModule{};
 
 		// Expect nothing blocked on the channel
 		EXPECT_EQ( m_api->PyChannel_GetBalance( channel ), 0 );
+		Py_DecRef( reinterpret_cast<PyObject*>( channel ) );
 	}
-

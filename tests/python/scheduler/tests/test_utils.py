@@ -1,21 +1,9 @@
 import unittest
 import sys
-import os
 import gc
 
-flavor = os.environ.get("BUILDFLAVOR", "release")
-if flavor == 'release':
-    import _scheduler as scheduler
-elif flavor == 'debug':
-    import _scheduler_debug as scheduler
-elif flavor == 'trinitydev':
-    import _scheduler_trinitydev as scheduler
-elif flavor == 'internal':
-    import _scheduler_internal as scheduler
-else:
-    scheduler = None
-    raise RuntimeError("Unknown build flavor: {}".format(flavor))
 
+import scheduler
 
 
 class SchedulerTestCaseBase(unittest.TestCase):
@@ -68,5 +56,3 @@ class SchedulerTestCaseBase(unittest.TestCase):
         self.assertEqual(runCount, scheduler.calculateruncount())
 
         return runCount
-
-
