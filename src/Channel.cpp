@@ -79,7 +79,7 @@ bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */, bool re
         // Ensure channel is open
         if (m_closed || m_closing)
         {
-			PyErr_SetString( PyExc_ValueError, "Send/receive operation on a closed channel" );
+			PyErr_SetString( PyExc_ValueError, "Send operation on a closed channel" );
 
 			scheduleManager->Decref();
 
@@ -97,6 +97,8 @@ bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */, bool re
 
         UpdateCloseState();
 
+        current->SetTransferArguments( args, exception, restoreException );
+
         PyThread_release_lock( m_lock );
 
          // Continue scheduler
@@ -108,9 +110,20 @@ bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */, bool re
 
             RemoveTaskletFromBlocked( current );
 
-            current->Unblock();
+            auto transferArguments = current->GetTransferArguments();
 
-			current->Decref();
+            if ( transferArguments )
+            {
+				// If branch is entered it must mean that the tasklet was killed/error raised
+				// before the transfer completed
+				// Transfer arguments will not have been cleared, so we need to clean them up
+				// The tasklet reference belonged to the channel as it was in the block list
+				Py_DecRef( transferArguments );
+				current->ClearTransferArguments();
+				current->Decref();
+            }
+
+            current->Unblock();
             
             scheduleManager->Decref();
 
@@ -121,37 +134,43 @@ bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */, bool re
 			return false;
         }
 
-
         PyThread_acquire_lock( m_lock, 1 );
 
     }
-
-    Tasklet* receivingTasklet = PopNextTaskletBlockedOnReceive();
-
-    receivingTasklet->Unblock();
-	
-    // Store for retrieval from receiving tasklet
-	receivingTasklet->SetTransferArguments( args, exception, restoreException );
-
-	PyThread_release_lock( m_lock );
-
-    Tasklet* current_tasklet = scheduleManager->GetCurrentTasklet();
-
-    UpdateCloseState();
-
-    if (!ChannelSwitch(current_tasklet, receivingTasklet, direction, ChannelDirection::SENDER))
+    else
     {
-		receivingTasklet->Decref();
+		Tasklet* receivingTasklet = PopNextTaskletBlockedOnReceive();
 
-		scheduleManager->Decref();
+		receivingTasklet->Unblock();
 
-        UpdateCloseState();
+		// Store for retrieval from receiving tasklet
+		receivingTasklet->SetTransferArguments( args, exception, restoreException );
 
-		return false;
+		Tasklet* current_tasklet = scheduleManager->GetCurrentTasklet();
+
+		UpdateCloseState();
+
+        PyThread_release_lock( m_lock );
+
+		if( m_preference == ChannelPreference::RECEIVER )
+		{
+			receivingTasklet->GetScheduleManager()->InsertTaskletToRunNext( receivingTasklet );
+			receivingTasklet->Decref();
+			if( !scheduleManager->Schedule() )
+			{
+				scheduleManager->Decref();
+				UpdateCloseState();
+				return false;
+			}
+		}
+		else
+		{
+			receivingTasklet->GetScheduleManager()->InsertTasklet( receivingTasklet );
+			receivingTasklet->Decref();
+		}
+
+        PyThread_acquire_lock( m_lock, 1 );
     }
-	
-
-    receivingTasklet->Decref();
 
 	current->SetTransferInProgress( false );
 
@@ -159,61 +178,10 @@ bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */, bool re
 
     UpdateCloseState();
 
+    PyThread_release_lock( m_lock );
+
 	return true;
 
-}
-
-bool Channel::ChannelSwitch( Tasklet* caller, Tasklet* other, ChannelDirection directionOfChannelOperation, ChannelDirection callerDir )
-{
-	ScheduleManager* scheduleManager = ScheduleManager::GetThreadScheduleManager();
-
-    ChannelDirection inverseChannelOperation = InvertDirection( directionOfChannelOperation );
-
-    bool operationDirectionMatchesCallerDirection = directionOfChannelOperation == callerDir;
-
-    //if preference is opposit from direction, switch away from caller
-	if( ( inverseChannelOperation == m_preference && operationDirectionMatchesCallerDirection ) || 
-        ( directionOfChannelOperation == m_preference && !operationDirectionMatchesCallerDirection ) )
-    {
-        scheduleManager->InsertTasklet( caller );
-        if (!other->SwitchTo())
-        {
-			scheduleManager->Decref();
-
-			return false;
-        }
-    }
-    //if preference is towards caller, schedule other tasklet and continue
-	else
-    {
-		if( m_preference == ChannelPreference::NEITHER && InvertDirection(callerDir) == directionOfChannelOperation )
-        {
-            scheduleManager->InsertTasklet( caller );
-            if (!other->SwitchTo())
-            {
-				scheduleManager->Decref();
-
-				return false;
-            }
-        }
-        else
-        {
-			if( other->IsScheduled() )
-			{
-				other->SetReschedule( true );
-			}
-			else
-			{
-                scheduleManager->InsertTasklet( other );
-			}
-        }
-    }
-
-    scheduleManager->SetCurrentTasklet( caller );
-
-    scheduleManager->Decref();
-
-    return true;
 }
 
 PyObject* Channel::Receive()
@@ -240,12 +208,10 @@ PyObject* Channel::Receive()
 		return nullptr;
 	}
 
-	current->Incref();
-
-    AddTaskletToWaitingToReceive( current );
-
     if( m_firstBlockedOnSend == nullptr )
 	{
+		current->Incref();
+		AddTaskletToWaitingToReceive( current );
 		//If current tasklet has block_trap set to true then throw runtime error
 		if( current->IsBlocktrapped() )
 		{
@@ -265,7 +231,7 @@ PyObject* Channel::Receive()
         // Ensure channel is open
         if( m_closed || m_closing )
 		{
-			PyErr_SetString( PyExc_ValueError, "Send/receive operation on a closed channel" );
+			PyErr_SetString( PyExc_ValueError, "receive operation on a closed channel" );
 
 			scheduleManager->Decref();
 
@@ -326,34 +292,39 @@ PyObject* Channel::Receive()
 	}
 	else
 	{
-		//Get first
 		Tasklet* sendingTasklet = PopNextTaskletBlockedOnSend();
-
 		sendingTasklet->Unblock();
+		sendingTasklet->SetTransferInProgress( false );
 
-        Tasklet* current_tasklet = scheduleManager->GetCurrentTasklet();
-		
-        PyThread_release_lock( m_lock );
+        current->SetTransferArguments(
+            sendingTasklet->GetTransferArguments(),
+            sendingTasklet->TransferException(), 
+            sendingTasklet->ShouldRestoreTransferException()
+        );
 
-		if(!sendingTasklet->SwitchTo())
-		{
-			current->Decref();
+        sendingTasklet->ClearTransferArguments();
 
-			scheduleManager->Decref();
-
-            UpdateCloseState();
-
-			return nullptr;
+        UpdateCloseState();
+        
+        if (m_preference == ChannelPreference::SENDER)
+        {
+			PyThread_release_lock( m_lock );
+			sendingTasklet->GetScheduleManager()->InsertTaskletToRunNext( sendingTasklet );
+			sendingTasklet->Decref();
+            if (!scheduleManager->Schedule())
+            {
+				current->Decref();
+				scheduleManager->Decref();
+				UpdateCloseState();
+				return nullptr;
+            }
         }
-		else
-		{
-			// Update current tasklet back to the correct calling tasklet
-			// Required as the switch_to circumvents the scheduling queue
-			// Which would normally deal with this
-			scheduleManager->SetCurrentTasklet( current_tasklet );
+        else
+        {
+			sendingTasklet->GetScheduleManager()->InsertTasklet(sendingTasklet);
+			sendingTasklet->Decref();
+			PyThread_release_lock( m_lock );
         }
-
-        sendingTasklet->Decref();
 	}
 
     

@@ -507,7 +507,7 @@ bool Tasklet::Run()
 		if( m_scheduleManager->GetCurrentTasklet() == m_scheduleManager->GetMainTasklet() )
 		{
 			// Run the scheduler starting at current_tasklet
-			m_scheduleManager->InsertTaskletAtBeginning( this );
+			m_scheduleManager->InsertTaskletToRunNext( this );
 
             bool ret = m_scheduleManager->Run( this );
 

@@ -47,7 +47,7 @@ public:
 
     bool RemoveTasklet( Tasklet* tasklet );
 
-    void InsertTaskletAtBeginning( Tasklet* tasklet );
+    void InsertTaskletToRunNext( Tasklet* tasklet );
 
     void InsertTasklet( Tasklet* tasklet );
 

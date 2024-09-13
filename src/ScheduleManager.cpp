@@ -102,22 +102,36 @@ Tasklet* ScheduleManager::GetCurrentTasklet()
 	return m_currentTasklet;
 }
 
-//TODO naming correct here?
-void ScheduleManager::InsertTaskletAtBeginning( Tasklet* tasklet )
+void ScheduleManager::InsertTaskletToRunNext( Tasklet* tasklet )
 {
 	tasklet->Incref();
 
-    ScheduleManager* taskletScheduleManager = tasklet->GetScheduleManager();
+	if( tasklet->IsScheduled() )
+	{
+		tasklet->SetReschedule( true );
+		return;
+	}
 
-    tasklet->SetPrevious( taskletScheduleManager->m_currentTasklet );
+	Tasklet* currentTasklet = ScheduleManager::GetCurrentTasklet();
 
-    tasklet->SetNext( taskletScheduleManager->m_currentTasklet->Next() );
+	tasklet->SetNext( currentTasklet->Next() );
+	tasklet->SetPrevious( currentTasklet );
 
-    taskletScheduleManager->m_currentTasklet->SetNext( tasklet );
+	currentTasklet->SetNext( tasklet );
 
-    tasklet->SetScheduled( true );
+	if( tasklet->Next() )
+	{
+		tasklet->Next()->SetPrevious( tasklet );
+	}
 
-    m_numberOfTaskletsInQueue++;
+	if( tasklet->Previous() == m_previousTasklet )
+	{
+		m_previousTasklet = tasklet;
+	}
+	tasklet->Unblock();
+	tasklet->SetScheduled( true );
+
+	m_numberOfTaskletsInQueue++;
 }
 
 void ScheduleManager::InsertTasklet( Tasklet* tasklet )

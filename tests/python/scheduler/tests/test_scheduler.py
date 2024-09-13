@@ -203,19 +203,15 @@ class TestScheduleOrderBase(object):
         self.assertEqual(completedTasklets[5],receivingTasklet)
 
         self.assertEqual(completedTasklets[6],receivingTasklet)
-        self.assertEqual(completedTasklets[7],sendingTasklet)
+        self.assertEqual(completedTasklets[7],main)
 
-        self.assertEqual(completedTasklets[8],sendingTasklet)
-        self.assertEqual(completedTasklets[9],receivingTasklet)
+        self.assertEqual(completedTasklets[8],main)
+        self.assertEqual(completedTasklets[9],sendingTasklet)
 
-        self.assertEqual(completedTasklets[10],receivingTasklet)
+        self.assertEqual(completedTasklets[10],sendingTasklet)
         self.assertEqual(completedTasklets[11],main)
 
-        self.assertEqual(completedTasklets[12],main)
-        self.assertEqual(completedTasklets[13],sendingTasklet)
-
-        self.assertEqual(completedTasklets[14],sendingTasklet)
-        self.assertEqual(completedTasklets[15],main)
+        self.assertEqual(len(completedTasklets), 12)
 
         scheduler.set_schedule_callback(None)
 
