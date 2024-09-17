@@ -83,7 +83,7 @@ option(BUILD_DOCUMENTATION "Build Documentation" OFF)
         # Generate documentation - NOTE: experimental, Binaries only vendored manually for windows currently
         # Documentation generation off by default
         # Requires further work to work on TC
-        find_package(Doxygen REQUIRED NO_CMAKE_PATH)
+        find_package(Doxygen)
 
         # Evaluate config file for Doxygen to input project values
         set(DOXYFILE_IN ${CMAKE_CURRENT_SOURCE_DIR}/doc/Doxyfile.in)

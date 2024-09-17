@@ -9,5 +9,4 @@ call .\.venv\Scripts\Activate.bat
 pip install sphinx
 pip install sphinx_rtd_theme
 pip install breathe
-python --version
-sphinx-build -E -b html -Dbreathe_projects.doxygen=%1 -c %2 %3 %4 
+python -m sphinx build -E -b html -Dbreathe_projects.doxygen=%1 -c %2 %3 %4 
