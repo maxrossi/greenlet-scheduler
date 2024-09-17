@@ -5,6 +5,7 @@ import sys
 sys.path.insert(0, pathlib.Path(__file__).parents[2].resolve().as_posix())
 
 # Set paths for required packages
+sys.path.insert(0, "@CMAKE_CURRENT_SOURCE_DIR@/python")
 sys.path.insert(0, "$<TARGET_FILE_DIR:Scheduler>")
 sys.path.insert(0, "@Greenlet_ROOT@/@CCP_VENDOR_BIN_PATH@")
 sys.path.insert(0, "@Greenlet_ROOT@/python")
