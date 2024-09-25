@@ -122,7 +122,7 @@ option(BUILD_DOCUMENTATION "Build Documentation" OFF)
         # Pass in Doxygen output
         add_custom_target(Sphinx ALL
                   COMMAND cmd /c ${CMAKE_CURRENT_SOURCE_DIR}/doc/RunSphinx.bat ${CMAKE_CURRENT_BINARY_DIR}/docs/xml $<TARGET_FILE_DIR:Scheduler> ${SPHINX_SOURCE} ${SPHINX_BUILD}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                  WORKING_DIRECTORY $ENV{CCP_EVE_PERFORCE_BRANCH_PATH}
                   DEPENDS ${DOXYGEN_INDEX_FILE}
                   COMMENT "Generating documentation with Sphinx")
 
