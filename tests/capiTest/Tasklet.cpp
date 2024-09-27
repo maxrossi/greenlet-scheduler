@@ -89,7 +89,6 @@ TEST_F( TaskletCapi, PyTasklet_Setup )
 	EXPECT_TRUE( PyLong_Check( pythonTestValue ) );
 	EXPECT_EQ( PyLong_AsLong( pythonTestValue ), testValue );
 	Py_XDECREF( pythonTestValueList );
-	Py_XDECREF( pythonTestValue );
     
 	// Clean
 	Py_XDECREF( tasklet );
@@ -122,7 +121,6 @@ TEST_F( TaskletCapi, PyTasklet_Insert )
 	EXPECT_TRUE( PyLong_Check( pythonTestValue ) );
 	EXPECT_EQ( PyLong_AsLong( pythonTestValue ), 0 );
 	Py_XDECREF( pythonTestValueList );
-	Py_XDECREF( pythonTestValue );
 
     // Tasklet is now alive and removed from queue
 	PyObject* tasklet = PyObject_GetAttrString( m_mainModule, "tasklet" );
@@ -150,7 +148,6 @@ TEST_F( TaskletCapi, PyTasklet_Insert )
 	EXPECT_TRUE( PyLong_Check( pythonTestValue ) );
 	EXPECT_EQ( PyLong_AsLong( pythonTestValue ), 1 );
 	Py_XDECREF( pythonTestValueList );
-	Py_XDECREF( pythonTestValue );
 
     // Test adding in dead tasklet
 	EXPECT_EQ( m_api->PyTasklet_Alive( reinterpret_cast<PyTaskletObject*>( tasklet ) ), 0 );
