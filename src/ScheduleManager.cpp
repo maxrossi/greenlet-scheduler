@@ -284,10 +284,16 @@ bool ScheduleManager::Yield()
         //Switch to the parent tasklet - support for nested run and schedule calls
 		Tasklet* parent_tasklet = yieldingTasklet->GetParent();
 
+        parent_tasklet->Incref();
+
         if (!parent_tasklet->SwitchTo())
 		{
+			parent_tasklet->Decref();
+
 			return false;
 		}
+
+        parent_tasklet->Decref();
 
         // guard against re-entry to this tasklet, if it is still blocked
         while (yieldingTasklet->IsBlocked())
@@ -298,10 +304,16 @@ bool ScheduleManager::Yield()
 				parentTasklet = parentTasklet->GetParent();
             }
 
-			if( !parent_tasklet->SwitchTo() )
+            parentTasklet->Incref();
+
+			if( !parentTasklet->SwitchTo() )
 			{
 				return false;
+
+                parentTasklet->Decref();
 			}
+
+            parentTasklet->Decref();
         }
 	}
 
@@ -394,6 +406,13 @@ bool ScheduleManager::Run( Tasklet* startTasklet /* = nullptr */ )
 
 		Tasklet* currentTasklet = baseTasklet->Next();
 
+        if (ScheduleManager::GetCurrentTasklet() == currentTasklet)
+        {
+            // Stop cyclic parent chain error
+            // Early out with no error
+			return true;
+        }
+
         if (currentTasklet->SetParent(ScheduleManager::GetCurrentTasklet()) == -1)
         {
 			return false;
@@ -484,14 +503,14 @@ bool ScheduleManager::Run( Tasklet* startTasklet /* = nullptr */ )
 
 				if( RemoveTasklet( currentTasklet ) )
 				{
-					currentTasklet->SetParent( nullptr );
+					currentTasklet->SetParent( nullptr );   // TODO handle failure
 
 					currentTasklet->Decref();
 				}
 			}
             
             // Switch was unsuccessful
-			currentTasklet->SetParent( nullptr );
+			currentTasklet->SetParent( nullptr );   // TODO handle failure
 
 			return false;
         }
@@ -505,7 +524,7 @@ bool ScheduleManager::Run( Tasklet* startTasklet /* = nullptr */ )
         // Same needs to happen in fail case
         if (!currentTasklet->IsAlive())
         {
-			currentTasklet->SetParent( nullptr );
+			currentTasklet->SetParent( nullptr );   // TODO handle failure
         }
 
         if( cleanupCurrentTasklet )
