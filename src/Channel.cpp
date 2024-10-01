@@ -302,6 +302,7 @@ PyObject* Channel::Receive()
             sendingTasklet->ShouldRestoreTransferException()
         );
 
+        Py_DECREF( sendingTasklet->GetTransferArguments() );
         sendingTasklet->ClearTransferArguments();
 
         UpdateCloseState();
