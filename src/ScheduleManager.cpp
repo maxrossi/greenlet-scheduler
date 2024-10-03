@@ -493,9 +493,10 @@ bool ScheduleManager::Run( Tasklet* startTasklet /* = nullptr */ )
                
 			}
         }
+		// Switch was unsuccessful
 		else
 		{
-		    // If exception state should lead to removal of tasklet
+			// If exception state should lead to removal of tasklet
             if( currentTasklet->RequiresRemoval() )
 			{
 				// Update current tasklet
@@ -508,10 +509,11 @@ bool ScheduleManager::Run( Tasklet* startTasklet /* = nullptr */ )
 					currentTasklet->Decref();
 				}
 			}
+            else
+            {
+				currentTasklet->SetParent( nullptr ); // TODO handle failure
+            }
             
-            // Switch was unsuccessful
-			currentTasklet->SetParent( nullptr );   // TODO handle failure
-
 			return false;
         }
 

@@ -654,3 +654,12 @@ class TestSwitchTrap(test_utils.SchedulerTestCaseBase):
             self.assertRaisesRegex(RuntimeError, "switch_trap", s.run)
         s.run()
         self.assertEqual(self.getruncount(), 1)
+
+    def test_run_raising_function(self):
+        def foo():
+            raise RuntimeError("boom!")
+
+        scheduler.tasklet(foo)()
+        with self.assertRaises(RuntimeError):
+            scheduler.run()
+
