@@ -23,6 +23,7 @@ include(CcpPackageConfigHelpers)
 
 find_package(Python REQUIRED NO_CMAKE_PATH)
 find_package(Greenlet REQUIRED NO_CMAKE_PATH)
+find_package(CcpCore CONFIG REQUIRED)
 
 get_target_property(GREENLET_INCLUDE_DIRECTORY
         Greenlet
@@ -53,7 +54,11 @@ ccp_add_library(Scheduler SHARED ${SRC_FILES})
 
 target_include_directories(Scheduler PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
 
-target_link_libraries(Scheduler PRIVATE Python)
+target_link_libraries(Scheduler
+    PRIVATE
+    Python
+    CcpCore
+)
 
 target_include_directories(Scheduler
         PRIVATE
