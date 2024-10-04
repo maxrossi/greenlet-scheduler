@@ -7,9 +7,9 @@
 #include <string>
 
 #include <greenlet.h>
-#include <CcpScopeGuard.h>
 
 #include "ScheduleManager.h"
+#include "GILRAII.h"
 
 //Types
 #include "PyTasklet.cpp"
@@ -435,8 +435,7 @@ extern "C"
 	/// @note Returns a new reference
 	static PyTaskletObject* PyTasklet_New( PyTypeObject* type, PyObject* args )
 	{
-		auto gilState = PyGILState_Ensure();
-		ON_BLOCK_EXIT( [gilState] { PyGILState_Release( gilState ); } );
+		GILRAII gil;
 
 		PyObject* schedulerTasklet = PyObject_CallObject( reinterpret_cast<PyObject*>( type ), args );
 
@@ -448,8 +447,7 @@ extern "C"
 	/// @return 1 if obj is a Tasklet type, otherwise return 0
 	static int PyTasklet_Check( PyObject* obj )
 	{
-		auto gilState = PyGILState_Ensure();
-		ON_BLOCK_EXIT( [gilState] { PyGILState_Release( gilState ); } );
+		GILRAII gil;
 		return obj && PyObject_TypeCheck( obj, &TaskletType ) ? 1 : 0;
 	}
 
@@ -460,8 +458,7 @@ extern "C"
 	/// @return 0 on success -1 on failure
 	static int PyTasklet_Setup( PyTaskletObject* tasklet, PyObject* args, PyObject* kwds )
 	{
-		auto gilState = PyGILState_Ensure();
-		ON_BLOCK_EXIT( [gilState] { PyGILState_Release( gilState ); } );
+		GILRAII gil;
 		if(TaskletSetup( reinterpret_cast<PyObject*>( tasklet ), args, kwds ))
 		{
 			Py_DecRef( Py_None );
@@ -480,8 +477,7 @@ extern "C"
     /// @note Raises RuntimeError on failure
 	static int PyTasklet_Insert( PyTaskletObject* self )
 	{
-		auto gilState = PyGILState_Ensure();
-		ON_BLOCK_EXIT( [gilState] { PyGILState_Release( gilState ); } );
+		GILRAII gil;
 		/*
         if (!PyTasklet_Check(reinterpret_cast<PyObject*>(self)))
         {
@@ -498,8 +494,7 @@ extern "C"
 	/// @return 1 if tasklet cannot be blocked otherwise return 0
 	static int PyTasklet_GetBlockTrap( PyTaskletObject* self )
 	{
-		auto gilState = PyGILState_Ensure();
-		ON_BLOCK_EXIT( [gilState] { PyGILState_Release( gilState ); } );
+		GILRAII gil;
 		return self->m_implementation->IsBlocktrapped() ? 1 : 0;
 	}
 
@@ -509,8 +504,7 @@ extern "C"
 	/// @return 1 if tasklet cannot be blocked otherwise return 0
 	static void PyTasklet_SetBlockTrap( PyTaskletObject* task, int value )
 	{
-		auto gilState = PyGILState_Ensure();
-		ON_BLOCK_EXIT( [gilState] { PyGILState_Release( gilState ); } );
+		GILRAII gil;
 		task->m_implementation->SetBlocktrap( value );
 	}
 
@@ -519,8 +513,7 @@ extern "C"
 	/// @return 1 if tasklet is a main tasklet, otherwise return 0
 	static int PyTasklet_IsMain( PyTaskletObject* tasklet )
 	{
-		auto gilState = PyGILState_Ensure();
-		ON_BLOCK_EXIT( [gilState] { PyGILState_Release( gilState ); } );
+		GILRAII gil;
 		return tasklet->m_implementation->IsMain() ? 1 : 0;
 	}
 
@@ -529,8 +522,7 @@ extern "C"
 	/// @return 1 if tasklet is alive, otherwise return 0
     static int PyTasklet_Alive( PyTaskletObject* tasklet )
 	{
-		auto gilState = PyGILState_Ensure();
-		ON_BLOCK_EXIT( [gilState] { PyGILState_Release( gilState ); } );
+		GILRAII gil;
 		return tasklet->m_implementation->IsAlive() ? 1 : 0;
 	}
 
@@ -540,8 +532,7 @@ extern "C"
     /// @todo Change return to reflect the result of the kill command
     static int PyTasklet_Kill( PyTaskletObject* tasklet )
 	{
-		auto gilState = PyGILState_Ensure();
-		ON_BLOCK_EXIT( [gilState] { PyGILState_Release( gilState ); } );
+		GILRAII gil;
 		bool ret = tasklet->m_implementation->Kill();
 
         // This should return result of ret, however to keep with Stackless behaviour
@@ -558,8 +549,7 @@ extern "C"
 	/// @note Returns a new reference
 	static PyChannelObject* PyChannel_New( PyTypeObject* type )
 	{
-		auto gilState = PyGILState_Ensure();
-		ON_BLOCK_EXIT( [gilState] { PyGILState_Release( gilState ); } );
+		GILRAII gil;
 		PyTypeObject* channelType = type;
 
         if (!channelType)
@@ -578,8 +568,7 @@ extern "C"
 	/// @return 0 On success, -1 on failure
 	static int PyChannel_Send( PyChannelObject* self, PyObject* arg )
 	{
-		auto gilState = PyGILState_Ensure();
-		ON_BLOCK_EXIT( [gilState] { PyGILState_Release( gilState ); } );
+		GILRAII gil;
 		return self->m_implementation->Send( arg ) ? 0 : -1;
 	}
 
@@ -588,8 +577,7 @@ extern "C"
 	/// @return received PyObject* on success, NULL on failure
 	static PyObject* PyChannel_Receive( PyChannelObject* self )
 	{
-		auto gilState = PyGILState_Ensure();
-		ON_BLOCK_EXIT( [gilState] { PyGILState_Release( gilState ); } );
+		GILRAII gil;
 		return self->m_implementation->Receive();
 	}
 
@@ -600,8 +588,7 @@ extern "C"
 	/// @return 0 on success, -1 on failure
 	static int PyChannel_SendException( PyChannelObject* self, PyObject* klass, PyObject* value )
 	{
-		auto gilState = PyGILState_Ensure();
-		ON_BLOCK_EXIT( [gilState] { PyGILState_Release( gilState ); } );
+		GILRAII gil;
         if (klass == nullptr)
         {
 			PyErr_SetString( PyExc_RuntimeError, "Exception type or instance required" );
@@ -638,8 +625,7 @@ extern "C"
 	/// @return first tasklet PyObject or NULL if blocked queue is empty
 	static PyObject* PyChannel_GetQueue( PyChannelObject* self )
 	{
-		auto gilState = PyGILState_Ensure();
-		ON_BLOCK_EXIT( [gilState] { PyGILState_Release( gilState ); } );
+		GILRAII gil;
 		return ChannelQueueGet( self, nullptr );
 	}
 
@@ -647,8 +633,7 @@ extern "C"
 	/// @param self python object type derived from PyChannelType
 	static void PyChannel_SetPreference( PyChannelObject* self, int val )
 	{
-		auto gilState = PyGILState_Ensure();
-		ON_BLOCK_EXIT( [gilState] { PyGILState_Release( gilState ); } );
+		GILRAII gil;
 		int sanitisedPreferenceValue = val;
 
         if (val < -1)
@@ -668,8 +653,7 @@ extern "C"
 	/// @return The channel's preference
     static int PyChannel_GetPreference( PyChannelObject* self )
 	{
-		auto gilState = PyGILState_Ensure();
-		ON_BLOCK_EXIT( [gilState] { PyGILState_Release( gilState ); } );
+		GILRAII gil;
 		return self->m_implementation->PreferenceAsInt();
 	}
 
@@ -678,8 +662,7 @@ extern "C"
     /// @return The channel's balance
 	static int PyChannel_GetBalance( PyChannelObject* self )
 	{
-		auto gilState = PyGILState_Ensure();
-		ON_BLOCK_EXIT( [gilState] { PyGILState_Release( gilState ); } );
+		GILRAII gil;
 		return self->m_implementation->Balance();
 	}
 
@@ -688,8 +671,7 @@ extern "C"
 	/// @return 1 if obj is a Tasklet type, otherwise return 0
     static int PyChannel_Check( PyObject* obj )
 	{
-		auto gilState = PyGILState_Ensure();
-		ON_BLOCK_EXIT( [gilState] { PyGILState_Release( gilState ); } );
+		GILRAII gil;
 		return obj && PyObject_TypeCheck( obj, &ChannelType ) ? 1 : 0;
 	}
 
@@ -702,8 +684,7 @@ extern "C"
 	/// @return 0 on success, -1 on failure
     static int PyChannel_SendThrow( PyChannelObject* self, PyObject* exc, PyObject* val, PyObject* tb )
 	{
-		auto gilState = PyGILState_Ensure();
-		ON_BLOCK_EXIT( [gilState] { PyGILState_Release( gilState ); } );
+		GILRAII gil;
         if (!exc)
         {
 			PyErr_SetString( PyExc_RuntimeError, "Exception type or instance required" );
@@ -763,8 +744,7 @@ extern "C"
     /// @note returns a new reference
 	static PyObject* PyScheduler_GetScheduler( )
 	{
-		auto gilState = PyGILState_Ensure();
-		ON_BLOCK_EXIT( [gilState] { PyGILState_Release( gilState ); } );
+		GILRAII gil;
 		return ScheduleManager::GetThreadScheduleManager()->PythonObject();
 	}
 
@@ -775,8 +755,7 @@ extern "C"
     /// @todo remove retval and just use return type
 	static PyObject* PyScheduler_Schedule( PyObject* retval, int remove )
 	{
-		auto gilState = PyGILState_Ensure();
-		ON_BLOCK_EXIT( [gilState] { PyGILState_Release( gilState ); } );
+		GILRAII gil;
 		if(remove == 0)
 		{
 			return SchedulerSchedule( nullptr, nullptr );
@@ -791,8 +770,7 @@ extern "C"
 	/// @return Number of tasklets in run queue
 	static int PyScheduler_GetRunCount()
 	{
-		auto gilState = PyGILState_Ensure();
-		ON_BLOCK_EXIT( [gilState] { PyGILState_Release( gilState ); } );
+		GILRAII gil;
 		ScheduleManager* scheduleManager = ScheduleManager::GetThreadScheduleManager();
 
         int ret = scheduleManager->GetCachedTaskletCount();
@@ -807,8 +785,7 @@ extern "C"
 	/// @note Returns a new reference
 	static PyObject* PyScheduler_GetCurrent()
 	{
-		auto gilState = PyGILState_Ensure();
-		ON_BLOCK_EXIT( [gilState] { PyGILState_Release( gilState ); } );
+		GILRAII gil;
 		ScheduleManager* scheduleManager = ScheduleManager::GetThreadScheduleManager();
 
         Tasklet* currentTasklet = scheduleManager->GetCurrentTasklet();
@@ -827,8 +804,7 @@ extern "C"
 	/// @todo rename and remove deprecated flags parameter
 	static PyObject* PyScheduler_RunWatchdogEx( long long timeout, int flags )
 	{
-		auto gilState = PyGILState_Ensure();
-		ON_BLOCK_EXIT( [gilState] { PyGILState_Release( gilState ); } );
+		GILRAII gil;
 		ScheduleManager* scheduleManager = ScheduleManager::GetThreadScheduleManager();
 
 		bool ret = scheduleManager->RunTaskletsForTime( timeout );
@@ -852,8 +828,7 @@ extern "C"
 	/// @return Py_None on success, NULL on failure
     static PyObject* PyScheduler_RunNTasklets( int number_of_tasklets_to_run )
 	{
-		auto gilState = PyGILState_Ensure();
-		ON_BLOCK_EXIT( [gilState] { PyGILState_Release( gilState ); } );
+		GILRAII gil;
 		ScheduleManager* scheduleManager = ScheduleManager::GetThreadScheduleManager();
 
 		bool ret = scheduleManager->RunNTasklets( number_of_tasklets_to_run );
@@ -877,8 +852,7 @@ extern "C"
 	/// @return 0 on success, -1 on failure
 	static int PyScheduler_SetChannelCallback( PyObject* callable )
 	{
-		auto gilState = PyGILState_Ensure();
-		ON_BLOCK_EXIT( [gilState] { PyGILState_Release( gilState ); } );
+		GILRAII gil;
 		if( callable && !PyCallable_Check( callable ) )
 		{
 			return -1;
@@ -893,8 +867,7 @@ extern "C"
 	/// @return Callable, Py_None if no callback is set
 	static PyObject* PyScheduler_GetChannelCallback()
 	{
-		auto gilState = PyGILState_Ensure();
-		ON_BLOCK_EXIT( [gilState] { PyGILState_Release( gilState ); } );
+		GILRAII gil;
 		PyObject* channelCallback = Channel::ChannelCallback();
 
         return channelCallback;
@@ -906,8 +879,7 @@ extern "C"
 	/// @return 0 on success, -1 on failure
 	static int PyScheduler_SetScheduleCallback( PyObject* callable )
 	{
-		auto gilState = PyGILState_Ensure();
-		ON_BLOCK_EXIT( [gilState] { PyGILState_Release( gilState ); } );
+		GILRAII gil;
         if (callable && !PyCallable_Check(callable))
         {
 			return -1;
@@ -926,8 +898,7 @@ extern "C"
 	/// @param func c++ function
 	static void PyScheduler_SetScheduleFastCallback( schedule_hook_func func )
 	{
-		auto gilState = PyGILState_Ensure();
-		ON_BLOCK_EXIT( [gilState] { PyGILState_Release( gilState ); } );
+		GILRAII gil;
 		ScheduleManager* currentScheduler = ScheduleManager::GetThreadScheduleManager();
 
 		currentScheduler->SetSchedulerFastCallback( func );
