@@ -1311,3 +1311,39 @@ class TestChannels(SchedulerTestCaseBase):
         endingRefcount = sys.getrefcount(v)
 
         self.assertEqual(originalRefcount, endingRefcount)
+
+    def test_channel_receive_queue_order(self):
+        chan = scheduler.channel()
+
+        def rcv(c):
+            c.receive()
+
+        t1 = scheduler.tasklet(rcv)(chan)
+        t2 = scheduler.tasklet(rcv)(chan)
+
+        scheduler.run()
+
+        a = chan.queue
+        self.assertEqual(a, t1)
+        chan.send(None)
+        a = chan.queue
+        self.assertEqual(a, t2)
+        chan.send(None)
+
+    def test_channel_send_queue_order(self):
+        chan = scheduler.channel()
+
+        def send(c):
+            c.send(None)
+
+        t1 = scheduler.tasklet(send)(chan)
+        t2 = scheduler.tasklet(send)(chan)
+
+        scheduler.run()
+
+        a = chan.queue
+        self.assertEqual(a, t1)
+        chan.receive()
+        a = chan.queue
+        self.assertEqual(a, t2)
+        chan.receive()
