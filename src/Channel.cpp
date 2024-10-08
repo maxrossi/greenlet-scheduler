@@ -48,7 +48,7 @@ bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */, bool re
 
 	ChannelDirection direction = ChannelDirection::SENDER;
 
-	if( m_firstBlockedOnReceive == nullptr )
+	if( m_lastBlockedOnReceive == nullptr )
 	{
 		direction = ChannelDirection::RECEIVER;
 
@@ -208,7 +208,7 @@ PyObject* Channel::Receive()
 		return nullptr;
 	}
 
-    if( m_firstBlockedOnSend == nullptr )
+    if( m_lastBlockedOnSend == nullptr )
 	{
 		current->Incref();
 		AddTaskletToWaitingToReceive( current );
@@ -302,6 +302,7 @@ PyObject* Channel::Receive()
             sendingTasklet->ShouldRestoreTransferException()
         );
 
+        Py_DECREF( sendingTasklet->GetTransferArguments() );
         sendingTasklet->ClearTransferArguments();
 
         UpdateCloseState();
@@ -583,13 +584,13 @@ void Channel::SetPreferenceFromInt( int value )
 
 Tasklet* Channel::BlockedQueueFront() const
 {
-    if (m_firstBlockedOnReceive != nullptr)
+	if( m_lastBlockedOnReceive != nullptr )
     {
-		return m_firstBlockedOnReceive;
+		return m_lastBlockedOnReceive;
     }
-    else if (m_firstBlockedOnSend != nullptr)
+    else if (m_lastBlockedOnSend != nullptr)
     {
-		return m_firstBlockedOnSend;
+		return m_lastBlockedOnSend;
     }
 	return nullptr;
 }

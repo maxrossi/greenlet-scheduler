@@ -20,6 +20,7 @@ Tasklet::Tasklet( PyObject* pythonObject, PyObject* taskletExitException, bool i
 	m_transferArguments( nullptr ),
 	m_transferException( nullptr ),
 	m_channelBlockedOn( nullptr ),
+	m_blockedDirection( ChannelDirection::NEITHER ),
 	m_blocked( false ),
 	m_exceptionState( Py_None ),
 	m_exceptionArguments( Py_None ),
@@ -59,15 +60,17 @@ Tasklet::~Tasklet()
     // TODO when channel switching is done using the scheduler queue this can change.
     SetParent( nullptr );
 
-	Py_XDECREF( m_callable );
+	Py_CLEAR( m_callable );
 
-	Py_XDECREF( m_arguments );
+	Py_CLEAR( m_arguments );
 
-    Py_XDECREF( m_kwArguments );
+    Py_CLEAR( m_kwArguments );
 
 	Py_XDECREF( m_greenlet );
 
 	Py_XDECREF( m_transferArguments );
+
+    m_scheduleManager = nullptr;
 
 }
 
@@ -93,7 +96,7 @@ Tasklet* Tasklet::PreviousBlocked() const
 
 void Tasklet::SetKwArguments( PyObject* kwarguments )
 {
-	Py_XDECREF( m_kwArguments );
+	Py_CLEAR( m_kwArguments );
 	m_kwArguments = kwarguments;
 }
 
@@ -494,36 +497,11 @@ bool Tasklet::Run()
 	}
 
 	// Run scheduler starting from this tasklet (If it is already in the scheduled)
-	if(m_scheduled)
-	{
-		bool ret = m_scheduleManager->Run( this );
-
-		return ret;
+    if (!m_scheduled)
+    {
+		m_scheduleManager->InsertTasklet( this );
     }
-	else
-	{
-		Tasklet* current_tasklet = m_scheduleManager->GetCurrentTasklet();
-
-		if( m_scheduleManager->GetCurrentTasklet() == m_scheduleManager->GetMainTasklet() )
-		{
-			// Run the scheduler starting at current_tasklet
-			m_scheduleManager->InsertTaskletToRunNext( this );
-
-            bool ret = m_scheduleManager->Run( this );
-
-			return ret;
-		}
-		else
-		{
-            m_scheduleManager->InsertTasklet( this );
-
-            bool ret = m_scheduleManager->Run( this );
-
-            return ret;
-		}
-    }
-
-    return true;
+	return m_scheduleManager->Run( this );
 }
 
 bool Tasklet::Kill( bool pending /*=false*/ )
@@ -533,6 +511,15 @@ bool Tasklet::Kill( bool pending /*=false*/ )
 		PyErr_SetString( PyExc_RuntimeError, "Failed to kill tasklet: Cannot kill tasklet from another thread" );
 
 		return false;
+	}
+
+    // Quick out if tasklet isn't alive
+    // the only reason we're NOT raising
+    // a python exception here to stay
+    // the same as stackless in this situation
+    if( !m_alive )
+	{
+		return true;
 	}
 
     // Quick out if kill is already pending
@@ -565,6 +552,7 @@ bool Tasklet::Kill( bool pending /*=false*/ )
 		if( pending )
 		{
             m_scheduleManager->InsertTasklet( this );
+			SetReschedule( false );
 
             m_killPending = true;
 
@@ -579,30 +567,7 @@ bool Tasklet::Kill( bool pending /*=false*/ )
 		}
 		else
 		{
-			
-            // Must be alive
-			if(!m_alive)
-			{
-                // If exception state is tasklet exit then handle silently
-				if(m_exceptionState == m_taskletExitException)
-				{
-					ClearException();
-
-					return true;
-				}
-				else
-				{
-					// Invalid code path - Should never enter
-					ClearException();
-
-                    PyErr_SetString( PyExc_RuntimeError, "Invalid exception called on dead tasklet." );
-
-                    return false;
-                }
-			    
-            }
-
-	
+			SetReschedule( false );
 			bool result = Run();
 
 			if( result )
@@ -898,7 +863,7 @@ int Tasklet::SetParent( Tasklet* parent )
 	{
 		parent->Incref();
 
-	    ret = PyGreenlet_SetParent( this->m_greenlet, parent->m_greenlet );
+	    ret = PyGreenlet_SetParent( m_greenlet, parent->m_greenlet );
 
 
 	    if( ret == -1 )
@@ -906,6 +871,23 @@ int Tasklet::SetParent( Tasklet* parent )
 		    return ret;
 	    }
 
+    }
+    else
+    {
+        if (!m_isMain && m_greenlet)
+        {
+			Tasklet* main = m_scheduleManager->GetMainTasklet();
+
+            main->Incref();
+
+			ret = PyGreenlet_SetParent( m_greenlet, main->m_greenlet );
+
+			if( ret == -1 )
+			{
+				return ret;
+			}
+
+        }
     }
 
     if (m_taskletParent)
@@ -950,7 +932,7 @@ void Tasklet::SetTaggedForRemoval( bool value )
 
 void Tasklet::SetCallable(PyObject* callable)
 {
-	Py_XDECREF( m_callable );
+	Py_CLEAR( m_callable );
 
 	m_callable = callable;
 }

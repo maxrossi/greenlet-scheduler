@@ -89,12 +89,48 @@ TEST_F( TaskletCapi, PyTasklet_Setup )
 	EXPECT_TRUE( PyLong_Check( pythonTestValue ) );
 	EXPECT_EQ( PyLong_AsLong( pythonTestValue ), testValue );
 	Py_XDECREF( pythonTestValueList );
-	Py_XDECREF( pythonTestValue );
     
 	// Clean
 	Py_XDECREF( tasklet );
 	Py_XDECREF( taskletArgs );
 	Py_XDECREF( fooCallable );
+}
+
+TEST_F( TaskletCapi, PyTasklet_Setup_ReferenceCount )
+{
+	// Create callable
+	EXPECT_EQ( PyRun_SimpleString( "def foo():\n"
+								   "   pass\n" ),
+			   0 );
+	PyObject* fooCallable = PyObject_GetAttrString( m_mainModule, "foo" );
+	EXPECT_NE( fooCallable, nullptr );
+	EXPECT_TRUE( PyCallable_Check( fooCallable ) );
+	
+	// Create tasklet
+	PyObject* taskletArgs = PyTuple_New( 1 );
+	EXPECT_NE( taskletArgs, nullptr );
+	EXPECT_EQ( PyTuple_SetItem( taskletArgs, 0, fooCallable ), 0 );
+	PyTaskletObject* tasklet = m_api->PyTasklet_New( m_api->PyTaskletType, taskletArgs );
+	EXPECT_NE( tasklet, nullptr );
+
+	// Setup tasklet twice. Check refcounts.
+	PyObject* callableArgs = PyTuple_New( 0 );
+	EXPECT_NE( callableArgs, nullptr );
+	EXPECT_EQ( Py_REFCNT(tasklet), 1);
+	EXPECT_EQ( m_api->PyTasklet_Setup( tasklet, callableArgs, nullptr ), 0 );
+	EXPECT_EQ( Py_REFCNT(tasklet), 2); // We got rescheduled, so reference count should increase by 1.
+	EXPECT_EQ( m_api->PyTasklet_Setup( tasklet, callableArgs, nullptr ), 0 );
+	EXPECT_EQ( Py_REFCNT(tasklet), 2); // We got reschceduled, so reference count should remain the same.
+
+	// Kill the tasklet. The tasklet is no longer scheduled, so reference count should have decreased.
+	EXPECT_EQ(m_api->PyTasklet_Kill(tasklet), 0);
+	EXPECT_EQ( Py_REFCNT(tasklet), 1);
+
+	// Clean
+	Py_DECREF(fooCallable);
+	Py_DECREF(taskletArgs);
+	Py_DECREF(tasklet);
+	Py_DECREF(callableArgs);
 }
 
 TEST_F( TaskletCapi, PyTasklet_Insert )
@@ -122,7 +158,6 @@ TEST_F( TaskletCapi, PyTasklet_Insert )
 	EXPECT_TRUE( PyLong_Check( pythonTestValue ) );
 	EXPECT_EQ( PyLong_AsLong( pythonTestValue ), 0 );
 	Py_XDECREF( pythonTestValueList );
-	Py_XDECREF( pythonTestValue );
 
     // Tasklet is now alive and removed from queue
 	PyObject* tasklet = PyObject_GetAttrString( m_mainModule, "tasklet" );
@@ -150,7 +185,6 @@ TEST_F( TaskletCapi, PyTasklet_Insert )
 	EXPECT_TRUE( PyLong_Check( pythonTestValue ) );
 	EXPECT_EQ( PyLong_AsLong( pythonTestValue ), 1 );
 	Py_XDECREF( pythonTestValueList );
-	Py_XDECREF( pythonTestValue );
 
     // Test adding in dead tasklet
 	EXPECT_EQ( m_api->PyTasklet_Alive( reinterpret_cast<PyTaskletObject*>( tasklet ) ), 0 );

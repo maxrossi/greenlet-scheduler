@@ -1229,3 +1229,121 @@ class TestChannels(SchedulerTestCaseBase):
         receiver = None
         sender = None
         scheduler.run()
+
+    def test_channel_args_refcount_prefer_receive(self):
+        class Data:
+            def __init__(self):
+                self.i = 0
+
+            def inc(self):
+                self.i = self.i + 1
+
+            def get(self):
+                return self.i
+
+        limit = 100
+        def ping(chan, val):
+            while val.get() < limit:
+                val.inc()
+                chan.send(val)
+                val = chan.receive()
+
+        def pong(chan):
+            val = chan.receive()
+            while val.get() < limit:
+                val.inc()
+                chan.send(val)
+                if val.get() == limit:
+                    return
+                val = chan.receive()
+
+        c = scheduler.channel()
+        c.preference = -1
+        v = Data()
+
+        originalRefcount = sys.getrefcount(v)
+
+        scheduler.tasklet(ping)(c, v)
+        scheduler.tasklet(pong)(c)
+        scheduler.run()
+
+        endingRefcount = sys.getrefcount(v)
+
+        self.assertEqual(originalRefcount, endingRefcount)
+
+    def test_channel_args_refcount_prefer_sender(self):
+        class Data:
+            def __init__(self):
+                self.i = 0
+
+            def inc(self):
+                self.i = self.i + 1
+
+            def get(self):
+                return self.i
+
+        limit = 100
+        def ping(chan, val):
+            while val.get() < limit:
+                val.inc()
+                chan.send(val)
+                val = chan.receive()
+
+        def pong(chan):
+            val = chan.receive()
+            while val.get() < limit:
+                val.inc()
+                chan.send(val)
+                if val.get() == limit:
+                    return
+                val = chan.receive()
+
+        c = scheduler.channel()
+        c.preference = 1
+        v = Data()
+
+        originalRefcount = sys.getrefcount(v)
+
+        scheduler.tasklet(ping)(c, v)
+        scheduler.tasklet(pong)(c)
+        scheduler.run()
+
+        endingRefcount = sys.getrefcount(v)
+
+        self.assertEqual(originalRefcount, endingRefcount)
+
+    def test_channel_receive_queue_order(self):
+        chan = scheduler.channel()
+
+        def rcv(c):
+            c.receive()
+
+        t1 = scheduler.tasklet(rcv)(chan)
+        t2 = scheduler.tasklet(rcv)(chan)
+
+        scheduler.run()
+
+        a = chan.queue
+        self.assertEqual(a, t1)
+        chan.send(None)
+        a = chan.queue
+        self.assertEqual(a, t2)
+        chan.send(None)
+
+    def test_channel_send_queue_order(self):
+        chan = scheduler.channel()
+
+        def send(c):
+            c.send(None)
+
+        t1 = scheduler.tasklet(send)(chan)
+        t2 = scheduler.tasklet(send)(chan)
+
+        scheduler.run()
+
+        a = chan.queue
+        self.assertEqual(a, t1)
+        chan.receive()
+        a = chan.queue
+        self.assertEqual(a, t2)
+        chan.receive()

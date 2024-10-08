@@ -46,6 +46,8 @@ set(SRC_FILES
     src/ScheduleManager.cpp
     src/ScheduleManager.h
     src/stdafx.cpp
+    src/GILRAII.cpp
+    src/GILRAII.h
 )
 
 set(PUBLIC_HEADER_FILES include/Scheduler.h)

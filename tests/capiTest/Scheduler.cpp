@@ -41,7 +41,6 @@ TEST_F( SchedulerCapi, PyScheduler_Schedule )
     EXPECT_TRUE( PyLong_Check( pythonTestValue ) );
     EXPECT_EQ( PyLong_AsLong( pythonTestValue ), 1 );
     Py_XDECREF( pythonTestValueList );
-    Py_XDECREF( pythonTestValue );
 
     // Check remove functionality
 	EXPECT_EQ( PyRun_SimpleString( "tasklet = scheduler.tasklet(foo)(1)\n"
@@ -134,7 +133,6 @@ TEST_F( SchedulerCapi, PyScheduler_RunNTasklets )
 	EXPECT_TRUE( PyLong_Check( pythonTestValue ) );
 	EXPECT_EQ( PyLong_AsLong( pythonTestValue ), 6 );
 	Py_XDECREF( pythonTestValueList );
-	Py_XDECREF( pythonTestValue );
 
 }
 
@@ -174,7 +172,6 @@ TEST_F( SchedulerCapi, PyScheduler_RunWatchdogEx )
 	EXPECT_TRUE( PyLong_Check( pythonTestValue ) );
 	EXPECT_EQ( PyLong_AsLong( pythonTestValue ), 6 );
 	Py_XDECREF( pythonTestValueList );
-	Py_XDECREF( pythonTestValue );
 }
 
 TEST_F( SchedulerCapi, PyScheduler_SetChannelCallback )
@@ -251,10 +248,6 @@ TEST_F( SchedulerCapi, PyScheduler_SetChannelCallback )
 	Py_XDECREF( pythonTestValueList );
 	Py_XDECREF( originalChannel );
 	Py_XDECREF( originalTasklet );
-	Py_XDECREF( callbackChannel );
-	Py_XDECREF( callbackTasklet );
-	Py_XDECREF( callbackSending );
-	Py_XDECREF( callbackWillBlock );
     Py_XDECREF( callbackCallable );
     
 }
@@ -337,8 +330,6 @@ TEST_F( SchedulerCapi, PyScheduler_SetScheduleCallback )
 
 	// Cleanup
 	Py_XDECREF( pythonTestValueList );
-	Py_XDECREF( pythonPreviousTasklet );
-	Py_XDECREF( pythonNextTasklet );
 	Py_XDECREF( callbackCallable );
 	Py_XDECREF( tasklet );
 	Py_XDECREF( mainTasklet );
