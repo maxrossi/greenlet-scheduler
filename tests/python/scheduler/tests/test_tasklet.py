@@ -1156,3 +1156,10 @@ class TestTaskletExitException(test_utils.SchedulerTestCaseBase):
             pass
 
         channel.send(None)
+
+    def test_kill_unbound_tasklet(self):
+        def test():
+            c = scheduler.tasklet().kill(pending=True)
+
+        scheduler.tasklet(test)()
+        scheduler.run()
