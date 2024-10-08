@@ -513,6 +513,15 @@ bool Tasklet::Kill( bool pending /*=false*/ )
 		return false;
 	}
 
+    // Quick out if tasklet isn't alive
+    // the only reason we're NOT raising
+    // a python exception here to stay
+    // the same as stackless in this situation
+    if( !m_alive )
+	{
+		return true;
+	}
+
     // Quick out if kill is already pending
     if (m_killPending)
     {
@@ -558,29 +567,6 @@ bool Tasklet::Kill( bool pending /*=false*/ )
 		}
 		else
 		{
-			
-            // Must be alive
-			if(!m_alive)
-			{
-                // If exception state is tasklet exit then handle silently
-				if(m_exceptionState == m_taskletExitException)
-				{
-					ClearException();
-
-					return true;
-				}
-				else
-				{
-					// Invalid code path - Should never enter
-					ClearException();
-
-                    PyErr_SetString( PyExc_RuntimeError, "Invalid exception called on dead tasklet." );
-
-                    return false;
-                }
-			    
-            }
-
 			SetReschedule( false );
 			bool result = Run();
 
