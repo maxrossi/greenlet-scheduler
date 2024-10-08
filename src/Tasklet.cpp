@@ -552,6 +552,7 @@ bool Tasklet::Kill( bool pending /*=false*/ )
 		if( pending )
 		{
             m_scheduleManager->InsertTasklet( this );
+			SetReschedule( false );
 
             m_killPending = true;
 
@@ -566,6 +567,7 @@ bool Tasklet::Kill( bool pending /*=false*/ )
 		}
 		else
 		{
+			SetReschedule( false );
 			bool result = Run();
 
 			if( result )

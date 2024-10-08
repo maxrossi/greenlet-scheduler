@@ -666,7 +666,7 @@ class TestKill(test_utils.SchedulerTestCaseBase):
         self.assertFalse(killed[0])
         t.run()
         self.assertTrue(killed[0])
-        self.assertEqual(self.getruncount(), 2)
+        self.assertEqual(self.getruncount(), 1)
 
     def test_kill_pending_False(self):
 

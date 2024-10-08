@@ -462,6 +462,9 @@ extern "C"
 		if(TaskletSetup( reinterpret_cast<PyObject*>( tasklet ), args, kwds ))
 		{
 			Py_DecRef( Py_None );
+			
+			// We are not returning the Python object, so we should make sure to decref it.
+			Py_DECREF( tasklet );
 
 			return 0;
 		}
