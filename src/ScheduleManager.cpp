@@ -16,7 +16,8 @@ ScheduleManager::ScheduleManager( PyObject* pythonObject ) :
     m_stopScheduler(false),
 	m_numberOfTaskletsInQueue(0),
 	m_firstTimeLimitTestSkipped(false),
-	m_runType(RunType::STANDARD)
+	m_runType(RunType::STANDARD),
+	m_startTime( std::chrono::steady_clock::now() )
 {
     // Create scheduler tasklet
 	CreateSchedulerTasklet();

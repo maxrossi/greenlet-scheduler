@@ -511,13 +511,16 @@ bool Tasklet::Run()
         {
 			// Tasklet reference will be relinquished from the schedule manager queue
 			m_scheduleManager->RemoveTasklet( this );
-
-            // Release relinquished reference from the RemoveTasklet above
-			Decref();
         }
 
         // Insert the Tasklet back into the queue, but to run next. This will incref the Tasklet
 		m_scheduleManager->InsertTaskletToRunNext( this );
+
+        if( m_scheduled )
+		{
+			// Release relinquished reference from the RemoveTasklet above
+			Decref();
+		}
 
         // Reschedule Tasklet to run right after the Tasklet that is currently at the front
 		return m_scheduleManager->Schedule( RescheduleType::FRONT_PLUS_ONE );
