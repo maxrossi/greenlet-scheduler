@@ -156,7 +156,7 @@ bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */, bool re
 		{
 			receivingTasklet->GetScheduleManager()->InsertTaskletToRunNext( receivingTasklet );
 			receivingTasklet->Decref();
-			if( !scheduleManager->Schedule() )
+			if( !scheduleManager->Schedule( RescheduleType::BACK ) )
 			{
 				scheduleManager->Decref();
 				UpdateCloseState();
@@ -312,7 +312,7 @@ PyObject* Channel::Receive()
 			PyThread_release_lock( m_lock );
 			sendingTasklet->GetScheduleManager()->InsertTaskletToRunNext( sendingTasklet );
 			sendingTasklet->Decref();
-            if (!scheduleManager->Schedule())
+			if( !scheduleManager->Schedule( RescheduleType::BACK ) )
             {
 				current->Decref();
 				scheduleManager->Decref();
