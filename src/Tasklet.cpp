@@ -507,16 +507,20 @@ bool Tasklet::Run()
     }
     else
     {
+		bool requiresDeferredDecref = false;
+
         if (m_scheduled)
         {
 			// Tasklet reference will be relinquished from the schedule manager queue
 			m_scheduleManager->RemoveTasklet( this );
+
+			requiresDeferredDecref = true;
         }
 
         // Insert the Tasklet back into the queue, but to run next. This will incref the Tasklet
 		m_scheduleManager->InsertTaskletToRunNext( this );
 
-        if( m_scheduled )
+        if( requiresDeferredDecref )
 		{
 			// Release relinquished reference from the RemoveTasklet above
 			Decref();
