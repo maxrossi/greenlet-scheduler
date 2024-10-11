@@ -119,8 +119,12 @@ TEST_F( TaskletCapi, PyTasklet_Setup_ReferenceCount )
 	EXPECT_EQ( Py_REFCNT(tasklet), 1);
 	EXPECT_EQ( m_api->PyTasklet_Setup( tasklet, callableArgs, nullptr ), 0 );
 	EXPECT_EQ( Py_REFCNT(tasklet), 2); // We got rescheduled, so reference count should increase by 1.
-	EXPECT_EQ( m_api->PyTasklet_Setup( tasklet, callableArgs, nullptr ), 0 );
-	EXPECT_EQ( Py_REFCNT(tasklet), 2); // We got reschceduled, so reference count should remain the same.
+
+    // we expect PyTasklet_Setup to fail with an exception if called twice in a row
+    EXPECT_EQ( m_api->PyTasklet_Setup( tasklet, callableArgs, nullptr ), -1 );
+	EXPECT_EQ( Py_REFCNT( tasklet ), 2 ); // Reference count should not have increased.
+    EXPECT_NE( PyErr_Occurred(), nullptr);
+	PyErr_Clear();
 
 	// Kill the tasklet. The tasklet is no longer scheduled, so reference count should have decreased.
 	EXPECT_EQ(m_api->PyTasklet_Kill(tasklet), 0);

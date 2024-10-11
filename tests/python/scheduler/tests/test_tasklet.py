@@ -1163,3 +1163,13 @@ class TestTaskletExitException(test_utils.SchedulerTestCaseBase):
 
         scheduler.tasklet(test)()
         scheduler.run()
+
+    def test_call_setup_twice(self):
+        def foo():
+            return 0
+
+        t = scheduler.tasklet(foo)()
+        # call setup directly
+        self.assertRaises(RuntimeError, t.setup)
+        # call setup through tasklets tp_call function
+        self.assertRaises(RuntimeError, t)

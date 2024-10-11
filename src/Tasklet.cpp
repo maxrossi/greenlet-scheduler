@@ -979,10 +979,17 @@ bool Tasklet::Setup( PyObject* args, PyObject* kwargs )
 
     if( !BelongsToCurrentThread() )
 	{
-		PyErr_SetString( PyExc_RuntimeError, "Failed to bind tasklet: Cannot setup tasklet from another thread" );
+		PyErr_SetString( PyExc_RuntimeError, "Failed to setup tasklet: Cannot setup tasklet from another thread" );
 
 		return false;
 	}
+
+    if (m_callable == nullptr)
+    {
+		PyErr_SetString( PyExc_RuntimeError, "This tasklet must be bound to a callable before you can call setup. Please call bind first." );
+
+        return false;
+    }
 
 	Py_XINCREF( args );
 
