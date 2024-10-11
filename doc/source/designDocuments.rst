@@ -16,3 +16,5 @@ Contents
    designDocuments/memoryDesign
 
    designDocuments/stacklessDivergence
+
+   designDocuments/nestedTaskletsVsFlatSchedulingQueue
