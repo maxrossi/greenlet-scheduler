@@ -130,10 +130,10 @@ option(BUILD_DOCUMENTATION "Build Documentation" OFF)
         message(STATUS "Python Interpreter for document generation: ${CCP_PYTHON_INTERPRETER}")
 
         add_custom_target(Sphinx ALL
-                  COMMAND ${CCP_PYTHON_INTERPRETER} -m sphinx build -E -b html -Dbreathe_projects.doxygen=${CMAKE_CURRENT_BINARY_DIR}/docs/xml -c ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG> ${SPHINX_SOURCE} ${SPHINX_BUILD}
-                  WORKING_DIRECTORY ${BRANCH_ROOT_DIR}
-                  DEPENDS ${DOXYGEN_INDEX_FILE}
-                  COMMENT "Generating documentation with Sphinx")
+                COMMAND ${CCP_PYTHON_INTERPRETER} -m sphinx build -E -b html -Dbreathe_projects.doxygen=${CMAKE_CURRENT_BINARY_DIR}/docs/xml -c $<TARGET_FILE_DIR:${PROJECT_NAME}> ${SPHINX_SOURCE} ${SPHINX_BUILD}
+                WORKING_DIRECTORY ${BRANCH_ROOT_DIR}
+                DEPENDS ${DOXYGEN_INDEX_FILE}
+                COMMENT "Generating documentation with Sphinx")
 
         # Install rule for documentation
         install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doc/build/ DESTINATION documentation)
