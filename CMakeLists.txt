@@ -88,8 +88,10 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
         set(BUILD_DOCUMENTATION_DEFAULT_FLAG ON)
     endif()
     option(BUILD_DOCUMENTATION "Build Documentation" ${BUILD_DOCUMENTATION_DEFAULT_FLAG})
+    message(STATUS "Document generation settings: BUILD_DOCUMENTATION=${BUILD_DOCUMENTATION}, BUILD_DOCUMENTATION_DEFAULT_FLAG=${BUILD_DOCUMENTATION_DEFAULT_FLAG}")
 
     if(BUILD_DOCUMENTATION)
+        message(STATUS "Document generation - start")
         find_package(Doxygen)
 
         # Evaluate config file for Doxygen to input project values
@@ -142,6 +144,9 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
 
         # Install rule for documentation
         install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doc/build/ DESTINATION documentation)
+        message(STATUS "Document generation - end")
+    else()
+        message(STATUS "Document generation not attempted")
     endif()
 
     enable_testing()
