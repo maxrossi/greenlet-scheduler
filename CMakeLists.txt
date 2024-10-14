@@ -84,7 +84,7 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     # - If running on a build agent (TeamCity) - Build documentation is ON by default
     # - If -DBUILD_DOCUMENTATION=ON/OFF flag is explicitly set, use it.
     set(BUILD_DOCUMENTATION_DEFAULT_FLAG OFF)
-    if (DEFINED $ENV{TEAMCITY_VERSION})
+    if (DEFINED ENV{TEAMCITY_VERSION})
         set(BUILD_DOCUMENTATION_DEFAULT_FLAG ON)
     endif()
     option(BUILD_DOCUMENTATION "Build Documentation" ${BUILD_DOCUMENTATION_DEFAULT_FLAG})
