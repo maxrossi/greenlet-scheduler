@@ -120,11 +120,18 @@ option(BUILD_DOCUMENTATION "Build Documentation" OFF)
                 INPUT  ${CMAKE_CURRENT_BINARY_DIR}/conf.py.partial
             )
 
-        # Run Sphinx against build flavour specific conf file
+        # Run Sphinx against build flavour specific conf file using our pythonInterpreter
         # Pass in Doxygen output
+        if(WIN32)
+            set(CCP_PYTHON_INTERPRETER "${BRANCH_ROOT_DIR}/eve/client/pythonInterpreter.bat")
+        elseif(APPLE)
+            set(CCP_PYTHON_INTERPRETER "${BRANCH_ROOT_DIR}/eve/client/pythonInterpreter.sh")
+        endif()
+        message(STATUS "Python Interpreter for document generation: ${CCP_PYTHON_INTERPRETER}")
+
         add_custom_target(Sphinx ALL
-                  COMMAND "$ENV{CCP_EVE_PERFORCE_BRANCH_PATH}/eve/client/pythonInterpreter.bat" -m sphinx build -E -b html -Dbreathe_projects.doxygen=${CMAKE_CURRENT_BINARY_DIR}/docs/xml -c ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG> ${SPHINX_SOURCE} ${SPHINX_BUILD}
-                  WORKING_DIRECTORY $ENV{CCP_EVE_PERFORCE_BRANCH_PATH}
+                  COMMAND ${CCP_PYTHON_INTERPRETER} -m sphinx build -E -b html -Dbreathe_projects.doxygen=${CMAKE_CURRENT_BINARY_DIR}/docs/xml -c ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG> ${SPHINX_SOURCE} ${SPHINX_BUILD}
+                  WORKING_DIRECTORY ${BRANCH_ROOT_DIR}
                   DEPENDS ${DOXYGEN_INDEX_FILE}
                   COMMENT "Generating documentation with Sphinx")
 
