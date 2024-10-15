@@ -28,7 +28,7 @@ Tasklet::Tasklet( PyObject* pythonObject, PyObject* taskletExitException, bool i
 	m_paused( false ),
 	m_taskletParent( nullptr ),
 	m_firstRun( true ),
-	m_reschedule( false ),
+	m_reschedule( RescheduleType::NONE ),
 	m_taggedForRemoval( false ),
 	m_previousBlocked( nullptr ),
 	m_nextBlocked( nullptr ),
@@ -398,7 +398,7 @@ bool Tasklet::SwitchTo( )
         }
 
         // Check state of tasklet
-        if( !m_blocked && !m_transferInProgress && !m_isMain && !m_paused && !m_reschedule && !m_taggedForRemoval ) 
+        if( !m_blocked && !m_transferInProgress && !m_isMain && !m_paused && m_reschedule == RescheduleType::NONE && !m_taggedForRemoval ) 
 		{
 			m_alive = false;
 		}
@@ -496,12 +496,40 @@ bool Tasklet::Run()
 		return true;
 	}
 
-	// Run scheduler starting from this tasklet (If it is already in the scheduled)
-    if (!m_scheduled)
+    if (ScheduleManager::s_useNestedTasklets)
     {
-		m_scheduleManager->InsertTasklet( this );
+		// Run scheduler starting from this tasklet (If it is already in the scheduled)
+		if( !m_scheduled )
+		{
+			m_scheduleManager->InsertTasklet( this );
+		}
+		return m_scheduleManager->Run( this );
     }
-	return m_scheduleManager->Run( this );
+    else
+    {
+		bool requiresDeferredDecref = false;
+
+        if (m_scheduled)
+        {
+			// Tasklet reference will be relinquished from the schedule manager queue
+			m_scheduleManager->RemoveTasklet( this );
+
+			requiresDeferredDecref = true;
+        }
+
+        // Insert the Tasklet back into the queue, but to run next. This will incref the Tasklet
+		m_scheduleManager->InsertTaskletToRunNext( this );
+
+        if( requiresDeferredDecref )
+		{
+			// Release relinquished reference from the RemoveTasklet above
+			Decref();
+		}
+
+        // Reschedule Tasklet to run right after the Tasklet that is currently at the front
+		return m_scheduleManager->Schedule( RescheduleType::FRONT_PLUS_ONE );
+    }
+	
 }
 
 bool Tasklet::Kill( bool pending /*=false*/ )
@@ -552,7 +580,7 @@ bool Tasklet::Kill( bool pending /*=false*/ )
 		if( pending )
 		{
             m_scheduleManager->InsertTasklet( this );
-			SetReschedule( false );
+			SetReschedule( RescheduleType::NONE );
 
             m_killPending = true;
 
@@ -567,7 +595,7 @@ bool Tasklet::Kill( bool pending /*=false*/ )
 		}
 		else
 		{
-			SetReschedule( false );
+			SetReschedule( RescheduleType::NONE );
 			bool result = Run();
 
 			if( result )
@@ -915,12 +943,12 @@ void Tasklet::ClearTaskletException()
 	}
 }
 
-void Tasklet::SetReschedule( bool value )
+void Tasklet::SetReschedule( RescheduleType value )
 {
 	m_reschedule = value;
 }
 
-bool Tasklet::RequiresReschedule()
+RescheduleType Tasklet::RequiresReschedule()
 {
 	return m_reschedule;
 }

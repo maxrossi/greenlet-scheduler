@@ -158,7 +158,7 @@ static PyObject*
 {
 	ScheduleManager* currentScheduler = ScheduleManager::GetThreadScheduleManager();
 
-    bool scheduleSuccessful = currentScheduler->Schedule();
+    bool scheduleSuccessful = currentScheduler->Schedule( RescheduleType::BACK );
 
     currentScheduler->Decref();
 
@@ -179,7 +179,7 @@ static PyObject*
 {
 	ScheduleManager* currentScheduler = ScheduleManager::GetThreadScheduleManager();
 
-    bool scheduleRemoveSuccessful = currentScheduler->Schedule( true );
+    bool scheduleRemoveSuccessful = currentScheduler->Schedule( RescheduleType::BACK, true );
 
     currentScheduler->Decref();
 
@@ -221,7 +221,17 @@ static PyObject*
 {
 	unsigned int numberOfTasklets = 0;
 
-    if( PyArg_ParseTuple( args, "I:set_channel_callback", &numberOfTasklets ) )
+    if( !PyArg_ParseTuple( args, "I:number_of_tasklets", &numberOfTasklets ) )
+	{
+		return nullptr;
+	}
+	else if( numberOfTasklets < 1)
+	{
+		PyErr_SetString( PyExc_RuntimeError, "Invalid number: Number of Tasklets to run must be greater than 0." );
+
+		return nullptr;
+	}
+	else
 	{
 		ScheduleManager* currentScheduler = ScheduleManager::GetThreadScheduleManager();
 
@@ -240,10 +250,6 @@ static PyObject*
 			return nullptr;
         }
 	}
-	else
-	{
-		return nullptr;
-    }
 }
 
 static PyObject*
@@ -408,6 +414,27 @@ static PyObject*
 	int numberOfChannels = Channel::UnblockAllActiveChannels();
 
 	return PyLong_FromLong( numberOfChannels );
+}
+
+static PyObject*
+	SchedulerSetUseNestedTasklets( PyObject* self, PyObject* args, PyObject* kwds )
+{
+	bool useNestedTasklets;
+
+	if( !PyArg_ParseTuple( args, "b", &useNestedTasklets ) )
+	{
+        return nullptr;
+	}
+
+	ScheduleManager::s_useNestedTasklets = useNestedTasklets;
+
+	return Py_None;
+}
+
+static PyObject*
+	SchedulerGetUseNestedTasklets( PyObject* self, PyObject* Py_UNUSED( ignored ) )
+{
+	return ScheduleManager::s_useNestedTasklets ? Py_True : Py_False;
 }
 
 void ModuleDestructor( void* )
@@ -1039,6 +1066,19 @@ static PyMethodDef SchedulerMethods[] = {
         (PyCFunction)SchedulerUnblockAllChannels,
         METH_NOARGS,
         "Unblock all active channels." },
+
+    { "set_use_nested_tasklets",
+	  (PyCFunction)SchedulerSetUseNestedTasklets,
+	  METH_VARARGS,
+	  "Specify if scheduling should use Tasklet Nesting. \n\n\
+            :param: Boolean." },
+
+    { "get_use_nested_tasklets",
+	  (PyCFunction)SchedulerGetUseNestedTasklets,
+	  METH_NOARGS,
+	  "Get current setting for nested tasklet usage. \n\n\
+            :return: Boolean indicating if nested Tasklets is on. \n\
+            :rtype: Boolean" },
 	
 	{ nullptr, nullptr, 0, nullptr } /* Sentinel */
 };

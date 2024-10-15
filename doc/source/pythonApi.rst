@@ -123,3 +123,11 @@ Methods
 .. autofunction:: scheduler.unblock_all_channels
 
    :seealso: :py:func:`scheduler.channel`
+
+.. autofunction:: scheduler.set_use_nested_tasklets
+
+   For further information see :doc:`designDocuments/nestedTaskletsVsFlatSchedulingQueue`.
+
+.. autofunction:: scheduler.get_use_nested_tasklets
+
+   For further information see :doc:`designDocuments/nestedTaskletsVsFlatSchedulingQueue`.

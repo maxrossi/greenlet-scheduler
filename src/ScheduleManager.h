@@ -28,6 +28,15 @@
 
 typedef int( schedule_hook_func )( struct PyTaskletObject* from, struct PyTaskletObject* to );  // TODO remove redef
 
+enum class RescheduleType;
+
+enum class RunType
+{
+    STANDARD,
+    TIME_LIMITED,
+    TASKLET_LIMITED
+};
+
 class Tasklet;
 
 class ScheduleManager : public PythonCppType
@@ -55,7 +64,7 @@ public:
 
     int GetCalculatedTaskletCount();
 
-    bool Schedule(bool remove = false);
+    bool Schedule( RescheduleType position, bool remove = false );
 
     bool Yield();
 
@@ -93,6 +102,8 @@ public:
 
     inline static Py_tss_t s_threadLocalStorageKey = Py_tss_NEEDS_INIT;
 
+    inline static bool s_useNestedTasklets = true;
+
 private:
 
     long m_threadId;
@@ -111,9 +122,13 @@ private:
     // This is global, not per schedule manager 
     inline static schedule_hook_func* s_schedulerFastCallback = nullptr; 
 
+    RunType m_runType;
+
     int m_taskletLimit;
 
     long long m_totalTaskletRunTimeLimit;
+
+    bool m_firstTimeLimitTestSkipped;
 
     std::chrono::steady_clock::time_point m_startTime;
 

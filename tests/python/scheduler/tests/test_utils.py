@@ -48,6 +48,9 @@ class SchedulerTestCaseBase(unittest.TestCase):
         # None should then remain
         self.assertEqual(scheduler.get_number_of_active_schedule_managers(), 0)
 
+        # Return nested tasklet usage to default ON
+        scheduler.set_use_nested_tasklets(True)
+
     # Method to wrap getruncount with an added check that running total matches calculated value
     def getruncount(self):
         runCount = scheduler.getruncount()
@@ -56,3 +59,26 @@ class SchedulerTestCaseBase(unittest.TestCase):
         self.assertEqual(runCount, scheduler.calculateruncount())
 
         return runCount
+
+
+# Scheduling options
+class TestWithWatchdog(object):
+    def run_scheduler(self):
+        while self.getruncount() > 1:
+            scheduler.run_n_tasklets(1)
+
+class TestWithoutWatchdog(object):
+    def run_scheduler(self):
+        scheduler.run()
+
+class TestNoNestedTasklets(object):
+
+    def setUp(self):
+        super().setUp()
+        scheduler.set_use_nested_tasklets(False)
+
+    def tearDown(self):
+        super().tearDown()
+        scheduler.set_use_nested_tasklets(True)
+
+# End of options

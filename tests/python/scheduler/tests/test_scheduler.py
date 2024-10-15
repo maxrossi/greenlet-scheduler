@@ -16,8 +16,7 @@ class TestCAPIExposure(unittest.TestCase):
     def test_has_capi_attribute(self):
         self.assertTrue(hasattr(scheduler, "_C_API"))
 
-
-class TestTaskletRunOrder(test_utils.SchedulerTestCaseBase):
+class TestTaskletRunOrderBase(object):
     
     def test_tasklet_run_order(self):
         completedSendTasklets = [""]
@@ -51,13 +50,29 @@ class TestTaskletRunOrder(test_utils.SchedulerTestCaseBase):
 
         t2.run()
 
-        self.assertEqual(self.getruncount(), 2)
+        # This will be different without nested tasklets
+        # T2 will be rescheduled to the front then the queue will run
+        # This will include then t1.
+        if scheduler.get_use_nested_tasklets() == True:
+            self.assertEqual(self.getruncount(), 2)
 
-        t1.run()
+            t1.run()
 
-        self.assertEqual(self.getruncount(), 1)
+            self.assertEqual(self.getruncount(), 1)
 
-        self.assertEqual(completedSendTasklets[0],"t2t3t1")
+        if scheduler.get_use_nested_tasklets() == True:
+            self.assertEqual(completedSendTasklets[0],"t2t3t1")
+        else:
+            self.assertEqual(completedSendTasklets[0],"t2t1t3")
+
+class TestTaskletRunOrderBaseWithNestedTasklets(test_utils.SchedulerTestCaseBase, 
+                                                TestTaskletRunOrderBase):
+    pass
+
+class TestTaskletRunOrderBaseWithoutNestedTasklets(test_utils.SchedulerTestCaseBase, 
+                                                   TestTaskletRunOrderBase, 
+                                                   test_utils.TestNoNestedTasklets):
+    pass
 
 class TestScheduleOrderBase(object):
 
@@ -100,8 +115,10 @@ class TestScheduleOrderBase(object):
         self.run_scheduler()
 
         self.assertEqual(self.getruncount(), 1)
-
-        self.assertEqual(completedSendTasklets[0],"t1t2t3t4t5")
+        if scheduler.get_use_nested_tasklets() == True:
+            self.assertEqual(completedSendTasklets[0],"t1t2t3t4t5")
+        else:
+            self.assertEqual(completedSendTasklets[0],"t1t2t5t3t4")
 
 
     def test_nested_tasklet_run_order_with_schedule(self):
@@ -129,7 +146,10 @@ class TestScheduleOrderBase(object):
 
         self.assertEqual(self.getruncount(), 1)
 
-        self.assertEqual(completedSendTasklets[0],"t1t2t3t4")
+        if scheduler.get_use_nested_tasklets() == True:
+            self.assertEqual(completedSendTasklets[0],"t1t2t3t4")
+        else:
+            self.assertEqual(completedSendTasklets[0],"t1t2t4t3")
 
 
     def test_multi_level_nested_tasklet_run_order_with_schedule(self):
@@ -164,7 +184,10 @@ class TestScheduleOrderBase(object):
 
         self.assertEqual(self.getruncount(), 1)
 
-        self.assertEqual(completedSendTasklets[0],"t1t2t3t4t5t6")
+        if scheduler.get_use_nested_tasklets() == True:
+            self.assertEqual(completedSendTasklets[0],"t1t2t3t4t5t6")
+        else:
+            self.assertEqual(completedSendTasklets[0],"t1t2t6t3t5t4")
 
     def test_channel_usage_schedule_order_preference_receiver(self):
 
@@ -275,28 +298,37 @@ class TestScheduleOrderBase(object):
 
         self.assertEqual(self.getruncount(), 1)
 
-        self.assertEqual(completedSendTasklets[0],"t0t1t2t3")
+        if scheduler.get_use_nested_tasklets() == True:
+            self.assertEqual(completedSendTasklets[0],"t0t1t2t3")
 
         c.send(None)
 
+        if scheduler.get_use_nested_tasklets() == False:
+            self.assertEqual(completedSendTasklets[0],"t0t1t2t3")
+
         self.assertEqual(c.balance, 0)
+class TestScheduleOrderNoWatchdogWithNestedTasklets(test_utils.SchedulerTestCaseBase, 
+                                                    TestScheduleOrderBase, 
+                                                    test_utils.TestWithoutWatchdog):
+    pass
 
+class TestScheduleOrderWithWatchdogWithNestedTasklets(test_utils.SchedulerTestCaseBase, 
+                                                      TestScheduleOrderBase, 
+                                                      test_utils.TestWithWatchdog):
+    pass
 
+class TestScheduleOrderWithWatchdogWithoutNestedTasklets(test_utils.SchedulerTestCaseBase, 
+                                                         TestScheduleOrderBase, 
+                                                         test_utils.TestNoNestedTasklets, 
+                                                         test_utils.TestWithWatchdog):
+    pass
 
-# Run all tasklets in queue
-class TestScheduleOrderRunAll(test_utils.SchedulerTestCaseBase, TestScheduleOrderBase):
-    Watchdog = False
+class TestScheduleOrderWithoutWatchdogWithoutNestedTasklets(test_utils.SchedulerTestCaseBase, 
+                                                            TestScheduleOrderBase, 
+                                                            test_utils.TestNoNestedTasklets, 
+                                                            test_utils.TestWithoutWatchdog):
+    pass
 
-    def run_scheduler(self):
-        if self.Watchdog:
-            while self.getruncount() > 1:
-                scheduler.run_n_tasklets(1)
-        else:
-            scheduler.run()
-
-# Run one tasklet at a time until queue has been evaluated
-class TestScheduleOrderRunOne(TestScheduleOrderRunAll):
-    Watchdog = True
 
 class TestSchedule(test_utils.SchedulerTestCaseBase):
 

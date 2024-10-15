@@ -14,7 +14,10 @@ ScheduleManager::ScheduleManager( PyObject* pythonObject ) :
     m_taskletLimit(-1),
 	m_totalTaskletRunTimeLimit(-1),
     m_stopScheduler(false),
-	m_numberOfTaskletsInQueue(0)
+	m_numberOfTaskletsInQueue(0),
+	m_firstTimeLimitTestSkipped(false),
+	m_runType(RunType::STANDARD),
+	m_startTime( std::chrono::steady_clock::now() )
 {
     // Create scheduler tasklet
 	CreateSchedulerTasklet();
@@ -108,7 +111,7 @@ void ScheduleManager::InsertTaskletToRunNext( Tasklet* tasklet )
 
 	if( tasklet->IsScheduled() )
 	{
-		tasklet->SetReschedule( true );
+		tasklet->SetReschedule( RescheduleType::BACK );
 		return;
 	}
 
@@ -159,10 +162,11 @@ void ScheduleManager::InsertTasklet( Tasklet* tasklet )
     }
 	else
 	{
-		tasklet->SetReschedule( true );
+		tasklet->SetReschedule( RescheduleType::BACK );
 	}
 }
 
+// Relinquishes reference ownership of Tasklet
 bool ScheduleManager::RemoveTasklet( Tasklet* tasklet )
 {
 	Tasklet* previous = tasklet->Previous();
@@ -199,7 +203,7 @@ bool ScheduleManager::RemoveTasklet( Tasklet* tasklet )
     return true;
 }
 
-bool ScheduleManager::Schedule( bool remove /* = false */ )
+bool ScheduleManager::Schedule( RescheduleType position, bool remove /* = false */)
 {
     // Add Current to the end of chain of runnable tasklets    
 	Tasklet* currentTasklet = ScheduleManager::GetCurrentTasklet();
@@ -213,7 +217,7 @@ bool ScheduleManager::Schedule( bool remove /* = false */ )
 	else
 	{
 		// Set reschedule flag to inform scheduler that this tasklet must be re-inserted
-		currentTasklet->SetReschedule( true );
+		currentTasklet->SetReschedule( position );
     }
     
 
@@ -325,15 +329,21 @@ bool ScheduleManager::RunTaskletsForTime( long long timeout )
 
 	m_totalTaskletRunTimeLimit = timeout;
 
+    m_firstTimeLimitTestSkipped = false;
+
+    m_runType = RunType::TIME_LIMITED;
+
+    m_startTime = std::chrono::steady_clock::now();
+
 	bool ret = Run();
+
+    m_runType = RunType::STANDARD;
 
 	m_stopScheduler = false;
 
 	m_taskletLimit = -1;
 
     m_totalTaskletRunTimeLimit = -1;
-
-    m_startTime = std::chrono::steady_clock::now();
 
 	return ret;
 }
@@ -342,7 +352,11 @@ bool ScheduleManager::RunNTasklets( int n )
 {
     m_taskletLimit = n;
 
+    m_runType = RunType::TASKLET_LIMITED;
+
     bool ret = Run();
+
+    m_runType = RunType::STANDARD;
 
     m_stopScheduler = false;
 
@@ -382,25 +396,12 @@ bool ScheduleManager::Run( Tasklet* startTasklet /* = nullptr */ )
 
         if( m_stopScheduler )
 		{
-			// Switch back to parent now
+			// Stop processing schedule queue
 			Tasklet* activeTasklet = ScheduleManager::GetCurrentTasklet();
 
 			if( activeTasklet == ScheduleManager::GetMainTasklet() )
 			{
 				break;
-			}
-			else
-			{
-				Tasklet* callParent = activeTasklet->GetParent();
-				if( callParent->SwitchTo() )
-				{
-					// Update current tasklet
-					ScheduleManager::SetCurrentTasklet( activeTasklet );
-				}
-				else
-				{
-					//TODO handle error
-				}
 			}
 		}
 
@@ -420,6 +421,51 @@ bool ScheduleManager::Run( Tasklet* startTasklet /* = nullptr */ )
 		
         // If set to true then tasklet will be decreffed at the end of the loop
         bool cleanupCurrentTasklet = false;
+
+        // Test Tasklet Run Limit
+		// Currently only checking this for main tasklets as the teardown buildup
+		// It is possible to extend behaviour to work with Nested Tasklets however
+        // In order to do so the Main Tasklet needs the ability to recreate it's
+        // State at switch. This is possible in a few ways but leads to code
+        // obfuscation. This is not an issue when turning off Nested Tasklets
+        // and with the hope that we will be moving away from Nested Tasklets
+        // and the lack of urgency from the game, it is best to keep code simple. 
+		if( GetCurrentTasklet()->IsMain() )
+		{
+            if (m_runType == RunType::TASKLET_LIMITED)
+            {
+				if( m_taskletLimit > 0 )
+				{
+					m_taskletLimit--;
+				}
+				if( m_taskletLimit <= 0 )
+				{
+					m_stopScheduler = true;
+				}
+            }
+            else if (m_runType == RunType::TIME_LIMITED)
+            {
+				// Test Total tasklet Run Limit
+				std::chrono::steady_clock::time_point current_time = std::chrono::steady_clock::now();
+
+				if( std::chrono::duration_cast<std::chrono::nanoseconds>( current_time - m_startTime ).count() >= m_totalTaskletRunTimeLimit )
+				{
+					if( m_firstTimeLimitTestSkipped == false )
+					{
+						// The first time limit test is forced to succeed.
+						// This is to ensure that at least one Tasklet is processed
+						// Even if time limit is set to 0
+						// This makes sense so we always progress and also matches
+						// Stackless behaviour for Watchdog
+						m_firstTimeLimitTestSkipped = true;
+					}
+					else
+					{
+						m_stopScheduler = true;
+					}
+				}
+            }
+		}
 
         // If switch returns no error or if the error raised is a tasklet exception raised error
 		if( currentTasklet->SwitchTo() || currentTasklet->TaskletExceptionRaised() )
@@ -442,56 +488,36 @@ bool ScheduleManager::Run( Tasklet* startTasklet /* = nullptr */ )
 				m_previousTasklet = currentTasklet->Previous();
 			}
 
-			// If running with a tasklet limit then if there are no tasklets left and
-			// then don't move the scheduler forward to keep the stacks required to recreate the scheduler state
-			if( !m_stopScheduler )
+			// Remove tasklet from queue
+            if (RemoveTasklet(currentTasklet))
+            {
+				cleanupCurrentTasklet = true;
+            }
+
+            currentTasklet->SetScheduled( false );
+
+			//Will this get skipped if it happens to be when it will schedule
+			if( currentTasklet->RequiresReschedule() == RescheduleType::BACK )
 			{
-				// Remove tasklet from queue
-                if (RemoveTasklet(currentTasklet))
-                {
-					cleanupCurrentTasklet = true;
-                }
-
-                currentTasklet->SetScheduled( false );
-
-				//Will this get skipped if it happens to be when it will schedule
-				if( currentTasklet->RequiresReschedule() )
-				{
-					InsertTasklet( currentTasklet );
-					currentTasklet->SetReschedule( false );
-				}
-
-                // Test Tasklet Run Limit
-                // Currently only checking this for main tasklets as the teardown buildup
-                // Is not working correctly when used with nested tasklets with channels
-                // TODO reinstate nested tasklet with channel support.
-                if (GetCurrentTasklet()->IsMain())
-                {
-				    if( m_taskletLimit > -1 )
-				    {
-					    if( m_taskletLimit > 0 )
-					    {
-						    m_taskletLimit--;
-					    }
-					    if( m_taskletLimit == 0 )
-					    {
-						    m_stopScheduler = true;
-					    }
-				    }
-
-                    // Test Total tasklet Run Limit
-                    if (m_totalTaskletRunTimeLimit > 0)
-                    {
-					    std::chrono::steady_clock::time_point current_time = std::chrono::steady_clock::now();
-
-                        if( std::chrono::duration_cast<std::chrono::nanoseconds>( current_time - m_startTime ).count() >= m_totalTaskletRunTimeLimit )
-					    {
-						    m_stopScheduler = true;
-					    }
-                    }
-				}
-               
+				InsertTasklet( currentTasklet );
+				currentTasklet->SetReschedule( RescheduleType::NONE );
 			}
+            else if (currentTasklet->RequiresReschedule() == RescheduleType::FRONT_PLUS_ONE)
+            {
+				// Add after current next on queue
+				Tasklet* front = GetCurrentTasklet()->Next();
+				// Remove the current front as this will need to be retained
+                // Reference will be relinquished to here
+				RemoveTasklet( front );
+				// current becomes second on queue
+				InsertTaskletToRunNext( currentTasklet );
+				// Reinstate the front again
+				InsertTaskletToRunNext( front );
+                // Decref the reference that was relinquished from RemoveTasklet above.
+                front->Decref();
+                // Reset reschedule flag
+                currentTasklet->SetReschedule( RescheduleType::NONE );
+            }
         }
 		// Switch was unsuccessful
 		else

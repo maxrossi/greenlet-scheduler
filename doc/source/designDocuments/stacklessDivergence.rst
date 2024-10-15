@@ -12,6 +12,7 @@ Overview of differences
 -----------------------
 * :ref:`divergence-scheduler-current-scheduler-main`
 * :ref:`divergence-scheduler-getcurrent-scheduler-getmain` 
+* :ref:`divergence-scheduler-tasklet-execution-order` 
 
 
 
@@ -111,3 +112,13 @@ To achieve this
 7. When the scheduler reaches the scheduled Tasklet the Main Tasklet will finally be decreffed and cleaned up.
 
 The above approach has been explored and does work however the required changes make the codebase confusing. 
+
+
+.. _divergence-scheduler-tasklet-execution-order:
+Tasklet execution order when using :py:func:`tasklet.run` can be altered
+-------------------------------------------------------------
+When :py:func:`tasklet.run` is called it creates a nested non linear tasklet execution order.
+
+carbon-scheduler allows the user to turn this behaviour off and flatten the queue using :py:func:`scheduler.set_use_nested_tasklets`.
+
+See :doc:`nestedTaskletsVsFlatSchedulingQueue` for further details.

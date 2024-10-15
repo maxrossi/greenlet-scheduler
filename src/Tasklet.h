@@ -27,6 +27,16 @@ class Channel;
 class ScheduleManager;
 enum class ChannelDirection;
 
+// Specify the technique used when rescheduling
+// BACK: Insert Tasklet to the end of the current queue
+// FRONT_PLUS_ONE: Inserts the Tasklet one from the front of the queue 
+enum class RescheduleType
+{
+    FRONT_PLUS_ONE,
+    BACK,
+    NONE
+};
+
 class Tasklet : public PythonCppType
 {
 public:
@@ -119,9 +129,9 @@ public:
 
     void ClearTaskletException();
 
-    void SetReschedule( bool value );
+    void SetReschedule( RescheduleType value );
 
-    bool RequiresReschedule();
+    RescheduleType RequiresReschedule();
 
     void SetTaggedForRemoval( bool value );
 
@@ -213,7 +223,7 @@ private:
 
     bool m_firstRun;
 
-    bool m_reschedule;
+    RescheduleType m_reschedule;
 
     bool m_remove;
 
