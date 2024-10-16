@@ -1092,6 +1092,22 @@ class TestBind(test_utils.SchedulerTestCaseBase):
         self.assertEqual(tlet.recursion_depth, 0)
         self.assertEqual(self.recursion_depth_in_test, 1)
 
+    def test_rebind_after_run(self):
+        results = []
+        def foo(x):
+            results.append(x)
+
+        t = scheduler.tasklet()
+        t.bind(foo)
+        t.setup(1)
+        t.run()
+
+        t.bind(foo)
+        t.setup(2)
+        t.run()
+
+        self.assertEqual(results, [1,2])
+
 
 
 class TestTaskletExitException(test_utils.SchedulerTestCaseBase):

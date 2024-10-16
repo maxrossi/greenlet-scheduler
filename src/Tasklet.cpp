@@ -152,6 +152,7 @@ bool Tasklet::Initialise()
     else
     {
 		m_paused = true;
+		m_firstRun = true;
 
 		return true; 
     }
