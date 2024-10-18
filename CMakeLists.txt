@@ -87,11 +87,10 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     if (DEFINED ENV{TEAMCITY_VERSION})
         set(BUILD_DOCUMENTATION_DEFAULT_FLAG ON)
     endif()
+    message(STATUS "Document generation settings: default=${BUILD_DOCUMENTATION_DEFAULT_FLAG}, option BUILD_DOCUMENTATION=${BUILD_DOCUMENTATION}")
     option(BUILD_DOCUMENTATION "Build Documentation" ${BUILD_DOCUMENTATION_DEFAULT_FLAG})
-    message(STATUS "Document generation settings: BUILD_DOCUMENTATION=${BUILD_DOCUMENTATION}, BUILD_DOCUMENTATION_DEFAULT_FLAG=${BUILD_DOCUMENTATION_DEFAULT_FLAG}")
 
     if(BUILD_DOCUMENTATION)
-        message(STATUS "Document generation - start")
         find_package(Doxygen)
 
         # Evaluate config file for Doxygen to input project values
@@ -134,7 +133,6 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
         elseif(APPLE)
             set(CCP_PYTHON_INTERPRETER "${BRANCH_ROOT_DIR}/eve/client/pythonInterpreter.sh")
         endif()
-        message(STATUS "Python Interpreter for document generation: ${CCP_PYTHON_INTERPRETER}")
 
         add_custom_target(Sphinx ALL
                 COMMAND ${CCP_PYTHON_INTERPRETER} -m sphinx build -E -b html -Dbreathe_projects.doxygen=${CMAKE_CURRENT_BINARY_DIR}/docs/xml -c $<TARGET_FILE_DIR:Scheduler> ${SPHINX_SOURCE} ${SPHINX_BUILD}
@@ -144,9 +142,6 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
 
         # Install rule for documentation
         install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doc/build/ DESTINATION documentation)
-        message(STATUS "Document generation - end")
-    else()
-        message(STATUS "Document generation not attempted")
     endif()
 
     enable_testing()
