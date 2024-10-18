@@ -79,12 +79,18 @@ set_target_properties(Scheduler PROPERTIES
 
 # Provide an install target iff this is the top level project only
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
-option(BUILD_DOCUMENTATION "Build Documentation" OFF)
+    # Determine if/when to generate/build documentation. The rules are as follows:
+    # - If running locally - Build documentation is OFF by default
+    # - If running on a build agent (TeamCity) - Build documentation is ON by default
+    # - If -DBUILD_DOCUMENTATION=ON/OFF flag is explicitly set, use it.
+    set(BUILD_DOCUMENTATION_DEFAULT_FLAG OFF)
+    if (DEFINED ENV{TEAMCITY_VERSION})
+        set(BUILD_DOCUMENTATION_DEFAULT_FLAG ON)
+    endif()
+    message(STATUS "Document generation settings: default=${BUILD_DOCUMENTATION_DEFAULT_FLAG}, option BUILD_DOCUMENTATION=${BUILD_DOCUMENTATION}")
+    option(BUILD_DOCUMENTATION "Build Documentation" ${BUILD_DOCUMENTATION_DEFAULT_FLAG})
 
     if(BUILD_DOCUMENTATION)
-        # Generate documentation - NOTE: experimental, Binaries only vendored manually for windows currently
-        # Documentation generation off by default
-        # Requires further work to work on TC
         find_package(Doxygen)
 
         # Evaluate config file for Doxygen to input project values
@@ -102,7 +108,7 @@ option(BUILD_DOCUMENTATION "Build Documentation" OFF)
                             VERBATIM)
 
         add_custom_target(Doxygen ALL DEPENDS ${DOXYGEN_INDEX_FILE})
-        
+
         # Set up sphinx build
         set(SPHINX_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/doc/source)
         set(SPHINX_BUILD ${CMAKE_CURRENT_BINARY_DIR}/doc/build)
@@ -116,21 +122,26 @@ option(BUILD_DOCUMENTATION "Build Documentation" OFF)
 
         # Generate files per build flavour to resolve generator expressions
         file (GENERATE
-                OUTPUT "$<CONFIG>/conf.py" 
+                OUTPUT "$<CONFIG>/conf.py"
                 INPUT  ${CMAKE_CURRENT_BINARY_DIR}/conf.py.partial
             )
 
-        # Run Sphinx against build flavour specific conf file
+        # Run Sphinx against build flavour specific conf file using our pythonInterpreter
         # Pass in Doxygen output
+        if(WIN32)
+            set(CCP_PYTHON_INTERPRETER "${BRANCH_ROOT_DIR}/eve/client/pythonInterpreter.bat")
+        elseif(APPLE)
+            set(CCP_PYTHON_INTERPRETER "${BRANCH_ROOT_DIR}/eve/client/pythonInterpreter.sh")
+        endif()
+
         add_custom_target(Sphinx ALL
-                  COMMAND cmd /c ${CMAKE_CURRENT_SOURCE_DIR}/doc/RunSphinx.bat ${CMAKE_CURRENT_BINARY_DIR}/docs/xml $<TARGET_FILE_DIR:Scheduler> ${SPHINX_SOURCE} ${SPHINX_BUILD}
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-                  DEPENDS ${DOXYGEN_INDEX_FILE}
-                  COMMENT "Generating documentation with Sphinx")
+                COMMAND ${CCP_PYTHON_INTERPRETER} -m sphinx build -E -b html -Dbreathe_projects.doxygen=${CMAKE_CURRENT_BINARY_DIR}/docs/xml -c $<TARGET_FILE_DIR:Scheduler> ${SPHINX_SOURCE} ${SPHINX_BUILD}
+                WORKING_DIRECTORY ${BRANCH_ROOT_DIR}
+                DEPENDS ${DOXYGEN_INDEX_FILE}
+                COMMENT "Generating documentation with Sphinx")
 
         # Install rule for documentation
         install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doc/build/ DESTINATION documentation)
-
     endif()
 
     enable_testing()
