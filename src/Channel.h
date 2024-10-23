@@ -23,7 +23,7 @@
 
 #include "PythonCppType.h"
 
-#include <list>
+#include <unordered_set>
 
 enum class ChannelDirection
 {
@@ -126,7 +126,7 @@ private:
 
     Tasklet* m_lastBlockedOnSend;
 
-    inline static std::list<Channel*> s_activeChannels;
+    inline static std::unordered_set<Channel*> s_activeChannels;
 };
 
 #endif // Channel_H
