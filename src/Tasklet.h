@@ -19,6 +19,8 @@
 #ifndef Tasklet_H
 #define Tasklet_H
 
+#include <string>
+
 #include "stdafx.h"
 
 #include "PythonCppType.h"
@@ -155,6 +157,50 @@ public:
 
     void Clear();
 
+    void SetMethodName( std::string& methodName);
+
+    std::string GetMethodName();
+
+    void SetModuleName(std::string& moduleName);
+
+	std::string GetModuleName();
+
+    void SetContext( std::string& context );
+
+    std::string GetContext();
+
+    std::string GetFilename();
+
+    void SetFilename( std::string& fileName );
+
+    long GetLineNumber();
+
+    void SetLineNumber( long lineNumber );
+
+    std::string GetParentCallsite();
+
+    void SetParentCallsite( std::string& parentCallsite );
+
+    std::string GetParentMethodName();
+
+    void SetParentMethodName( std::string& parentMethodName );
+
+    long long GetStartTime();
+	
+    void SetStartTime( long long startTime );
+
+    long long GetEndTime();
+
+    void SetEndTime( long long startTime );
+
+    double GetRunTime();
+
+    void SetRunTime( double runTime );
+
+    bool GetHighlighted();
+
+    void SetHighlighted( bool highlighted );
+
 private:
 
     void SetExceptionState( PyObject* exception, PyObject* arguments = Py_None );
@@ -240,6 +286,18 @@ private:
     ScheduleManager* m_scheduleManager;
 
     bool m_killPending;
+
+    std::string m_parentCallsite;
+    std::string m_parentMethodName;
+    std::string m_methodName;
+    std::string m_moduleName;
+    std::string m_context;
+    std::string m_fileName;
+    long m_lineNumber;
+    long long m_startTime;
+    long long m_endTime;
+    double m_runTime;
+    bool m_highlighted;
 };
 
 #endif // Tasklet_H

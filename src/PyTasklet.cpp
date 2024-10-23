@@ -4,6 +4,7 @@
 
 #include "ScheduleManager.h"
 #include "PyTasklet.h"
+#include "Utils.h"
 
 static PyObject* TaskletExit;
 
@@ -306,6 +307,391 @@ static PyObject*
 	return nullptr;
 }
 
+static PyObject*
+    TaskletMethodNameGet(PyTaskletObject* self, void* closure)
+{
+	// Ensure PyTaskletObject is in a valid state
+	if( !PyTaskletObjectIsValid( self ) )
+	{
+		return nullptr;
+	}
+
+    std::string str = self->m_implementation->GetMethodName();
+
+    return PyUnicode_FromStringAndSize( str.c_str(), str.size() );
+}
+
+static int
+    TaskletMethodNameSet(PyTaskletObject* self, PyObject* value, void* closure)
+{
+    // Ensure PyTaskletObject is in a valid state
+	if( !PyTaskletObjectIsValid( self ) )
+	{
+		return -1;
+	}
+
+	
+	std::string cstr;
+
+    if( !StdStringFromPyObject( value, cstr ) )
+    {
+		return -1;
+    }
+
+    self->m_implementation->SetMethodName( cstr );
+
+    return 0;
+}
+
+static PyObject*
+    TaskletModuleNameGet(PyTaskletObject* self, void* closure)
+{
+	// Ensure PyTaskletObject is in a valid state
+	if( !PyTaskletObjectIsValid( self ) )
+	{
+		return nullptr;
+	}
+
+	std::string str = self->m_implementation->GetModuleName();
+
+	return PyUnicode_FromStringAndSize( str.c_str(), str.size() );
+}
+
+static int
+	TaskletModuleNameSet( PyTaskletObject* self, PyObject* value, void* closure )
+{
+	// Ensure PyTaskletObject is in a valid state
+	if( !PyTaskletObjectIsValid( self ) )
+	{
+		return -1;
+	}
+	std::string cstr;
+
+	if( !StdStringFromPyObject( value, cstr ) )
+	{
+		return -1;
+	}
+
+	self->m_implementation->SetModuleName( cstr );
+
+	return 0;
+}
+
+static PyObject*
+	TaskletContextGet( PyTaskletObject* self, void* closure )
+{
+	// Ensure PyTaskletObject is in a valid state
+	if( !PyTaskletObjectIsValid( self ) )
+	{
+		return nullptr;
+	}
+
+	std::string str = self->m_implementation->GetContext();
+
+	return PyUnicode_FromStringAndSize( str.c_str(), str.size() );
+}
+
+static int
+    TaskletContextSet(PyTaskletObject* self, PyObject* value, void* closure)
+{
+	// Ensure PyTaskletObject is in a valid state
+	if( !PyTaskletObjectIsValid( self ) )
+	{
+		return -1;
+	}
+
+	std::string cstr;
+
+	if( !StdStringFromPyObject( value, cstr ) )
+	{
+		return -1;
+	}
+
+	self->m_implementation->SetContext( cstr );
+
+	return 0;
+}
+
+static PyObject*
+	TaskletFileNameGet( PyTaskletObject* self, void* closure )
+{
+	// Ensure PyTaskletObject is in a valid state
+	if( !PyTaskletObjectIsValid( self ) )
+	{
+		return nullptr;
+	}
+
+	std::string str = self->m_implementation->GetFilename();
+
+	return PyUnicode_FromStringAndSize( str.c_str(), str.size() );
+}
+
+static int
+	TaskletFileNameSet( PyTaskletObject* self, PyObject* value, void* closure )
+{
+	// Ensure PyTaskletObject is in a valid state
+	if( !PyTaskletObjectIsValid( self ) )
+	{
+		return -1;
+	}
+
+	std::string cstr;
+
+	if( !StdStringFromPyObject( value, cstr ) )
+	{
+		return -1;
+	}
+
+	self->m_implementation->SetFilename( cstr );
+
+	return 0;
+}
+
+static PyObject*
+    TaskletLineNumberGet(PyTaskletObject* self, void* closure)
+{
+	// Ensure PyTaskletObject is in a valid state
+	if( !PyTaskletObjectIsValid( self ) )
+	{
+		return nullptr;
+	}
+
+	long lineNumber = self->m_implementation->GetLineNumber();
+
+	return PyLong_FromLong( lineNumber );
+}
+
+static int
+    TaskletLineNumberSet(PyTaskletObject* self, PyObject* value, void* closure)
+{
+	// Ensure PyTaskletObject is in a valid state
+	if( !PyTaskletObjectIsValid( self ) )
+	{
+		return -1;
+	}
+
+    long lineNumber = PyLong_AsLong( value );
+
+    if (PyErr_Occurred())
+    {
+		return -1;
+    }
+
+    self->m_implementation->SetLineNumber( lineNumber );
+    
+    return 0;
+}
+
+static PyObject*
+    TaskletParentCallsiteGet(PyTaskletObject* self, void* closure)
+{
+	// Ensure PyTaskletObject is in a valid state
+	if( !PyTaskletObjectIsValid( self ) )
+	{
+		return nullptr;
+	}
+
+	std::string str = self->m_implementation->GetParentCallsite();
+
+	return PyUnicode_FromStringAndSize( str.c_str(), str.size() );
+}
+
+static int
+    TaskletParentCallsiteSet(PyTaskletObject* self, PyObject* value, void* closure)
+{
+	// Ensure PyTaskletObject is in a valid state
+	if( !PyTaskletObjectIsValid( self ) )
+	{
+		return -1;
+	}
+
+	std::string cstr;
+
+	if( !StdStringFromPyObject( value, cstr ) )
+	{
+		return -1;
+	}
+
+	self->m_implementation->SetParentCallsite( cstr );
+
+	return 0;
+}
+
+static PyObject*
+    TaskletParentMethodNameGet(PyTaskletObject* self, void* closure)
+{
+	// Ensure PyTaskletObject is in a valid state
+	if( !PyTaskletObjectIsValid( self ) )
+	{
+		return nullptr;
+	}
+
+	std::string str = self->m_implementation->GetParentMethodName();
+
+	return PyUnicode_FromStringAndSize( str.c_str(), str.size() );
+}
+
+static int
+TaskletParentMethodNameSet(PyTaskletObject* self, PyObject* value, void* closure)
+{
+	// Ensure PyTaskletObject is in a valid state
+	if( !PyTaskletObjectIsValid( self ) )
+	{
+		return -1;
+	}
+
+	std::string cstr;
+
+	if( !StdStringFromPyObject( value, cstr ) )
+	{
+		return -1;
+	}
+
+	self->m_implementation->SetParentMethodName( cstr );
+
+	return 0;
+}
+
+static PyObject*
+TaskletStartTimeGet(PyTaskletObject* self, void* closure)
+{
+	// Ensure PyTaskletObject is in a valid state
+	if( !PyTaskletObjectIsValid( self ) )
+	{
+		return nullptr;
+	}
+
+	long long startTime = self->m_implementation->GetStartTime();
+
+	return PyLong_FromLongLong( startTime );
+}
+
+static int
+	TaskletStartTimeSet( PyTaskletObject* self, PyObject* value, void* closure )
+{
+	// Ensure PyTaskletObject is in a valid state
+	if( !PyTaskletObjectIsValid( self ) )
+	{
+		return -1;
+	}
+
+	long long startTime = PyLong_AsLongLong( value );
+
+	if( PyErr_Occurred() )
+	{
+		return -1;
+	}
+
+	self->m_implementation->SetStartTime( startTime );
+
+	return 0;
+}
+
+static PyObject*
+	TaskletEndTimeGet( PyTaskletObject* self, void* closure )
+{
+	// Ensure PyTaskletObject is in a valid state
+	if( !PyTaskletObjectIsValid( self ) )
+	{
+		return nullptr;
+	}
+
+	long long endTime = self->m_implementation->GetEndTime();
+
+	return PyLong_FromLongLong( endTime );
+}
+
+static int
+	TaskletEndTimeSet( PyTaskletObject* self, PyObject* value, void* closure )
+{
+	// Ensure PyTaskletObject is in a valid state
+	if( !PyTaskletObjectIsValid( self ) )
+	{
+		return -1;
+	}
+
+	long long endTime = PyLong_AsLongLong( value );
+
+	if( PyErr_Occurred() )
+	{
+		return -1;
+	}
+
+	self->m_implementation->SetStartTime( endTime );
+
+	return 0;
+}
+
+static PyObject*
+	TaskletRunTimeGet( PyTaskletObject* self, void* closure )
+{
+	// Ensure PyTaskletObject is in a valid state
+	if( !PyTaskletObjectIsValid( self ) )
+	{
+		return nullptr;
+	}
+
+	double runTime = self->m_implementation->GetRunTime();
+	return PyFloat_FromDouble( runTime );
+}
+
+static int
+	TaskletRunTimeSet( PyTaskletObject* self, PyObject* value, void* closure )
+{
+	// Ensure PyTaskletObject is in a valid state
+	if( !PyTaskletObjectIsValid( self ) )
+	{
+		return -1;
+	}
+
+	double runTime = PyFloat_AsDouble( value );
+
+	if( PyErr_Occurred() )
+	{
+		return -1;
+	}
+
+	self->m_implementation->SetRunTime( runTime );
+
+	return 0;
+}
+
+static PyObject*
+    TaskletHighlightedGet( PyTaskletObject* self, void* closure )
+{
+	// Ensure PyTaskletObject is in a valid state
+	if( !PyTaskletObjectIsValid( self ) )
+	{
+		return nullptr;
+	}
+
+    bool highlighted = self->m_implementation->GetHighlighted();
+
+    return highlighted ? Py_True : Py_False;
+}
+
+static int
+	TaskletHighlightedSet( PyTaskletObject* self, PyObject* value, void* closure )
+{
+	// Ensure PyTaskletObject is in a valid state
+	if( !PyTaskletObjectIsValid( self ) )
+	{
+		return -1;
+	}
+
+    if ( !PyBool_Check(value) )
+    {
+		PyErr_SetString( PyExc_TypeError, "highlighted must be either a True or False value" );
+		return -1;
+    }
+
+    bool highlighted = PyObject_IsTrue( value );
+
+    self->m_implementation->SetHighlighted( highlighted );
+
+    return 0;
+}
+
 static PyGetSetDef Tasklet_getsetters[] = {
 	{ "alive", 
         (getter)TaskletAliveGet,
@@ -371,6 +757,61 @@ static PyGetSetDef Tasklet_getsetters[] = {
         NULL,
 	    "Get the current frame of a tasklet. Frame has been dissabled due to instability in greenlet. This attribute will always be None",
         NULL },
+	{ "method_name",
+	  (getter)TaskletMethodNameGet,
+	  (setter)TaskletMethodNameSet,
+		"(in the near future, this field will be read-only) the name of the callable bound to the tasklet.",
+        NULL },
+	{ "module_name",
+	  (getter)TaskletModuleNameGet,
+	  (setter)TaskletModuleNameSet,
+	    "(in the near future, this field will be read-only) the name of the callable bound to the tasklet.",
+	    NULL },
+	{ "context",
+	  (getter)TaskletContextGet,
+	  (setter)TaskletContextSet,
+	    "context of the tasklet.",
+	    NULL },
+	{ "file_name",
+	  (getter)TaskletFileNameGet,
+	  (setter)TaskletFileNameSet,
+	  "(in the near future, this field will be read-only) name of the file containing callable bound to the tasklet tasklet.",
+	  NULL },
+	{ "line_number",
+	  (getter)TaskletLineNumberGet,
+	  (setter)TaskletLineNumberSet,
+	  "(in the near future, this field will be read-only) line number of the callable boud to the tasklet.",
+	  NULL },
+	{ "parent_callsite",
+	  (getter)TaskletParentCallsiteGet,
+	  (setter)TaskletParentCallsiteSet,
+	  "(in the near future, this field will be read-only) callsite of the parent tasklet when this tasklet was created.",
+	  NULL },
+	{ "parent_method_name",
+	  (getter)TaskletParentMethodNameGet,
+	  (setter)TaskletParentMethodNameSet,
+	  "(in the near future, this field will be read-only) name of the callable bound to the parent tasklet when this tasklet was created.",
+	  NULL },
+	{ "startTime",
+	  (getter)TaskletStartTimeGet,
+	  (setter)TaskletStartTimeSet,
+	  "(in the near future, this field will be read-only) Time the tasklet was started.",
+	  NULL },
+	{ "endTime",
+	  (getter)TaskletEndTimeGet,
+	  (setter)TaskletEndTimeSet,
+	  "(in the near future, this field will be read-only) Time the tasklet finished.",
+	  NULL },
+	{ "runTime",
+	  (getter)TaskletRunTimeGet,
+	  (setter)TaskletRunTimeSet,
+	  "(in the near future, this field will be read-only) Total time the tasklet was running for.",
+	  NULL },
+	{ "highlighted",
+	  (getter)TaskletHighlightedGet,
+	  (setter)TaskletHighlightedSet,
+	  "A generic boolean marker used for tracing purposes.",
+	  NULL },
 
 	{ NULL } /* Sentinel */
 };
