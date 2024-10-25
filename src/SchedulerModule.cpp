@@ -483,7 +483,7 @@ extern "C"
     /// @brief Make tasklet ready to run by binding parameters to it and inserting into run queue. 
 	/// @param tasklet python object type derived from PyTaskletType
 	/// @param args tuple containing arguments
-    /// @param args tuple containing kwords
+    /// @param kwds tuple containing kwords
 	/// @return 0 on success -1 on failure
 	static int PyTasklet_Setup( PyTaskletObject* tasklet, PyObject* args, PyObject* kwds )
 	{
@@ -504,7 +504,7 @@ extern "C"
 	}
 
     /// @brief Insert tasklet into run queue if not already present.
-	/// @param tasklet to be inserted, python object type derived from PyTaskletType
+	/// @param self the tasklet to be inserted, python object type derived from PyTaskletType
 	/// @return 0 on success -1 on failure
     /// @note Raises RuntimeError on failure
 	static int PyTasklet_Insert( PyTaskletObject* self )
@@ -522,7 +522,7 @@ extern "C"
 	}
 
     /// @brief Get tasklet blocktrap status
-	/// @param tasklet to be checked, python object type derived from PyTaskletType
+	/// @param self the tasklet to be checked, python object type derived from PyTaskletType
 	/// @return 1 if tasklet cannot be blocked otherwise return 0
 	static int PyTasklet_GetBlockTrap( PyTaskletObject* self )
 	{
@@ -531,9 +531,8 @@ extern "C"
 	}
 
     /// @brief Set tasklet blocktrap status
-	/// @param tasklet to be checked, python object type derived from PyTaskletType
+	/// @param task the tasklet to be checked, python object type derived from PyTaskletType
     /// @param value new blocktrap value
-	/// @return 1 if tasklet cannot be blocked otherwise return 0
 	static void PyTasklet_SetBlockTrap( PyTaskletObject* task, int value )
 	{
 		GILRAII gil;
@@ -663,6 +662,7 @@ extern "C"
 
     /// @brief Set the channel's preference
 	/// @param self python object type derived from PyChannelType
+	/// @param val -1 = Prefer receiver, 1 = Prefer sender, 0 = Prefer neither
 	static void PyChannel_SetPreference( PyChannelObject* self, int val )
 	{
 		GILRAII gil;
