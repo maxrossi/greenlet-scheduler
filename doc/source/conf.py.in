@@ -30,7 +30,14 @@ release = '0.1'
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = ['sphinx.ext.autodoc',
-              'breathe']
+              'breathe',
+              'myst_parser']
+
+source_suffix = {
+    '.rst': 'restructuredtext',
+    '.txt': 'markdown',
+    '.md': 'markdown',
+}
 
 breathe_default_project = "doxygen"
 breathe_implementation_filename_extensions = ['.c', '.cc']
