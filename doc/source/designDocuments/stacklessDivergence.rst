@@ -29,7 +29,7 @@ use :py:func:`scheduler.getcurrent` and :py:func:`scheduler.getmain`. These will
 
 .. _divergence-scheduler-tasklet-execution-order:
 Tasklet execution order when using :py:func:`tasklet.run` can be altered
--------------------------------------------------------------
+------------------------------------------------------------------------
 When :py:func:`tasklet.run` is called it creates a nested non linear tasklet execution order.
 
 carbon-scheduler allows the user to turn this behaviour off and flatten the queue using :py:func:`scheduler.set_use_nested_tasklets`.

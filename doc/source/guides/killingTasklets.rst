@@ -63,7 +63,7 @@ Explanation of computation:
 
 
 Killing a running :doc:`../pythonApi/tasklet` non-immediately
----------------------------------------------------------
+-------------------------------------------------------------
 :py:func:`scheduler.tasklet.kill` also excepts an option for ``Pending`` which when set ``True`` will perform a non-immediate 'kill' of the :doc:`../pythonApi/tasklet`.
 This will raise a :py:func:`scheduler.TaskletExit` on the :doc:`../pythonApi/tasklet` as before, but instead of instantly evaluating the :doc:`../pythonApi/tasklet` it is added to the :doc:`../pythonApi/scheduleManager` runnables queue.
 
