@@ -88,3 +88,25 @@ Attributes
 .. autoattribute:: scheduler.tasklet.prev
 
 .. autoattribute:: scheduler.tasklet.paused
+
+.. autoattribute:: scheduler.tasklet.method_name
+
+.. autoattribute:: scheduler.tasklet.module_name
+
+.. autoattribute:: scheduler.tasklet.context
+
+.. autoattribute:: scheduler.tasklet.file_name
+
+.. autoattribute:: scheduler.tasklet.line_number
+
+.. autoattribute:: scheduler.tasklet.parent_callsite
+
+.. autoattribute:: scheduler.tasklet.parent_method_name
+
+.. autoattribute:: scheduler.tasklet.startTime
+
+.. autoattribute:: scheduler.tasklet.endTime
+
+.. autoattribute:: scheduler.tasklet.runTime
+
+.. autoattribute:: scheduler.tasklet.highlighted

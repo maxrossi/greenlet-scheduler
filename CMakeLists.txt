@@ -48,6 +48,8 @@ set(SRC_FILES
     src/stdafx.cpp
     src/GILRAII.cpp
     src/GILRAII.h
+    src/Utils.h
+    src/Utils.cpp
 )
 
 set(PUBLIC_HEADER_FILES include/Scheduler.h)

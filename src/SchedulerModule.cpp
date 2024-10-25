@@ -106,6 +106,11 @@ static PyObject*
 {
 	ScheduleManager* currentScheduler = ScheduleManager::GetThreadScheduleManager();
 
+    if (!currentScheduler)
+    {
+		return nullptr;
+    }
+
     Tasklet* currentTasklet = currentScheduler->GetCurrentTasklet();
 
     currentTasklet->Incref();
@@ -443,9 +448,6 @@ void ModuleDestructor( void* )
 	Channel::SetChannelCallback( nullptr );
 
 	ScheduleManager::SetSchedulerCallback( nullptr );
-
-    // Destroy thread local storage key
-	PyThread_tss_delete( &ScheduleManager::s_threadLocalStorageKey );
 }
 
 /*
@@ -1102,11 +1104,7 @@ PyMODINIT_FUNC PyInit__scheduler(void)
 	static SchedulerCAPI api;
 	PyObject* c_api_object;
 
-    // Initialise thread local storage key
-	if( PyThread_tss_create( &ScheduleManager::s_threadLocalStorageKey ) )
-	{
-		return nullptr;
-	}
+    ScheduleManager::m_scheduleManagerThreadKey = PyUnicode_FromString( "SCHEDULE_MANAGER" );
 
 	//Add custom types
     if (PyType_Ready(&TaskletType) < 0)
