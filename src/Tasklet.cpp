@@ -35,7 +35,12 @@ Tasklet::Tasklet( PyObject* pythonObject, PyObject* taskletExitException, bool i
 	m_scheduleManager( nullptr ),
 	m_remove( false ),
 	m_killPending( false ),
-	m_restoreException( false )
+	m_restoreException( false ),
+	m_lineNumber( 0 ),
+	m_startTime( 0 ),
+	m_endTime( 0 ),
+	m_runTime( 0 ),
+	m_highlighted( false )
 {
 
     // If tasklet is not a scheduler tasklet then register the tasklet with the scheduler
@@ -444,7 +449,7 @@ void Tasklet::ClearException()
     }
 }
 
-void Tasklet::SetExceptionState( PyObject* exception, PyObject* arguments /* = Py_None */)
+void Tasklet::SetExceptionState( PyObject* exception, PyObject* arguments /* = Py_None */ )
 {
 	ClearException();
 
@@ -1206,4 +1211,115 @@ bool Tasklet::BelongsToCurrentThread()
     scheduleManager->Decref();
 
     return ret;
+}
+
+std::string Tasklet::GetMethodName()
+{
+	return m_methodName;
+}
+
+void Tasklet::SetMethodName(std::string& methodName)
+{
+	m_methodName = methodName;
+}
+
+std::string Tasklet::GetModuleName()
+{
+	return m_moduleName;
+}
+
+void Tasklet::SetModuleName(std::string& moduleName)
+{
+	m_moduleName = moduleName;
+}
+
+std::string Tasklet::GetContext()
+{
+    return m_context;
+}
+
+std::string Tasklet::GetFilename()
+{
+	return m_fileName;
+}
+
+void Tasklet::SetFilename( std::string& fileName )
+{
+	m_fileName = fileName;
+}
+
+long Tasklet::GetLineNumber()
+{
+	return m_lineNumber;
+}
+
+void Tasklet::SetLineNumber( long lineNumber )
+{
+	m_lineNumber = lineNumber;
+}
+
+void Tasklet::SetContext(std::string& context)
+{
+	m_context = context;
+}
+
+
+std::string Tasklet::GetParentCallsite()
+{
+	return m_parentCallsite;
+}
+
+void Tasklet::SetParentCallsite(std::string& parentCallsite)
+{
+	m_parentCallsite = parentCallsite;
+}
+
+std::string Tasklet::GetParentMethodName()
+{
+	return m_parentMethodName;
+}
+
+void Tasklet::SetParentMethodName(std::string& parentMethodName)
+{
+	m_parentMethodName = parentMethodName;
+}
+
+long long Tasklet::GetStartTime()
+{
+	return m_startTime;
+}
+
+void Tasklet::SetStartTime( long long startTime )
+{
+	m_startTime = startTime;
+}
+
+long long Tasklet::GetEndTime()
+{
+	return m_endTime;
+}
+
+void Tasklet::SetEndTime( long long endTime )
+{
+	m_endTime = endTime;
+}
+
+double Tasklet::GetRunTime()
+{
+	return m_runTime;
+}
+
+void Tasklet::SetRunTime( double runTime )
+{
+	m_runTime = runTime;
+}
+
+bool Tasklet::GetHighlighted()
+{
+	return m_highlighted;
+}
+
+void Tasklet::SetHighlighted( bool highlighted )
+{
+	m_highlighted = highlighted;
 }
