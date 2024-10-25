@@ -100,9 +100,9 @@ public:
 
     inline static PyTypeObject* s_scheduleManagerType;
 
-    inline static Py_tss_t s_threadLocalStorageKey = Py_tss_NEEDS_INIT;
-
     inline static bool s_useNestedTasklets = true;
+    
+    inline static PyObject* m_scheduleManagerThreadKey = nullptr;
 
 private:
 

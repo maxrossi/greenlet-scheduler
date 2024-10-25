@@ -173,7 +173,7 @@ class TestTasklets(test_utils.SchedulerTestCaseBase):
         import gc
         gc.collect()
 
-        self.assertEqual(sys.getrefcount(self.scheduleManager), 2)
+        self.assertEqual(sys.getrefcount(self.scheduleManager), 3)
 
     def test_tasklets_with_cyclical_argument_cleans_up(self):
         # If Tasklet has itself in an argument ensure that 
@@ -190,7 +190,7 @@ class TestTasklets(test_utils.SchedulerTestCaseBase):
         import gc
         gc.collect()
 
-        self.assertEqual(sys.getrefcount(self.scheduleManager), 2)
+        self.assertEqual(sys.getrefcount(self.scheduleManager), 3)
 
     def test_remove_and_switch(self):
         valueOut = [-1]

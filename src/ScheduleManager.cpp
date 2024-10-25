@@ -3,6 +3,7 @@
 #include "Tasklet.h"
 #include "PyTasklet.h"
 #include "PyScheduleManager.h"
+#include "GILRAII.h"
 
 ScheduleManager::ScheduleManager( PyObject* pythonObject ) :
 	PythonCppType( pythonObject ),
@@ -31,8 +32,6 @@ ScheduleManager::ScheduleManager( PyObject* pythonObject ) :
 ScheduleManager::~ScheduleManager()
 {
 	m_schedulerTasklet->Decref();
-
-    PyThread_tss_set( &s_threadLocalStorageKey, nullptr );
 
     s_numberOfActiveScheduleManagers--;
 }
@@ -67,23 +66,37 @@ int ScheduleManager::NumberOfActiveScheduleManagers()
 // Returns a new schedule manager reference
 ScheduleManager* ScheduleManager::GetThreadScheduleManager()
 {
-    ScheduleManager* scheduleManager = reinterpret_cast<ScheduleManager*>( PyThread_tss_get( &s_threadLocalStorageKey ) );
 
-    if( !scheduleManager )
+    GILRAII gil; // we MUST hold the gil - this is being extra safe
+
+    PyObject* threadDict = PyThreadState_GetDict();
+    
+    PyObject* pyScheduleManager = PyDict_GetItem( threadDict, m_scheduleManagerThreadKey );
+
+    ScheduleManager* scheduleManager = nullptr;
+
+    if( !pyScheduleManager )
 	{
 		// Create new scheduler for the thread
-		PyObject* pyScheduleManager = PyObject_CallObject( reinterpret_cast<PyObject*>( s_scheduleManagerType ), nullptr );
+		pyScheduleManager = PyObject_CallObject( reinterpret_cast<PyObject*>( s_scheduleManagerType ), nullptr );
 
 		scheduleManager = reinterpret_cast<PyScheduleManagerObject*>( pyScheduleManager )->m_implementation;
 
         scheduleManager->m_schedulerTasklet->SetScheduleManager( scheduleManager );
 
-        PyThread_tss_set( &s_threadLocalStorageKey, reinterpret_cast<void*>(scheduleManager) );
+		int res = PyDict_SetItem( threadDict, m_scheduleManagerThreadKey, pyScheduleManager );
+
+        if (res == -1)
+        {
+			scheduleManager->Decref();
+			return nullptr;
+        }
 
         s_numberOfActiveScheduleManagers++;
 	}
-    else
-    {
+	else
+	{
+		scheduleManager = reinterpret_cast<PyScheduleManagerObject*>( pyScheduleManager )->m_implementation;
 		scheduleManager->Incref();
     }
 

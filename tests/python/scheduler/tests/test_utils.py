@@ -13,7 +13,7 @@ class SchedulerTestCaseBase(unittest.TestCase):
         self.scheduleManager = scheduler.get_schedule_manager()
 
         #Sanity check
-        self.assertEqual(sys.getrefcount(self.scheduleManager), 2)
+        self.assertEqual(sys.getrefcount(self.scheduleManager), 3)
 
     def tearDown(self):
 
@@ -36,7 +36,7 @@ class SchedulerTestCaseBase(unittest.TestCase):
         scheduler.run()
         
         # Check references in schedule manager are all cleaned up and ready for removal
-        self.assertEqual(sys.getrefcount(self.scheduleManager), 2)
+        self.assertEqual(sys.getrefcount(self.scheduleManager), 3)
 
         # remove reference to schedule manager, it should then die
         # TODO if it doesn't then this should fail test as it implies mem leak
@@ -45,8 +45,8 @@ class SchedulerTestCaseBase(unittest.TestCase):
         # Ensure garbage collector has run and collected last schedule manager
         gc.collect()
 
-        # None should then remain
-        self.assertEqual(scheduler.get_number_of_active_schedule_managers(), 0)
+        # 1 should remain
+        self.assertEqual(scheduler.get_number_of_active_schedule_managers(), 1)
 
         # Return nested tasklet usage to default ON
         scheduler.set_use_nested_tasklets(True)
