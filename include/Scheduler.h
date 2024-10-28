@@ -30,50 +30,51 @@
 struct PyTaskletObject;
 struct PyChannelObject;
 
-#define Py_WATCHDOG_THREADBLOCK 1
-#define PY_WATCHDOG_SOFT 2
-#define PY_WATCHDOG_IGNORE_NESTING 4
-#define PY_WATCHDOG_TOTALTIMEOUT 8
-
 typedef int( schedule_hook_func )( struct PyTaskletObject* from, struct PyTaskletObject* to );
 
 struct SchedulerCAPI
 {
     // =============== function pointer types ===============
     //tasklet functions
-    using PyTasklet_New_Routine           		      = std::add_pointer_t<struct PyTaskletObject*(PyTypeObject*, PyObject*)>;
-    using PyTasklet_Setup_Routine                     = std::add_pointer_t<int(struct PyTaskletObject*, PyObject * args, PyObject * kwds)>;
-    using PyTasklet_Insert_Routine                    = std::add_pointer_t<int(struct PyTaskletObject*)>;
-    using PyTasklet_GetBlockTrap_Routine              = std::add_pointer_t<int(struct PyTaskletObject*)>;
-    using PyTasklet_SetBlockTrap_Routine              = std::add_pointer_t<void(struct PyTaskletObject*, int)>;
-    using PyTasklet_IsMain_Routine                    = std::add_pointer_t<int(struct PyTaskletObject*)>;
-    using PyTasklet_Check_Routine                     = std::add_pointer_t<int(PyObject*)>;
-    using PyTasklet_Alive_Routine                     = std::add_pointer_t<int(struct PyTaskletObject*)>;
-    using PyTasklet_Kill_Routine                      = std::add_pointer_t<int(struct PyTaskletObject*)>;
+    using PyTasklet_New_Routine           		                        = std::add_pointer_t<struct PyTaskletObject*(PyTypeObject*, PyObject*)>;
+    using PyTasklet_Setup_Routine                                       = std::add_pointer_t<int(struct PyTaskletObject*, PyObject * args, PyObject * kwds)>;
+    using PyTasklet_Insert_Routine                                      = std::add_pointer_t<int(struct PyTaskletObject*)>;
+    using PyTasklet_GetBlockTrap_Routine                                = std::add_pointer_t<int(struct PyTaskletObject*)>;
+    using PyTasklet_SetBlockTrap_Routine                                = std::add_pointer_t<void(struct PyTaskletObject*, int)>;
+    using PyTasklet_IsMain_Routine                                      = std::add_pointer_t<int(struct PyTaskletObject*)>;
+    using PyTasklet_Check_Routine                                       = std::add_pointer_t<int(PyObject*)>;
+    using PyTasklet_Alive_Routine                                       = std::add_pointer_t<int(struct PyTaskletObject*)>;
+    using PyTasklet_Kill_Routine                                        = std::add_pointer_t<int(struct PyTaskletObject*)>;
 
     //channel functions
-	using PyChannel_New_Routine           		      = std::add_pointer_t<struct PyChannelObject*(PyTypeObject*)>;
-	using PyChannel_Send_Routine          		      = std::add_pointer_t<int(struct PyChannelObject*, PyObject*)>;
-	using PyChannel_Receive_Routine       		      = std::add_pointer_t<PyObject*(struct PyChannelObject*)>;
-    using PyChannel_SendException_Routine 		      = std::add_pointer_t<int(struct PyChannelObject*, PyObject*, PyObject*)>;
-    using PyChannel_GetQueue_Routine      		      = std::add_pointer_t<PyObject*(struct PyChannelObject*)>;
-    using PyChannel_GetPreference_Routine 		      = std::add_pointer_t<int(struct PyChannelObject*)>;
-    using PyChannel_SetPreference_Routine 		      = std::add_pointer_t<void(struct PyChannelObject*, int)>;
-    using PyChannel_GetBalance_Routine    		      = std::add_pointer_t<int(struct PyChannelObject*)>;
-    using PyChannel_Check_Routine                     = std::add_pointer_t<int(PyObject*)>;
-    using PyChannel_SendThrow_Routine                 = std::add_pointer_t<int(struct PyChannelObject*, PyObject*, PyObject*, PyObject*)>;
+	using PyChannel_New_Routine           		                        = std::add_pointer_t<struct PyChannelObject*(PyTypeObject*)>;
+	using PyChannel_Send_Routine          		                        = std::add_pointer_t<int(struct PyChannelObject*, PyObject*)>;
+	using PyChannel_Receive_Routine       		                        = std::add_pointer_t<PyObject*(struct PyChannelObject*)>;
+    using PyChannel_SendException_Routine 		                        = std::add_pointer_t<int(struct PyChannelObject*, PyObject*, PyObject*)>;
+    using PyChannel_GetQueue_Routine      		                        = std::add_pointer_t<PyObject*(struct PyChannelObject*)>;
+    using PyChannel_GetPreference_Routine 		                        = std::add_pointer_t<int(struct PyChannelObject*)>;
+    using PyChannel_SetPreference_Routine 		                        = std::add_pointer_t<void(struct PyChannelObject*, int)>;
+    using PyChannel_GetBalance_Routine    		                        = std::add_pointer_t<int(struct PyChannelObject*)>;
+    using PyChannel_Check_Routine                                       = std::add_pointer_t<int(PyObject*)>;
+    using PyChannel_SendThrow_Routine                                   = std::add_pointer_t<int(struct PyChannelObject*, PyObject*, PyObject*, PyObject*)>;
 
     //scheduler functions
-    using PyScheduler_GetScheduler_Routine            = std::add_pointer_t<PyObject*(void)>;
-    using PyScheduler_Schedule_Routine                = std::add_pointer_t<PyObject*(PyObject*, int)>;
-    using PyScheduler_GetRunCount_Routine             = std::add_pointer_t<int(void)>;
-    using PyScheduler_GetCurrent_Routine              = std::add_pointer_t<PyObject*(void)>;
-    using PyScheduler_RunWatchdogEx_Routine           = std::add_pointer_t<PyObject*(long long, int)>;
-    using PyScheduler_RunNTasklets_Routine            = std::add_pointer_t<PyObject*(int)>;
-    using PyScheduler_SetChannelCallback_Routine      = std::add_pointer_t<int(PyObject*)>;
-    using PyScheduler_GetChannelCallback_Routine      = std::add_pointer_t<PyObject*(void)>;
-    using PyScheduler_SetScheduleCallback_Routine     = std::add_pointer_t<int(PyObject*)>;
-    using PyScheduler_SetScheduleFastCallback_Routine = std::add_pointer_t<void(schedule_hook_func func)>;
+    using PyScheduler_GetScheduler_Routine                              = std::add_pointer_t<PyObject*(void)>;
+    using PyScheduler_Schedule_Routine                                  = std::add_pointer_t<PyObject*(PyObject*, int)>;
+    using PyScheduler_GetRunCount_Routine                               = std::add_pointer_t<int(void)>;
+    using PyScheduler_GetCurrent_Routine                                = std::add_pointer_t<PyObject*(void)>;
+    using PyScheduler_RunWithTimeout_Routine                            = std::add_pointer_t<PyObject*(long long)>;
+    using PyScheduler_RunNTasklets_Routine                              = std::add_pointer_t<PyObject*(int)>;
+    using PyScheduler_SetChannelCallback_Routine                        = std::add_pointer_t<int(PyObject*)>;
+    using PyScheduler_GetChannelCallback_Routine                        = std::add_pointer_t<PyObject*(void)>;
+    using PyScheduler_SetScheduleCallback_Routine                       = std::add_pointer_t<int(PyObject*)>;
+    using PyScheduler_SetScheduleFastCallback_Routine                   = std::add_pointer_t<void(schedule_hook_func func)>;
+    using PyScheduler_GetNumberOfActiveScheduleManagers_Routine         = std::add_pointer_t<int(void)>;
+    using PyScheduler_GetNumberOfActiveChannels_Routine                 = std::add_pointer_t<int(void)>;
+    using PyScheduler_GetAllTimeTaskletCount_Routine                    = std::add_pointer_t<int(void)>;
+    using PyScheduler_GetActiveTaskletCount_Routine                     = std::add_pointer_t<int(void)>;
+    using PyScheduler_GetTaskletsCompletedLastRunWithTimeout_Routine    = std::add_pointer_t<int(void)>;
+    using PyScheduler_GetTaskletsSwitchedLastRunWithTimeout_Routine     = std::add_pointer_t<int(void)>;
 
     // =============== member function pointers ===============
 
@@ -105,12 +106,18 @@ struct SchedulerCAPI
 	PyScheduler_Schedule_Routine PyScheduler_Schedule;
 	PyScheduler_GetRunCount_Routine PyScheduler_GetRunCount;
 	PyScheduler_GetCurrent_Routine PyScheduler_GetCurrent;
-	PyScheduler_RunWatchdogEx_Routine PyScheduler_RunWatchdogEx;
+	PyScheduler_RunWithTimeout_Routine PyScheduler_RunWithTimeout;
 	PyScheduler_RunNTasklets_Routine PyScheduler_RunNTasklets;
 	PyScheduler_SetChannelCallback_Routine PyScheduler_SetChannelCallback;
 	PyScheduler_GetChannelCallback_Routine PyScheduler_GetChannelCallback;
 	PyScheduler_SetScheduleCallback_Routine PyScheduler_SetScheduleCallback;
 	PyScheduler_SetScheduleFastCallback_Routine PyScheduler_SetScheduleFastCallback;
+	PyScheduler_GetNumberOfActiveScheduleManagers_Routine PyScheduler_GetNumberOfActiveScheduleManagers;
+	PyScheduler_GetNumberOfActiveChannels_Routine PyScheduler_GetNumberOfActiveChannels;
+	PyScheduler_GetAllTimeTaskletCount_Routine PyScheduler_GetAllTimeTaskletCount;
+	PyScheduler_GetActiveTaskletCount_Routine PyScheduler_GetActiveTaskletCount;
+	PyScheduler_GetTaskletsCompletedLastRunWithTimeout_Routine PyScheduler_GetTaskletsCompletedLastRunWithTimeout;
+	PyScheduler_GetTaskletsSwitchedLastRunWithTimeout_Routine PyScheduler_GetTaskletsSwitchedLastRunWithTimeout;
 
     // types
     PyTypeObject* PyTaskletType;

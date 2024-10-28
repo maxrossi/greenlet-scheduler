@@ -62,12 +62,12 @@ class SchedulerTestCaseBase(unittest.TestCase):
 
 
 # Scheduling options
-class TestWithWatchdog(object):
+class TestWithLimit(object):
     def run_scheduler(self):
         while self.getruncount() > 1:
             scheduler.run_n_tasklets(1)
 
-class TestWithoutWatchdog(object):
+class TestWithoutLimit(object):
     def run_scheduler(self):
         scheduler.run()
 

@@ -442,6 +442,22 @@ static PyObject*
 	return ScheduleManager::s_useNestedTasklets ? Py_True : Py_False;
 }
 
+static PyObject*
+	SchedulerGetAllTimeTaskletCount( PyObject* self, PyObject* Py_UNUSED( ignored ) )
+{
+	long numberOfAllTimeTasklets = Tasklet::GetAllTimeTaskletCount();
+
+	return PyLong_FromLong( numberOfAllTimeTasklets );
+}
+
+static PyObject*
+	SchedulerGetActiveTaskletCount( PyObject* self, PyObject* Py_UNUSED( ignored ) )
+{
+	long numberOfActiveTasklets = Tasklet::GetActiveTaskletCount();
+
+	return PyLong_FromLong( numberOfActiveTasklets );
+}
+
 void ModuleDestructor( void* )
 {
     // Clear callbacks
@@ -834,7 +850,7 @@ extern "C"
 	/// @param flags unused, deprecated
 	/// @return Py_None on success, NULL on failure
 	/// @todo rename and remove deprecated flags parameter
-	static PyObject* PyScheduler_RunWatchdogEx( long long timeout, int flags )
+	static PyObject* PyScheduler_RunWithTimout( long long timeout )
 	{
 		GILRAII gil;
 		ScheduleManager* scheduleManager = ScheduleManager::GetThreadScheduleManager();
@@ -937,6 +953,61 @@ extern "C"
 
         currentScheduler->Decref();
 	}
+
+    /// @brief Get number of active ScheduleManagers
+	/// @return Number of active ScheduleManagers
+	static int PyScheduler_GetNumberOfActiveScheduleManagers()
+	{
+		GILRAII gil;
+
+        return ScheduleManager::NumberOfActiveScheduleManagers();
+	}
+
+    /// @brief Get number of active Channels
+	/// @return Number of active Channels
+	static int PyScheduler_GetNumberOfActiveChannels()
+	{
+		GILRAII gil;
+
+		return Channel::NumberOfActiveChannels();
+	}
+
+    /// @brief Get total all time number of Tasklets created.
+	/// @return All time number of Tasklets
+	static int PyScheduler_GetAllTimeTaskletCount()
+	{
+		GILRAII gil;
+
+		return Tasklet::GetAllTimeTaskletCount();
+	}
+
+    /// @brief Get active number of Tasklets.
+	/// @return Number of active Tasklets
+	static int PyScheduler_GetActiveTaskletCount()
+	{
+		GILRAII gil;
+
+		return Tasklet::GetActiveTaskletCount();
+	}
+
+    /// @brief Get active number of Tasklets completed last run with timeout.
+	/// @return Number of active Tasklets completed last run with timeout
+	static int PyScheduler_GetTaskletsCompletedLastRunWithTimeout()
+	{
+		GILRAII gil;
+
+		return ScheduleManager::GetNumberOfTaskletsCompletedLastRunWithTimeout();
+	}
+
+    /// @brief Get active number of Tasklets switched last run with timeout.
+	/// @return Number of active Tasklets switched last run with timeout
+	static int PyScheduler_GetTaskletsSwitchedLastRunWithTimeout()
+	{
+		GILRAII gil;
+
+		return ScheduleManager::GetNumberOfTaskletsSwitchedLastRunWithTimeout();
+	}
+    
 
 } // extern C
 
@@ -1081,6 +1152,20 @@ static PyMethodDef SchedulerMethods[] = {
 	  "Get current setting for nested tasklet usage. \n\n\
             :return: Boolean indicating if nested Tasklets is on. \n\
             :rtype: Boolean" },
+
+    { "get_all_time_tasklet_count",
+	  (PyCFunction)SchedulerGetAllTimeTaskletCount,
+	  METH_NOARGS,
+	  "Get total number of Tasklets ever created. \n\n\
+            :return: Number of Tasklets created \n\
+            :rtype: Integer" },
+
+    { "get_alive_tasklet_count",
+	  (PyCFunction)SchedulerGetActiveTaskletCount,
+	  METH_NOARGS,
+	  "Get total number of active Tasklets across all threads. \n\n\
+            :return: Number of active Tasklets \n\
+            :rtype: Integer" },
 	
 	{ nullptr, nullptr, 0, nullptr } /* Sentinel */
 };
@@ -1222,12 +1307,18 @@ PyMODINIT_FUNC PyInit__scheduler(void)
 	api.PyScheduler_Schedule = PyScheduler_Schedule;
 	api.PyScheduler_GetRunCount = PyScheduler_GetRunCount;
 	api.PyScheduler_GetCurrent = PyScheduler_GetCurrent;
-	api.PyScheduler_RunWatchdogEx = PyScheduler_RunWatchdogEx;
+	api.PyScheduler_RunWithTimeout = PyScheduler_RunWithTimout;
 	api.PyScheduler_RunNTasklets = PyScheduler_RunNTasklets;
 	api.PyScheduler_SetChannelCallback = PyScheduler_SetChannelCallback;
 	api.PyScheduler_GetChannelCallback = PyScheduler_GetChannelCallback;
 	api.PyScheduler_SetScheduleCallback = PyScheduler_SetScheduleCallback;
 	api.PyScheduler_SetScheduleFastCallback = PyScheduler_SetScheduleFastCallback;
+	api.PyScheduler_GetNumberOfActiveScheduleManagers = PyScheduler_GetNumberOfActiveScheduleManagers;
+	api.PyScheduler_GetNumberOfActiveChannels = PyScheduler_GetNumberOfActiveChannels;
+	api.PyScheduler_GetAllTimeTaskletCount = PyScheduler_GetAllTimeTaskletCount;
+	api.PyScheduler_GetActiveTaskletCount = PyScheduler_GetActiveTaskletCount;
+	api.PyScheduler_GetTaskletsCompletedLastRunWithTimeout =  PyScheduler_GetTaskletsCompletedLastRunWithTimeout;
+	api.PyScheduler_GetTaskletsSwitchedLastRunWithTimeout = PyScheduler_GetTaskletsSwitchedLastRunWithTimeout;
 
 	/* Create a Capsule containing the API pointer array's address */
 	c_api_object = PyCapsule_New( (void*)&api, "scheduler._C_API", nullptr );

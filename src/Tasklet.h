@@ -201,6 +201,10 @@ public:
 
     void SetHighlighted( bool highlighted );
 
+    static long GetAllTimeTaskletCount();
+
+    static long GetActiveTaskletCount();
+
 private:
 
     void SetExceptionState( PyObject* exception, PyObject* arguments = Py_None );
@@ -298,6 +302,9 @@ private:
     long long m_endTime;
     double m_runTime;
     bool m_highlighted;
+    inline static long s_totalAllTimeTaskletCount = 0;
+
+    inline static long s_totalActiveTasklets = 0;
 };
 
 #endif // Tasklet_H

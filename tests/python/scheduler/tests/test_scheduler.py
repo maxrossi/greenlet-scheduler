@@ -307,26 +307,26 @@ class TestScheduleOrderBase(object):
             self.assertEqual(completedSendTasklets[0],"t0t1t2t3")
 
         self.assertEqual(c.balance, 0)
-class TestScheduleOrderNoWatchdogWithNestedTasklets(test_utils.SchedulerTestCaseBase, 
+class TestScheduleOrderNoLimitWithNestedTasklets(test_utils.SchedulerTestCaseBase, 
                                                     TestScheduleOrderBase, 
-                                                    test_utils.TestWithoutWatchdog):
+                                                    test_utils.TestWithoutLimit):
     pass
 
-class TestScheduleOrderWithWatchdogWithNestedTasklets(test_utils.SchedulerTestCaseBase, 
+class TestScheduleOrderWithLimitWithNestedTasklets(test_utils.SchedulerTestCaseBase, 
                                                       TestScheduleOrderBase, 
-                                                      test_utils.TestWithWatchdog):
+                                                      test_utils.TestWithLimit):
     pass
 
-class TestScheduleOrderWithWatchdogWithoutNestedTasklets(test_utils.SchedulerTestCaseBase, 
+class TestScheduleOrderWithLimitWithoutNestedTasklets(test_utils.SchedulerTestCaseBase, 
                                                          TestScheduleOrderBase, 
                                                          test_utils.TestNoNestedTasklets, 
-                                                         test_utils.TestWithWatchdog):
+                                                         test_utils.TestWithLimit):
     pass
 
-class TestScheduleOrderWithoutWatchdogWithoutNestedTasklets(test_utils.SchedulerTestCaseBase, 
+class TestScheduleOrderWithoutLimitWithoutNestedTasklets(test_utils.SchedulerTestCaseBase, 
                                                             TestScheduleOrderBase, 
                                                             test_utils.TestNoNestedTasklets, 
-                                                            test_utils.TestWithoutWatchdog):
+                                                            test_utils.TestWithoutLimit):
     pass
 
 

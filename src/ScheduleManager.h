@@ -46,7 +46,7 @@ public:
 
 	~ScheduleManager();
 
-    static int NumberOfActiveScheduleManagers();
+    static long NumberOfActiveScheduleManagers();
 
     static ScheduleManager* GetThreadScheduleManager();
 
@@ -88,11 +88,17 @@ public:
 
     void SetSwitchTrapLevel( int level );
 
+    static int GetNumberOfTaskletsCompletedLastRunWithTimeout();
+
+    static int GetNumberOfTaskletsSwitchedLastRunWithTimeout();
+
 private:
 
     void RunSchedulerCallback( Tasklet* previous, Tasklet* next );
 
     void CreateSchedulerTasklet();
+
+    void OnSwitch();
 
 public:
 
@@ -136,7 +142,11 @@ private:
 
     int m_numberOfTaskletsInQueue;
 
-    static inline int s_numberOfActiveScheduleManagers = 0;
+    static inline long s_numberOfTaskletsCompletedLastRunWithTimeout = 0;
+
+    static inline long s_numberOfTaskletsSwitchedLastRunWithTimeout = 0;
+
+    static inline long s_numberOfActiveScheduleManagers = 0;
     
 };
 

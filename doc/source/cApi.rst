@@ -66,7 +66,7 @@ Scheduler Module Functions
 
 .. doxygenfunction:: PyScheduler_GetCurrent
 
-.. doxygenfunction:: PyScheduler_RunWatchdogEx
+.. doxygenfunction:: PyScheduler_RunWithTimeout
 
 .. doxygenfunction:: PyScheduler_RunNTasklets
 
@@ -77,3 +77,15 @@ Scheduler Module Functions
 .. doxygenfunction:: PyScheduler_SetScheduleCallback
 
 .. doxygenfunction:: PyScheduler_SetScheduleFastCallback
+
+.. doxygenfunction:: PyScheduler_GetNumberOfActiveScheduleManagers
+
+.. doxygenfunction:: PyScheduler_GetNumberOfActiveChannels
+
+.. doxygenfunction:: PyScheduler_GetAllTimeTaskletCount
+
+.. doxygenfunction:: PyScheduler_GetActiveTaskletCount
+
+.. doxygenfunction:: PyScheduler_GetTaskletsCompletedLastRunWithTimeout
+
+.. doxygenfunction:: PyScheduler_GetTaskletsSwitchedLastRunWithTimeout
