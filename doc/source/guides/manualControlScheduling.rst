@@ -66,6 +66,7 @@ Execution explanation:
 
 
 .. _schedule-remove-guide:
+
 Yielding from a Tasklet circumventing the Schedule Manager's run queue
 ----------------------------------------------------------------------
 

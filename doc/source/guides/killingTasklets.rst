@@ -29,6 +29,7 @@ Explanation of computation:
 
 
 .. _killing-immediately:
+
 Killing a running :doc:`../pythonApi/tasklet` Immediately
 ---------------------------------------------------------
 When a running :doc:`../pythonApi/tasklet` is 'killed' the :doc:`../pythonApi/tasklet` execution is reentered but with a raised :py:func:`scheduler.TaskletExit` exception. (Refer to :doc:`../pythonApi/howExceptionsAreManaged` for further details related to exception management)

@@ -76,7 +76,7 @@ In order to continue execution of the :doc:`../pythonApi/tasklet` it must either
 
 1. Reinserted back into the runnables queue via :py:func:`scheduler.tasklet.insert`.
 2. Run directly using :py:func:`scheduler.tasklet.run`.
-2. Switched to directly using :py:func:`scheduler.tasklet.switch`.
+3. Switched to directly using :py:func:`scheduler.tasklet.switch`.
 
 See :ref:`schedule-remove-guide` for another example usage of :py:func:`scheduler.schedule_remove`
 
