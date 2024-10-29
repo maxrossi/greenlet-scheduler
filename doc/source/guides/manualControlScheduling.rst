@@ -6,7 +6,7 @@ Sometimes it can be useful to have more control over the scheduling.
 :py:func:`scheduler.tasklet.switch` can be used to switch directly to another :doc:`../pythonApi/tasklet` rather than running through the :doc:`../pythonApi/scheduleManager` runnables logic.
 
 Circumventing the default :doc:`../pythonApi/scheduleManager` run queue order
-----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
 
 Below illustrates running tasklets manually, completely circumventing the schedule logic in :doc:`../pythonApi/scheduleManager`.
 
@@ -66,6 +66,7 @@ Execution explanation:
 
 
 .. _schedule-remove-guide:
+
 Yielding from a Tasklet circumventing the Schedule Manager's run queue
 ----------------------------------------------------------------------
 

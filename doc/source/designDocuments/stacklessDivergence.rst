@@ -16,6 +16,7 @@ Overview of differences
 
 
 .. _divergence-scheduler-current-scheduler-main:
+
 scheduler.current and scheduler.main are not implemented
 --------------------------------------------------------
 These attributes for current and main are not provided due to innability to keep them correct when used with threading.
@@ -28,8 +29,9 @@ use :py:func:`scheduler.getcurrent` and :py:func:`scheduler.getmain`. These will
 
 
 .. _divergence-scheduler-tasklet-execution-order:
+
 Tasklet execution order when using :py:func:`tasklet.run` can be altered
--------------------------------------------------------------
+------------------------------------------------------------------------
 When :py:func:`tasklet.run` is called it creates a nested non linear tasklet execution order.
 
 carbon-scheduler allows the user to turn this behaviour off and flatten the queue using :py:func:`scheduler.set_use_nested_tasklets`.

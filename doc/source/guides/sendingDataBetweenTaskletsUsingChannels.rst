@@ -32,9 +32,10 @@ Explanation of computation:
 
 1. ``_tasklet_A`` calls :py:func:`scheduler.channel.receive` on the :doc:`../pythonApi/channel`
 2. This causes ``_tasklet_A`` to yield it's execution, since no :doc:`../pythonApi/tasklet` is waiting to send on that :doc:`../pythonApi/channel`. ``_tasklet_A`` is now 'blocked' on the :doc:`../pythonApi/channel`.
-2. ``_tasklet_B`` calls :py:func:`scheduler.channel.send` on the :doc:`../pythonApi/channel`, ``_tasklet_A`` gets 'unblocked' and continues execution, while ``_tasklet_B`` gets inserted into the runnables queue to run later.
+3. ``_tasklet_B`` calls :py:func:`scheduler.channel.send` on the :doc:`../pythonApi/channel`, ``_tasklet_A`` gets 'unblocked' and continues execution, while ``_tasklet_B`` gets inserted into the runnables queue to run later.
 
 .. _channel-blocking-main-tasklet:
+
 'Blocking' The Main Tasklet
 ---------------------------
 

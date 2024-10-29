@@ -12,6 +12,7 @@ Brief History
 EVE Online was originally designed it was built atop of a flavour of Python 2.7 known as `Stackless Python <https://stackless.readthedocs.io/en/3.8-slp/stackless-python.html>`_.
 
     Stackless-Python is an enhanced version of the Python® programming language1. It allows programmers to reap the benefits of thread-based programming without the performance and complexity problems associated with conventional threads. The microthreads that Stackless adds to the Python® programming language are a cheap and lightweight convenience, which if used properly, can not only serve as a way to structure an application or framework, but by doing so improve program structure and facilitate more readable code.
+
 From `Stackless Python <https://stackless.readthedocs.io/en/3.8-slp/stackless-python.html>`_
 
 The tech that EVE Online was built atop was subsequently called Carbon and in 2023 it was decided to update Carbon to Python3.
@@ -23,6 +24,7 @@ To achieve this a new Python cextension was to be required to offer the lost fun
 Fortunately the core stack switching functionality central to `Stackless Python <https://stackless.readthedocs.io/en/3.8-slp/stackless-python.html>`_ had already been spun out and offered as module `Greenlet <https://greenlet.readthedocs.io/en/latest/>`_
 
     The “greenlet” package is a spin-off of Stackless, a version of CPython that supports micro-threads called “tasklets”.
+
 From `Greenlet History <https://greenlet.readthedocs.io/en/latest/history.html>`_
 
 The aim was to then create a new Python 3.12 Cextension to provide **some** of the original Tasklet and Channel logic of `Stackless Python <https://stackless.readthedocs.io/en/3.8-slp/stackless-python.html>`_ so it could be replaced in the Carbon codebase.

@@ -66,7 +66,7 @@ If this is not the case, rather than switching directly to the :doc:`../pythonAp
 
 
 Transferring data between two Python threads
-------------------------------------------- 
+--------------------------------------------
 
 As :doc:`../pythonApi/channel` objects are thread safe, data can be transferred between Python threads.
 
