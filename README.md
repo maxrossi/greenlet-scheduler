@@ -23,7 +23,29 @@ Documentation provides:
 
 1. Documentaion can be built on either Windows or macOS
 2. Uses our custom PythonInterpreter
-3. Built against the `MAINLINE` branch
+3. Doxygen 1.12.0 (or higher) installed on build machine
+4. Following libraries available in /carbon/common/lib on build branch:
+   - sphinx (7.4.7)
+   - docutils (0.20.1)
+   - pygments (2.18.0)
+   - babel (2.16.0)
+   - jinja2 (3.1.4)
+   - snowballstemmer (2.2.0)
+   - imagesize (1.4.1)
+   - alabaster (0.7.16)
+   - sphinxcontrib_applehelp (2.0.0)
+   - sphinxcontrib_devhelp (2.0.0)
+   - sphinxcontrib_htmlhelp (2.1.0)
+   - sphinxcontrib_jquery (4.1)
+   - sphinxcontrib_jsmath (1.0.1)
+   - sphinxcontrib_qthelp (2.0.0)
+   - sphinxcontrib_serializinghtml (2.0.0)
+   - breathe (4.35.0)
+   - sphinx_rtd_theme (2.0.0)
+   - myst_parser (4.0.0)
+   - markdown_it (3.0.0)
+   - mdurl (0.1.2)
+   - mdit_py_plugins (0.4.2)
 
 ## Building the documentation
 
