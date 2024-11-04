@@ -21,7 +21,7 @@ Channel::Channel( PyObject* pythonObject ) :
     // Store weak reference in central store
     // Required just in case we lose all references to channel
     // The module will then be able to unblock if needed
-    s_activeChannels.push_back( this );
+    s_activeChannels.insert( this );
 }
 
 Channel::~Channel()
@@ -29,7 +29,7 @@ Channel::~Channel()
 	// Note: Destructor will never be called while there are tasklets blocking
 
 	// Remove weak ref from store
-	s_activeChannels.remove( this );
+	s_activeChannels.erase( this );
 
 	PyThread_free_lock( m_lock );
 }

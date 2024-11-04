@@ -32,7 +32,7 @@ Explanation of computation:
 
 
 Raising an exception externally to a :doc:`../pythonApi/tasklet`
---------------------------------------------------------------
+----------------------------------------------------------------
 
 :py:func:`scheduler.tasklet.throw` or :py:func:`scheduler.tasklet.raise_exception` can be used to raise exceptions externally to a :doc:`../pythonApi/tasklet`. They can then be handled as usual.
 
