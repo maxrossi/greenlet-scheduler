@@ -116,8 +116,14 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
         set(SPHINX_BUILD ${CMAKE_CURRENT_BINARY_DIR}/doc/build)
 
         # Run sphinx
+        if(WIN32)
+            set(PYTHON_PATH "${BRANCH_ROOT_DIR}/packages\;${BRANCH_ROOT_DIR}/carbon/common/stdlib\;${BRANCH_ROOT_DIR}/carbon/common/lib\;$<TARGET_FILE_DIR:Scheduler>\;${CMAKE_CURRENT_SOURCE_DIR}/python\;${Greenlet_ROOT}/${CCP_VENDOR_BIN_PATH}\;${Greenlet_ROOT}/python")
+        elseif(APPLE)
+            set(PYTHON_PATH "${BRANCH_ROOT_DIR}/packages:${BRANCH_ROOT_DIR}/carbon/common/stdlib:${BRANCH_ROOT_DIR}/carbon/common/lib:$<TARGET_FILE_DIR:Scheduler>:${CMAKE_CURRENT_SOURCE_DIR}/python:${Greenlet_ROOT}/${CCP_VENDOR_BIN_PATH}:${Greenlet_ROOT}/python")
+        endif()
+
         add_custom_target(Sphinx ALL
-                COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH="${BRANCH_ROOT_DIR}/packages\;${BRANCH_ROOT_DIR}/carbon/common/stdlib\;${BRANCH_ROOT_DIR}/carbon/common/lib\;$<TARGET_FILE_DIR:Scheduler>\;${CMAKE_CURRENT_SOURCE_DIR}/python\;${Greenlet_ROOT}/${CCP_VENDOR_BIN_PATH}\;${Greenlet_ROOT}/python" ${PYTHON_EXECUTABLE} -m sphinx build -E -b html -D breathe_projects.doxygen=${CMAKE_CURRENT_BINARY_DIR}/docs/xml -c ${SPHINX_SOURCE} ${SPHINX_SOURCE} ${SPHINX_BUILD}
+                COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${PYTHON_PATH} ${PYTHON_EXECUTABLE} -m sphinx build -E -b html -D breathe_projects.doxygen=${CMAKE_CURRENT_BINARY_DIR}/docs/xml -c ${SPHINX_SOURCE} ${SPHINX_SOURCE} ${SPHINX_BUILD}
                 WORKING_DIRECTORY ${BRANCH_ROOT_DIR}
                 DEPENDS ${DOXYGEN_INDEX_FILE}
                 COMMENT "Generating documentation with Sphinx")
