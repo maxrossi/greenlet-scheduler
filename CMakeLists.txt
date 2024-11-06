@@ -117,9 +117,9 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
 
         # Run sphinx
         if(WIN32)
-            set(PYTHON_PATH "${BRANCH_ROOT_DIR}/packages\;${BRANCH_ROOT_DIR}/carbon/common/stdlib\;${BRANCH_ROOT_DIR}/carbon/common/lib\;$<TARGET_FILE_DIR:Scheduler>\;${CMAKE_CURRENT_SOURCE_DIR}/python\;${Greenlet_ROOT}/${CCP_VENDOR_BIN_PATH}\;${Greenlet_ROOT}/python")
+            set(PYTHON_PATH "${Python_ROOT}/${CCP_VENDOR_BIN_PATH}\;${BRANCH_ROOT_DIR}/packages\;${BRANCH_ROOT_DIR}/carbon/common/stdlib\;${BRANCH_ROOT_DIR}/carbon/common/lib\;$<TARGET_FILE_DIR:Scheduler>\;${CMAKE_CURRENT_SOURCE_DIR}/python\;${Greenlet_ROOT}/${CCP_VENDOR_BIN_PATH}\;${Greenlet_ROOT}/python")
         elseif(APPLE)
-            set(PYTHON_PATH "${BRANCH_ROOT_DIR}/packages:${BRANCH_ROOT_DIR}/carbon/common/stdlib:${BRANCH_ROOT_DIR}/carbon/common/lib:$<TARGET_FILE_DIR:Scheduler>:${CMAKE_CURRENT_SOURCE_DIR}/python:${Greenlet_ROOT}/${CCP_VENDOR_BIN_PATH}:${Greenlet_ROOT}/python")
+            set(PYTHON_PATH "${Python_ROOT}/${CCP_VENDOR_BIN_PATH}:${BRANCH_ROOT_DIR}/packages:${BRANCH_ROOT_DIR}/carbon/common/stdlib:${BRANCH_ROOT_DIR}/carbon/common/lib:$<TARGET_FILE_DIR:Scheduler>:${CMAKE_CURRENT_SOURCE_DIR}/python:${Greenlet_ROOT}/${CCP_VENDOR_BIN_PATH}:${Greenlet_ROOT}/python")
         endif()
 
         add_custom_target(Sphinx ALL
