@@ -55,7 +55,7 @@ Doing so will raise a ``RuntimeError`` as illustrated below.
 
    >>>RuntimeError: Deadlock: the last runnable tasklet cannot be blocked.
 
-The 'blocking' call to :py:func:`scheduler.channel.receive` will first attempt to run the :doc:`../pythonApi/schedulerManager` runnables queue in case their is a :py:func:`scheduler.channel.send`.
+The 'blocking' call to :py:func:`scheduler.channel.receive` will first attempt to run the :doc:`../pythonApi/scheduleManager` runnables queue in case their is a :py:func:`scheduler.channel.send`.
 
 Below illustrates expected behaviour when still a matching :py:func:`scheduler.channel.send` is encountered.
 
@@ -82,7 +82,7 @@ Below illustrates expected behaviour when still a matching :py:func:`scheduler.c
 
 Explanation of computation:
 
-1. The three scheduled :doc:`../pythonApi/schedulerManager` s are run.
+1. The three scheduled :doc:`../pythonApi/scheduleManager` s are run.
 2. No :py:func:`scheduler.channel.send` is encountered so ``RuntimeError`` is thrown.
 
 Finally, below illustrates a matching :py:func:`scheduler.channel.send` being encountered in a later :doc:`../pythonApi/tasklet` after the :py:func:`scheduler.channel.receive`

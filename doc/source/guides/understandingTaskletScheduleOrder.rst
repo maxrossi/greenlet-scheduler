@@ -114,7 +114,7 @@ Explanation of computation:
 3. ``t1`` is run, prints ``first``.
 4. ``t2`` is run, prints ``second`` and creates a new :doc:`../pythonApi/tasklet` (`t4`) which is added to the back of the runnables queue.
 5. ``t3`` is run, prints ``third``
-6. ``t4`` is run, prints ``fourth`` and creates a new :doc:`../pythonApi/tasklet`(`t5`) which is added to the back of the runnables queue.
+6. ``t4`` is run, prints ``fourth`` and creates a new :doc:`../pythonApi/tasklet` (`t5`) which is added to the back of the runnables queue.
 7. ``t5`` is run, prints ``fifth``
 
 

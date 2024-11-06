@@ -51,8 +51,3 @@ Carbon Implementation
 This game loop is implemented in the c side in Carbon inside ``carbon-blue``.
 
 The pattern is the same however rather than running n Tasklets, Tasklets are evaluated for a set time.
-
-Suggested Further Reading
--------------------------
-
-:doc:`..\guides\alteringChannelBehaviour`

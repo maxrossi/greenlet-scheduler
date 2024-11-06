@@ -847,10 +847,9 @@ extern "C"
 
 	/// @brief Run scheduler for specified number of nanoseconds
 	/// @param timeout timeout value in nano seconds
-	/// @param flags unused, deprecated
 	/// @return Py_None on success, NULL on failure
 	/// @todo rename and remove deprecated flags parameter
-	static PyObject* PyScheduler_RunWithTimout( long long timeout )
+	static PyObject* PyScheduler_RunWithTimeout( long long timeout )
 	{
 		GILRAII gil;
 		ScheduleManager* scheduleManager = ScheduleManager::GetThreadScheduleManager();
@@ -1307,7 +1306,7 @@ PyMODINIT_FUNC PyInit__scheduler(void)
 	api.PyScheduler_Schedule = PyScheduler_Schedule;
 	api.PyScheduler_GetRunCount = PyScheduler_GetRunCount;
 	api.PyScheduler_GetCurrent = PyScheduler_GetCurrent;
-	api.PyScheduler_RunWithTimeout = PyScheduler_RunWithTimout;
+	api.PyScheduler_RunWithTimeout = PyScheduler_RunWithTimeout;
 	api.PyScheduler_RunNTasklets = PyScheduler_RunNTasklets;
 	api.PyScheduler_SetChannelCallback = PyScheduler_SetChannelCallback;
 	api.PyScheduler_GetChannelCallback = PyScheduler_GetChannelCallback;

@@ -113,9 +113,3 @@ As you can see at this point ``t`` and ``c`` are still alive and ``t`` is in an 
 This is only a problem if the client code is incorrect.
 
 It can cause a leak until the module is cleaned up, but this is only at full system tear down.
-
-
-
-getcurrent and getmain can produce inconsistent behaviour
-----------------------------------------------------------
-See :ref:`divergence-scheduler-getcurrent-scheduler-getmain` 
