@@ -980,7 +980,7 @@ extern "C"
 		return Tasklet::GetAllTimeTaskletCount();
 	}
 
-    /// @brief Get active number of Tasklets.
+    /// @brief Get active number of Tasklets. Active here meaning a Python Tasklet Object exists, active does not indicate state eg. the active Tasklet can be alive or dead.
 	/// @return Number of active Tasklets
 	static int PyScheduler_GetActiveTaskletCount()
 	{
@@ -1159,10 +1159,10 @@ static PyMethodDef SchedulerMethods[] = {
             :return: Number of Tasklets created \n\
             :rtype: Integer" },
 
-    { "get_alive_tasklet_count",
+    { "get_active_tasklet_count",
 	  (PyCFunction)SchedulerGetActiveTaskletCount,
 	  METH_NOARGS,
-	  "Get total number of active Tasklets across all threads. \n\n\
+	  "Get total number of active Tasklets across all threads. Active here meaning a Python Tasklet Object exists, active does not indicate state eg. the active Tasklet can be alive or dead. \n\n\
             :return: Number of active Tasklets \n\
             :rtype: Integer" },
 	
