@@ -249,13 +249,13 @@ Output
    >>>Running example callable 3
    >>>Running example callable 4
 
-Running Tasklets With Watchdog
-------------------------------
+Running Tasklets With Limit
+---------------------------
 
 .. code-block:: python
 
-   # The schedule queue can also be run with watchdog
-   # Watchdog is a C-API function which runs tasklets for a set time
+   # The schedule queue can also be run with PyScheduler_RunWithTimeout
+   # PyScheduler_RunWithTimeout is a C-API function which runs tasklets for a set time
    # carbon-scheduler exposes a new function run_n_tasklets which similiarly runs only a portion of the queue at a time.
    # Good for determinism when testing partial queue runs.
 
@@ -1293,12 +1293,12 @@ Output
    >>>t7
    >>>t8
 
-Watchdog retains tasklet nesting
---------------------------------
+Runs with limit retain tasklet nesting
+--------------------------------------
 
 .. code-block:: python
 
-   # Watchdog will retain Nesting order of execution to retain Tasklet order during runs
+   # Runs with limits will retain Nesting order of execution to retain Tasklet order during runs
 
    import scheduler
 

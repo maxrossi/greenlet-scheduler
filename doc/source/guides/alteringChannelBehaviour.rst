@@ -49,7 +49,7 @@ See example below for a simple scenario.
 
 Explanation of computation:
 
-1. On :py:func:`scheduler.run` :doc:`../pythonApi/taslklet`  ``t1`` Is run First. Prints  ``sendingTasklet Started`` and blocks on :py:func:`scheduler.channel.send` at ``c.send("Value")``.
+1. On :py:func:`scheduler.run` :doc:`../pythonApi/tasklet`  ``t1`` Is run First. Prints  ``sendingTasklet Started`` and blocks on :py:func:`scheduler.channel.send` at ``c.send("Value")``.
 2. ``t2`` Now runs. Prints ``receivingTasklet Started`` and calls :py:func:`scheduler.channel.receive`.
 3. As the :py:func:`scheduler.channel.preference` is for the receiver (``-1``) execution continues on the receiver (``t2``) which then prints ``receivingTasklet Received value`` and ``receivingTasklet Finished`` before completing.
 4. ``t1`` Continues to execute the remaining instructions after ``c.send("Value")``, which prints ``sendingTasklet Finished`` before completing.
@@ -125,7 +125,7 @@ See example below for a simple scenario.
 
 Explanation of computation:
 
-1. On :py:func:`scheduler.run` :doc:`../pythonApi/taslklet`  ``t1`` Is run First. Prints  ``sendingTasklet Started`` and blocks on :py:func:`scheduler.channel.send` at ``c.send("Value")``.
+1. On :py:func:`scheduler.run` :doc:`../pythonApi/tasklet`  ``t1`` Is run First. Prints  ``sendingTasklet Started`` and blocks on :py:func:`scheduler.channel.send` at ``c.send("Value")``.
 2. ``t2`` Now runs. Prints ``receivingTasklet Started`` and calls :py:func:`scheduler.channel.receive`.
 3. As the :py:func:`scheduler.channel.preference` is for the sender (``1``) execution continues on the sender (``t1``) which then prints ``sendingTasklet Finished`` before completing.
 4. ``t2`` Continues to execute the remaining instructions at ``print("receivingTasklet Received {}".format(c.receive()))``, which prints ``receivingTasklet Received value`` and ``receivingTasklet Finished`` before completing.
@@ -199,18 +199,18 @@ Unlike prefer receiver and prefer sender :doc:`../pythonApi/tasklet` order in th
 
 Explanation of computation:
 
-1. On :py:func:`scheduler.run` :doc:`../pythonApi/taslklet`  ``t1`` Is run First. Prints  ``sendingTasklet Started`` and blocks on :py:func:`scheduler.channel.send` at ``c.send("Value")``.
+1. On :py:func:`scheduler.run` :doc:`../pythonApi/tasklet`  ``t1`` Is run First. Prints  ``sendingTasklet Started`` and blocks on :py:func:`scheduler.channel.send` at ``c.send("Value")``.
 2. ``t2`` Now runs. Prints ``receivingTasklet Started`` and calls :py:func:`scheduler.channel.receive`.
 3. As the :py:func:`scheduler.channel.preference` is for the receiver (``0``) execution continues on the caller of the non-blocking :doc:`../pythonApi/channel` operation, which here is the receiver (``t2``) that then prints ``receivingTasklet Received value`` and ``receivingTasklet Finished`` before completing.
 4. ``t1`` Continues to execute the remaining instructions after ``c.send("Value")``, which prints ``sendingTasklet Finished`` before completing.
 
-Due to the specific :doc:`../pythonApi/taslklet` order in the runnables queue, the behaviour matches expected behaviour from prefer receiver.
+Due to the specific :doc:`../pythonApi/tasklet` order in the runnables queue, the behaviour matches expected behaviour from prefer receiver.
 
-However, if the :doc:`../pythonApi/taslklet` order is changed by switching the creation of ``t1`` and ``t2`` the behaviour will instead match prefer sender.
+However, if the :doc:`../pythonApi/tasklet` order is changed by switching the creation of ``t1`` and ``t2`` the behaviour will instead match prefer sender.
 
-This is because after switching which :doc:`../pythonApi/taslklet` will be executed first. The non-blocking :doc:`../pythonApi/channel` operation call would now be made from the sending :doc:`../pythonApi/taslklet` ``t1`` whereas previously this would have been from the receiving :doc:`../pythonApi/taslklet` ``t2``.
+This is because after switching which :doc:`../pythonApi/tasklet` will be executed first. The non-blocking :doc:`../pythonApi/channel` operation call would now be made from the sending :doc:`../pythonApi/tasklet` ``t1`` whereas previously this would have been from the receiving :doc:`../pythonApi/tasklet` ``t2``.
 
-Below illustrates how the :doc:`../pythonApi/taslklet` run order *does* change the expected output.
+Below illustrates how the :doc:`../pythonApi/tasklet` run order *does* change the expected output.
 
 .. code-block:: python
 

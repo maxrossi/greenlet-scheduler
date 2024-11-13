@@ -131,3 +131,7 @@ Methods
 .. autofunction:: scheduler.get_use_nested_tasklets
 
    For further information see :doc:`designDocuments/nestedTaskletsVsFlatSchedulingQueue`.
+
+.. autofunction:: scheduler.get_all_time_tasklet_count
+
+.. autofunction:: scheduler.get_alive_tasklet_count

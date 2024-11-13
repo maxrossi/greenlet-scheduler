@@ -9,9 +9,9 @@ If only half of the pair is present then the :doc:`../pythonApi/tasklet` perform
 
 The :py:func:`scheduler.channel.balance` of a :doc:`../pythonApi/channel` can be queried to ascertain the 'blocked' list state.
 
-A positive :py:func:`scheduler.channel.balance` of ``n`` indicates there are ``n`` :doc:`../pythonApi/tasklets` 'blocked' on a send operation.
+A positive :py:func:`scheduler.channel.balance` of ``n`` indicates there are ``n`` :doc:`../pythonApi/tasklet` 'blocked' on a send operation.
 
-A negative :py:func:`scheduler.channel.balance` of ``-n`` indicates there are ``n`` :doc:`../pythonApi/tasklets` 'blocked' on a receive operation.
+A negative :py:func:`scheduler.channel.balance` of ``-n`` indicates there are ``n`` :doc:`../pythonApi/tasklet` 'blocked' on a receive operation.
 
 
 Below illustrates a 'blocking' on :py:func:`scheduler.channel.send`

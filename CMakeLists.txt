@@ -115,32 +115,21 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
         set(SPHINX_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/doc/source)
         set(SPHINX_BUILD ${CMAKE_CURRENT_BINARY_DIR}/doc/build)
 
-        # Add sphinx
-
-        # Evaluate config file to resole cmake variables
-        set(SPHINX_CONF_IN ${CMAKE_CURRENT_SOURCE_DIR}/doc/source/conf.py.in)
-        set(SPHINX_CONF_OUT ${CMAKE_CURRENT_BINARY_DIR}/conf.py.partial)
-        configure_file(${SPHINX_CONF_IN} ${SPHINX_CONF_OUT} @ONLY)
-
-        # Generate files per build flavour to resolve generator expressions
-        file (GENERATE
-                OUTPUT "$<CONFIG>/conf.py"
-                INPUT  ${CMAKE_CURRENT_BINARY_DIR}/conf.py.partial
-            )
-
-        # Run Sphinx against build flavour specific conf file using our pythonInterpreter
-        # Pass in Doxygen output
+        # Run sphinx
         if(WIN32)
-            set(CCP_PYTHON_INTERPRETER "${BRANCH_ROOT_DIR}/eve/client/pythonInterpreter.bat")
+            set(PYTHON_PATH "${Python_ROOT}/${CCP_VENDOR_BIN_PATH}\;${BRANCH_ROOT_DIR}/packages\;${BRANCH_ROOT_DIR}/carbon/common/stdlib\;${BRANCH_ROOT_DIR}/carbon/common/lib\;$<TARGET_FILE_DIR:Scheduler>\;${CMAKE_CURRENT_SOURCE_DIR}/python\;${Greenlet_ROOT}/${CCP_VENDOR_BIN_PATH}\;${Greenlet_ROOT}/python")
         elseif(APPLE)
-            set(CCP_PYTHON_INTERPRETER "${BRANCH_ROOT_DIR}/eve/client/pythonInterpreter.sh")
+            set(PYTHON_PATH "${Python_ROOT}/${CCP_VENDOR_BIN_PATH}:${BRANCH_ROOT_DIR}/packages:${BRANCH_ROOT_DIR}/carbon/common/stdlib:${BRANCH_ROOT_DIR}/carbon/common/lib:$<TARGET_FILE_DIR:Scheduler>:${CMAKE_CURRENT_SOURCE_DIR}/python:${Greenlet_ROOT}/${CCP_VENDOR_BIN_PATH}:${Greenlet_ROOT}/python")
         endif()
 
         add_custom_target(Sphinx ALL
-                COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=$<TARGET_FILE_DIR:Scheduler> ${CCP_PYTHON_INTERPRETER} -m sphinx build -E -b html -Dbreathe_projects.doxygen=${CMAKE_CURRENT_BINARY_DIR}/docs/xml -c $<TARGET_FILE_DIR:Scheduler> ${SPHINX_SOURCE} ${SPHINX_BUILD}
+                COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${PYTHON_PATH} ${PYTHON_EXECUTABLE} -m sphinx build -E -b html -D breathe_projects.doxygen=${CMAKE_CURRENT_BINARY_DIR}/docs/xml -c ${SPHINX_SOURCE} ${SPHINX_SOURCE} ${SPHINX_BUILD}
                 WORKING_DIRECTORY ${BRANCH_ROOT_DIR}
                 DEPENDS ${DOXYGEN_INDEX_FILE}
                 COMMENT "Generating documentation with Sphinx")
+
+        # Ensure that Scheduler is built before Spinx target
+        add_dependencies(Sphinx Scheduler)
 
         # Install rule for documentation
         install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doc/build/ DESTINATION documentation)

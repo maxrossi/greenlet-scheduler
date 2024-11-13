@@ -338,3 +338,30 @@ void InterpreterWithSchedulerModule::TearDown()
 		exit( -1 );
 	}
 }
+
+PyTaskletObject* InterpreterWithSchedulerModule::CreateTasklet()
+{
+	// Create callable
+	EXPECT_EQ( PyRun_SimpleString( "def foo():\n"
+								   "   print(\"bar\")\n" ),
+			   0 );
+	PyObject* fooCallable = PyObject_GetAttrString( m_mainModule, "foo" );
+	EXPECT_NE( fooCallable, nullptr );
+	EXPECT_TRUE( PyCallable_Check( fooCallable ) );
+
+	// Create tasklet
+	PyObject* taskletArgs = PyTuple_New( 1 );
+	EXPECT_NE( taskletArgs, nullptr );
+	EXPECT_EQ( PyTuple_SetItem( taskletArgs, 0, fooCallable ), 0 );
+	PyTaskletObject* tasklet = m_api->PyTasklet_New( m_api->PyTaskletType, taskletArgs );
+	EXPECT_NE( tasklet, nullptr );
+
+	// Check type
+	EXPECT_TRUE( m_api->PyTasklet_Check( reinterpret_cast<PyObject*>( tasklet ) ) );
+
+	// Clean
+	Py_XDECREF( taskletArgs );
+	Py_XDECREF( fooCallable );
+
+    return tasklet;
+}

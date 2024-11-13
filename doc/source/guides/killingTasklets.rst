@@ -32,7 +32,7 @@ Explanation of computation:
 
 Killing a running :doc:`../pythonApi/tasklet` Immediately
 ---------------------------------------------------------
-When a running :doc:`../pythonApi/tasklet` is 'killed' the :doc:`../pythonApi/tasklet` execution is reentered but with a raised :py:func:`scheduler.TaskletExit` exception. (Refer to :doc:`../pythonApi/howExceptionsAreManaged` for further details related to exception management)
+When a running :doc:`../pythonApi/tasklet` is 'killed' the :doc:`../pythonApi/tasklet` execution is reentered but with a raised :py:func:`scheduler.TaskletExit` exception. (Refer to :doc:`howExceptionsAreManaged` for further details related to exception management)
 This allows the user to handle the :py:func:`scheduler.tasklet.kill` possible ramifications.
 
 .. code-block:: python

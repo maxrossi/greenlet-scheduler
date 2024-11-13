@@ -42,6 +42,9 @@ Tasklet::Tasklet( PyObject* pythonObject, PyObject* taskletExitException, bool i
 	m_runTime( 0 ),
 	m_highlighted( false )
 {
+    // Update Tasklet counters
+	s_totalAllTimeTaskletCount++;
+	s_totalActiveTasklets++;
 
     // If tasklet is not a scheduler tasklet then register the tasklet with the scheduler
     // This will create a scheduler if required and while the tasklet is alive 
@@ -54,6 +57,9 @@ Tasklet::Tasklet( PyObject* pythonObject, PyObject* taskletExitException, bool i
 
 Tasklet::~Tasklet()
 {
+    // Decriment Tasklet Counter
+	s_totalActiveTasklets--;
+
 	if( !m_isMain )
 	{
 		m_scheduleManager->Decref(); // Decref tasklets usage
@@ -1198,6 +1204,16 @@ void Tasklet::Clear()
 
     // Clear Arguments
 	SetKwArguments( nullptr );
+}
+
+long Tasklet::GetAllTimeTaskletCount()
+{
+	return s_totalAllTimeTaskletCount;
+}
+
+long Tasklet::GetActiveTaskletCount()
+{
+	return s_totalActiveTasklets;
 }
 
 bool Tasklet::BelongsToCurrentThread()

@@ -53,7 +53,7 @@ The most complex code in carbon-scheduler is directly related to support for thi
 
 It is hard to see what benefit we get from supporting nested tasklets. Especially when considering that :py:func:`scheduler.schedule` will move a Tasklet out of the nest so it cannot be treated like an isolated scheduling area.
 
-It is also worth noting that currently time and tasklet limited runs using Watchdog or :py:func:`scheduler.run_n_tasklets` do not evaluate timeouts on nested Tasklets. This
+It is also worth noting that currently time and tasklet limited runs using PyScheduler_RunWithTimeout or :py:func:`scheduler.run_n_tasklets` do not evaluate timeouts on nested Tasklets. This
 is only a limitation currently to keep the codebase clean. It is possible.
 
 Flat Scheduling Queue

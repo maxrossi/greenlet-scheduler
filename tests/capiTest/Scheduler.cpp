@@ -113,7 +113,7 @@ TEST_F( SchedulerCapi, PyScheduler_RunNTasklets )
     // Check queue and run
 	EXPECT_EQ( m_api->PyScheduler_GetRunCount(), 4 );
 
-    // Run watchdog
+    // Run for time
 	EXPECT_EQ( m_api->PyScheduler_RunNTasklets( 1 ), Py_None ); 
 
     EXPECT_EQ( m_api->PyScheduler_GetRunCount(), 3 );
@@ -136,7 +136,7 @@ TEST_F( SchedulerCapi, PyScheduler_RunNTasklets )
 
 }
 
-TEST_F( SchedulerCapi, PyScheduler_RunWatchdogEx )
+TEST_F( SchedulerCapi, PyScheduler_RunForTime )
 {
 	// Schedule 3 Tasklets and pump until complete
 
@@ -157,10 +157,10 @@ TEST_F( SchedulerCapi, PyScheduler_RunWatchdogEx )
 	// Check queue and run
 	EXPECT_EQ( m_api->PyScheduler_GetRunCount(), 4 );
 
-	// Run watchdog until finished
+	// Run scheduler until finished
     while (m_api->PyScheduler_GetRunCount() > 1)
     {
-		EXPECT_EQ( m_api->PyScheduler_RunWatchdogEx( 10, 0 ), Py_None );
+		EXPECT_EQ( m_api->PyScheduler_RunWithTimeout( 10 ), Py_None );
     }
 
 	// Check test value
@@ -376,4 +376,123 @@ TEST_F( SchedulerCapi, PyScheduler_SetScheduleFastcallback )
     // Clean
 	Py_XDECREF( tasklet );
 	Py_XDECREF( mainTasklet );
+}
+
+TEST_F( SchedulerCapi, PyScheduler_GetNumberOfActiveScheduleManagers )
+{
+	int numberOfScheduleManagers = m_api->PyScheduler_GetNumberOfActiveScheduleManagers( );
+
+    EXPECT_EQ( numberOfScheduleManagers, 1 );
+}
+
+TEST_F( SchedulerCapi, PyScheduler_GetNumberOfActiveChannels )
+{
+	EXPECT_EQ( m_api->PyScheduler_GetNumberOfActiveChannels(), 0 );
+
+	PyChannelObject* channel1 = m_api->PyChannel_New( m_api->PyChannelType );
+
+    EXPECT_EQ( m_api->PyScheduler_GetNumberOfActiveChannels(), 1 );
+
+	PyChannelObject* channel2 = m_api->PyChannel_New( m_api->PyChannelType );
+
+    EXPECT_EQ( m_api->PyScheduler_GetNumberOfActiveChannels(), 2 );
+
+    Py_DECREF( channel1 );
+
+    EXPECT_EQ( m_api->PyScheduler_GetNumberOfActiveChannels(), 1 );
+
+    Py_DECREF( channel2 );
+
+    EXPECT_EQ( m_api->PyScheduler_GetNumberOfActiveChannels(), 0 );
+}
+
+TEST_F( SchedulerCapi, PyScheduler_GetAllTimeTaskletCount )
+{
+    // 1 expected initially is the main Tasklet
+	EXPECT_EQ( m_api->PyScheduler_GetAllTimeTaskletCount(), 1 );
+
+	PyTaskletObject* tasklet1 = CreateTasklet();
+
+	EXPECT_EQ( m_api->PyScheduler_GetAllTimeTaskletCount(), 2 );
+
+	PyTaskletObject* tasklet2 = CreateTasklet();
+
+	EXPECT_EQ( m_api->PyScheduler_GetAllTimeTaskletCount(), 3 );
+
+	Py_DECREF( tasklet1 );
+
+	EXPECT_EQ( m_api->PyScheduler_GetAllTimeTaskletCount(), 3 );
+
+	Py_DECREF( tasklet2 );
+
+	EXPECT_EQ( m_api->PyScheduler_GetAllTimeTaskletCount(), 3 );
+}
+
+TEST_F( SchedulerCapi, PyScheduler_GetActiveTaskletCount )
+{
+	EXPECT_EQ( m_api->PyScheduler_GetActiveTaskletCount(), 1 );
+
+	PyTaskletObject* tasklet1 = CreateTasklet();
+
+	EXPECT_EQ( m_api->PyScheduler_GetActiveTaskletCount(), 2 );
+
+	PyTaskletObject* tasklet2 = CreateTasklet();
+
+	EXPECT_EQ( m_api->PyScheduler_GetActiveTaskletCount(), 3 );
+
+	Py_DECREF( tasklet1 );
+
+	EXPECT_EQ( m_api->PyScheduler_GetActiveTaskletCount(), 2 );
+
+	Py_DECREF( tasklet2 );
+
+	EXPECT_EQ( m_api->PyScheduler_GetActiveTaskletCount(), 1 );
+}
+
+TEST_F( SchedulerCapi, PyScheduler_GetTaskletsCompletedLastRunWithTimeout )
+{
+	// Schedule 3 Tasklets and pump until complete
+
+	// Create three tasklets
+	EXPECT_EQ( PyRun_SimpleString( "t1 = scheduler.tasklet(lambda:None)()\n"
+								   "t2 = scheduler.tasklet(lambda:None)()\n"
+								   "t3 = scheduler.tasklet(lambda:None)()\n" ),
+			   0 );
+
+	// Check queue and run
+	EXPECT_EQ( m_api->PyScheduler_GetRunCount(), 4 );
+
+	// Run scheduler until finished using a huge timeout time
+	EXPECT_EQ( m_api->PyScheduler_RunWithTimeout( 10000 ), Py_None );
+
+    // Ensure all tasklets complete in time
+    EXPECT_EQ( m_api->PyScheduler_GetRunCount(), 1 );
+
+    // Check tasklets completed since last timeout
+	EXPECT_EQ( m_api->PyScheduler_GetTaskletsCompletedLastRunWithTimeout(), 3 );
+
+}
+
+TEST_F( SchedulerCapi, PyScheduler_GetTaskletsSwitchedLastRunWithTimeout )
+{
+	// Schedule 3 Tasklets and pump until complete
+
+	// Create three tasklets
+	EXPECT_EQ( PyRun_SimpleString( "t1 = scheduler.tasklet(lambda:None)()\n"
+								   "t2 = scheduler.tasklet(lambda:None)()\n"
+								   "t3 = scheduler.tasklet(lambda:None)()\n" ),
+			   0 );
+
+	// Check queue and run
+	EXPECT_EQ( m_api->PyScheduler_GetRunCount(), 4 );
+
+	// Run scheduler until finished using a huge timeout time
+	EXPECT_EQ( m_api->PyScheduler_RunWithTimeout( 10000 ), Py_None );
+
+	// Ensure all tasklets complete in time
+	EXPECT_EQ( m_api->PyScheduler_GetRunCount(), 1 );
+
+	// Check tasklets completed since last timeout
+	// This shows a switchting to and from the main tasklet
+	EXPECT_EQ( m_api->PyScheduler_GetTaskletsSwitchedLastRunWithTimeout(), 6 );
 }

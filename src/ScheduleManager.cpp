@@ -58,7 +58,7 @@ void ScheduleManager::CreateSchedulerTasklet()
 	m_schedulerTasklet->SetScheduled( true );
 }
 
-int ScheduleManager::NumberOfActiveScheduleManagers()
+long ScheduleManager::NumberOfActiveScheduleManagers()
 {
 	return s_numberOfActiveScheduleManagers;
 }
@@ -107,6 +107,8 @@ void ScheduleManager::SetCurrentTasklet( Tasklet* tasklet )
 {
     if (m_currentTasklet != tasklet)
     {
+		OnSwitch();
+
 		RunSchedulerCallback( m_currentTasklet, tasklet );
 
 		m_currentTasklet = tasklet;
@@ -339,6 +341,9 @@ bool ScheduleManager::Yield()
 
 bool ScheduleManager::RunTaskletsForTime( long long timeout )
 {
+	s_numberOfTaskletsCompletedLastRunWithTimeout = 0;
+
+    s_numberOfTaskletsSwitchedLastRunWithTimeout = 0;
 
 	m_totalTaskletRunTimeLimit = timeout;
 
@@ -469,7 +474,7 @@ bool ScheduleManager::Run( Tasklet* startTasklet /* = nullptr */ )
 						// This is to ensure that at least one Tasklet is processed
 						// Even if time limit is set to 0
 						// This makes sense so we always progress and also matches
-						// Stackless behaviour for Watchdog
+						// Stackless behaviour for run for time
 						m_firstTimeLimitTestSkipped = true;
 					}
 					else
@@ -571,11 +576,28 @@ bool ScheduleManager::Run( Tasklet* startTasklet /* = nullptr */ )
         if( cleanupCurrentTasklet )
 		{
 			currentTasklet->Decref();
+
+            if (m_runType == RunType::TIME_LIMITED)
+            {
+                // Increament tasklet completed value
+				s_numberOfTaskletsCompletedLastRunWithTimeout++;
+            }
         }
 		
 	}
 
 	return true;
+}
+
+void ScheduleManager::OnSwitch()
+{
+	if( m_runType == RunType::TIME_LIMITED )
+	{
+		// Increament tasklet switched value
+		// Note this will also increment if a switch was blocked by switchtrap
+		// It is more of an attempted switch value
+		s_numberOfTaskletsSwitchedLastRunWithTimeout++;
+	}
 }
 
 Tasklet* ScheduleManager::GetMainTasklet()
@@ -655,4 +677,14 @@ int ScheduleManager::SwitchTrapLevel()
 void ScheduleManager::SetSwitchTrapLevel( int level )
 {
 	m_switchTrapLevel = level;
+}
+
+int ScheduleManager::GetNumberOfTaskletsCompletedLastRunWithTimeout()
+{
+	return s_numberOfTaskletsCompletedLastRunWithTimeout;
+}
+
+int ScheduleManager::GetNumberOfTaskletsSwitchedLastRunWithTimeout()
+{
+	return s_numberOfTaskletsSwitchedLastRunWithTimeout;
 }

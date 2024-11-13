@@ -28,6 +28,8 @@ struct InterpreterWithSchedulerModule : public ::testing::Test
 
 	void TearDown();
 
+    PyTaskletObject* CreateTasklet();
+
     PyObject* m_schedulerModule;
 
     PyObject* m_mainModule;
