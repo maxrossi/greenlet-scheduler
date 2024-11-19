@@ -181,10 +181,6 @@ public:
 
     void SetParentCallsite( std::string& parentCallsite );
 
-    std::string GetParentMethodName();
-
-    void SetParentMethodName( std::string& parentMethodName );
-
     long long GetStartTime();
 	
     void SetStartTime( long long startTime );
@@ -204,6 +200,20 @@ public:
     static long GetAllTimeTaskletCount();
 
     static long GetActiveTaskletCount();
+
+    void OnCallableEntered();
+
+    void OnCallableExited();
+
+    bool SetCallsiteData( PyObject* callable );
+
+    bool GetDontRaise() const;
+
+    bool SetDontRaise(bool dontRaise);
+
+    PyObject* GetContextManagerCallable() const;
+
+    void SetContextManagerCallable( PyObject* contextManagerCallable );
 
 private:
 
@@ -289,10 +299,11 @@ private:
 
     ScheduleManager* m_scheduleManager;
 
+    PyObject* m_ContextManagerCallable;
+
     bool m_killPending;
 
     std::string m_parentCallsite;
-    std::string m_parentMethodName;
     std::string m_methodName;
     std::string m_moduleName;
     std::string m_context;
@@ -305,6 +316,8 @@ private:
     inline static long s_totalAllTimeTaskletCount = 0;
 
     inline static long s_totalActiveTasklets = 0;
+
+    bool m_dontRaise;
 };
 
 #endif // Tasklet_H

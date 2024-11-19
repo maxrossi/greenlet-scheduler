@@ -23,6 +23,7 @@ include(CcpPackageConfigHelpers)
 
 find_package(Python REQUIRED NO_CMAKE_PATH)
 find_package(Greenlet REQUIRED NO_CMAKE_PATH)
+find_package(CcpLog CONFIG REQUIRED)
 
 get_target_property(GREENLET_INCLUDE_DIRECTORY
         Greenlet
@@ -43,6 +44,7 @@ set(SRC_FILES
     src/PythonCppType.h
     src/PyScheduleManager.cpp
     src/PyScheduleManager.h
+    src/PyCallableWrapper.h
     src/ScheduleManager.cpp
     src/ScheduleManager.h
     src/stdafx.cpp
@@ -57,7 +59,7 @@ ccp_add_library(Scheduler SHARED ${SRC_FILES})
 
 target_include_directories(Scheduler PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
 
-target_link_libraries(Scheduler PRIVATE Python)
+target_link_libraries(Scheduler PRIVATE Python ccp::log)
 
 target_include_directories(Scheduler
         PRIVATE
@@ -76,8 +78,6 @@ set_target_properties(Scheduler PROPERTIES
     OUTPUT_NAME "_scheduler"
     DEBUG_POSTFIX ""
 )
-
-
 
 # Provide an install target iff this is the top level project only
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
@@ -155,7 +155,7 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     configure_ccp_vendor_config_file(
         TARGET Scheduler
         DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/SchedulerConfig.cmake"
-        DEPENDENCIES ""
+        DEPENDENCIES "CcpLog"
         CONFIGURATIONS Release
     )
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/SchedulerConfig.cmake DESTINATION .)
@@ -206,10 +206,23 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     )
     set_tests_properties(${ALL_PYTHON_TEST} PROPERTIES ENVIRONMENT "PYTHONPATH=${PYTHONPATH_ENV};BUILDFLAVOR=$<LOWER_CASE:$<CONFIG>>")
 
-
     # Install scheduler extension package
     install(DIRECTORY python/scheduler DESTINATION python
             FILES_MATCHING
             PATTERN "*.py"
     )
+    if(WIN32)
+        add_custom_command(
+            TARGET Scheduler POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:Scheduler> $<TARGET_FILE_DIR:Scheduler>
+            COMMAND_EXPAND_LISTS
+        )
+    elseif(APPLE)
+            add_custom_command(
+            TARGET Scheduler POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE_DIR:ccp::log>/libCcpLog.dylib $<TARGET_FILE_DIR:Scheduler>
+            COMMAND_EXPAND_LISTS
+    )
+    endif()
 endif()

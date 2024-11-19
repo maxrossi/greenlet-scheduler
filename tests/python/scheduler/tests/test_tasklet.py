@@ -1189,3 +1189,188 @@ class TestTaskletExitException(test_utils.SchedulerTestCaseBase):
         self.assertRaises(RuntimeError, t.setup)
         # call setup through tasklets tp_call function
         self.assertRaises(RuntimeError, t)
+
+class TestTaskletMetricsCollection(test_utils.SchedulerTestCaseBase):
+
+    def test_method_name(self):
+        def testMethod():
+            return 0
+
+        t = scheduler.tasklet(testMethod)()
+        self.assertEqual("testMethod", t.method_name)
+
+    def test_line_number(self):
+        def testMethod():
+            return 0
+
+        t = scheduler.tasklet(testMethod)()
+        self.assertEqual(testMethod.__code__.co_firstlineno, t.line_number)
+
+
+    def test_start_end_time(self):
+        def testMethod():
+            return 0
+
+        t = scheduler.tasklet(testMethod)()
+
+        self.assertEqual(t.startTime, 0)
+        self.assertEqual(t.endTime, 0)
+        
+        scheduler.run()
+        
+        self.assertTrue(t.startTime > 0)
+        self.assertTrue(t.endTime > t.startTime)
+
+class TestTaskletDontRaise(test_utils.SchedulerTestCaseBase):
+
+    def test_tasklet_dont_raise(self):
+        a = [0]
+        def testMethod():
+            a[0] = 1
+            raise TypeError("test")
+
+        t = scheduler.tasklet()
+        t.dont_raise = True
+        t.bind(testMethod)
+        t.setup()
+
+        scheduler.run()
+
+        self.assertEqual(a, [1])
+
+    def test_tasklet_with_tracer(self):
+        a = []
+
+        class CtxMgr:
+            def __init__(self, t):
+                self.tasklet = t
+
+            def __enter__(self):
+                a.append((1, str(self.tasklet)))
+
+            def __exit__(self, exctype, excinst, exctb):
+                a.append((2, str(self.tasklet)))
+
+        def testMethod():
+            a.append(1)
+
+        t = scheduler.tasklet()
+        t.dont_raise = True
+        t.bind(testMethod)
+        t.context_manager_getter = CtxMgr
+        t.setup()
+
+        scheduler.run()
+
+        self.assertEqual(a, [ (1, str(t)), 1, (2, str(t)) ])
+
+    def test_raising_tasklet_with_tracer(self):
+        a = []
+
+        class CtxMgr:
+            def __init__(self, t):
+                self.tasklet = t
+
+            def __enter__(self):
+                a.append((1, str(self.tasklet)))
+
+            def __exit__(self, exctype, excinst, exctb):
+                a.append((2, str(self.tasklet)))
+
+        def testMethod():
+            a.append(1)
+            raise TypeError("test")
+            a.append(2)
+
+        t = scheduler.tasklet()
+        t.dont_raise = True
+        t.bind(testMethod)
+        t.context_manager_getter = CtxMgr
+        t.setup()
+
+        scheduler.run()
+
+        self.assertEqual(a, [ (1, str(t)), 1, (2, str(t)) ])
+
+    def test_tasklet_with_raising_tracer_enter(self):
+        a = []
+
+        class CtxMgr:
+            def __init__(self, t):
+                self.tasklet = t
+
+            def __enter__(self):
+                a.append((1, str(self.tasklet)))
+                raise TypeError("test")
+
+            def __exit__(self, exctype, excinst, exctb):
+                a.append((2, str(self.tasklet)))
+
+        def testMethod():
+            a.append(1)
+
+        t = scheduler.tasklet()
+        t.dont_raise = True
+        t.bind(testMethod)
+        t.context_manager_getter = CtxMgr
+        t.setup()
+
+        self.assertRaises(TypeError, scheduler.run)
+
+        self.assertEqual(a, [ (1, str(t)) ])
+
+    def test_tasklet_with_raising_tracer_exit(self):
+        a = []
+
+        class CtxMgr:
+            def __init__(self, t):
+                self.tasklet = t
+
+            def __enter__(self):
+                a.append((1, str(self.tasklet)))
+
+            def __exit__(self, exctype, excinst, exctb):
+                a.append((2, str(self.tasklet)))
+                raise TypeError("test")
+
+        def testMethod():
+            a.append(1)
+
+        t = scheduler.tasklet()
+        t.dont_raise = True
+        t.context_manager_getter = CtxMgr
+        t.bind(testMethod)
+        t.setup()
+
+        self.assertRaises(TypeError, scheduler.run)
+
+        self.assertEqual(a, [ (1, str(t)), 1, (2, str(t)) ])
+
+    def test_raising_tasklet_with_raising_tracer_exit(self):
+        a = []
+
+        class CtxMgr:
+            def __init__(self, t):
+                self.tasklet = t
+
+            def __enter__(self):
+                a.append((1, self.tasklet))
+
+            def __exit__(self, exctype, excinst, exctb):
+                a.append((2, self.tasklet))
+                raise TypeError("test")
+
+        def testMethod():
+            a.append(1)
+            raise RuntimeError("test")
+            
+
+        t = scheduler.tasklet()
+        t.dont_raise = True
+        t.context_manager_getter = CtxMgr
+        t.bind(testMethod)
+        t.setup()
+
+        self.assertRaises(TypeError, scheduler.run)
+
+        self.assertEqual(a, [ (1, t), 1, (2, t) ])

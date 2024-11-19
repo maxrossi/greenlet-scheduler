@@ -101,8 +101,6 @@ Attributes
 
 .. autoattribute:: scheduler.tasklet.parent_callsite
 
-.. autoattribute:: scheduler.tasklet.parent_method_name
-
 .. autoattribute:: scheduler.tasklet.startTime
 
 .. autoattribute:: scheduler.tasklet.endTime
@@ -110,3 +108,7 @@ Attributes
 .. autoattribute:: scheduler.tasklet.runTime
 
 .. autoattribute:: scheduler.tasklet.highlighted
+
+.. autoattribute:: scheduler.tasklet.dont_raise
+
+.. autoattribute:: scheduler.tasklet.context_manager_getter

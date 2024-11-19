@@ -188,6 +188,8 @@ PyObject* Channel::Receive()
 		{
 			RemoveTaskletFromBlocked( current );
 
+            current->SetTransferInProgress( false );
+
 			PyErr_SetString( PyExc_RuntimeError, "Channel cannot block on main tasklet with block_trap set true" );
 
             scheduleManager->Decref();
@@ -200,6 +202,11 @@ PyObject* Channel::Receive()
         // Ensure channel is open
         if( m_closed || m_closing )
 		{
+
+            RemoveTaskletFromBlocked( current );
+
+            current->SetTransferInProgress( false );
+
 			PyErr_SetString( PyExc_ValueError, "receive operation on a closed channel" );
 
 			scheduleManager->Decref();

@@ -2,6 +2,8 @@
 
 #include "ScheduleManager.h"
 #include "Channel.h"
+#include "PyCallableWrapper.h"
+#include "Utils.h"
 
 Tasklet::Tasklet( PyObject* pythonObject, PyObject* taskletExitException, bool isMain ) :
 	PythonCppType( pythonObject ),
@@ -39,8 +41,10 @@ Tasklet::Tasklet( PyObject* pythonObject, PyObject* taskletExitException, bool i
 	m_lineNumber( 0 ),
 	m_startTime( 0 ),
 	m_endTime( 0 ),
-	m_runTime( 0 ),
-	m_highlighted( false )
+	m_runTime( 0.0 ),
+	m_highlighted( false ),
+	m_dontRaise( false ),
+	m_ContextManagerCallable( nullptr )
 {
     // Update Tasklet counters
 	s_totalAllTimeTaskletCount++;
@@ -80,6 +84,8 @@ Tasklet::~Tasklet()
 	Py_XDECREF( m_greenlet );
 
 	Py_XDECREF( m_transferArguments );
+
+    Py_XDECREF( m_ContextManagerCallable );
 
     m_scheduleManager = nullptr;
 
@@ -146,6 +152,18 @@ bool Tasklet::Remove()
 	{
 		return true;
     }
+}
+
+void Tasklet::OnCallableEntered()
+{
+	std::chrono::steady_clock::time_point current_time = std::chrono::steady_clock::now();
+	m_startTime = current_time.time_since_epoch().count();
+}
+
+void Tasklet::OnCallableExited()
+{
+	std::chrono::steady_clock::time_point current_time = std::chrono::steady_clock::now();
+	m_endTime = current_time.time_since_epoch().count();
 }
 
 bool Tasklet::Initialise()
@@ -346,7 +364,7 @@ bool Tasklet::SwitchTo( )
         if(( m_firstRun ) && (m_exceptionState != Py_None))
 		{
 			// If tasklet exit has been raised then don't run tasklet and keep silent
-			if( m_exceptionState == m_taskletExitException )
+			if( PyErr_GivenExceptionMatches( m_exceptionState, m_taskletExitException ) )
 			{
 				m_alive = false;
 
@@ -380,6 +398,7 @@ bool Tasklet::SwitchTo( )
         {
 			args = Arguments();
 			kwargs = KwArguments();
+            OnCallableEntered();
         }
 
         m_firstRun = false;
@@ -413,6 +432,7 @@ bool Tasklet::SwitchTo( )
         if( !m_blocked && !m_transferInProgress && !m_isMain && !m_paused && m_reschedule == RescheduleType::NONE && !m_taggedForRemoval ) 
 		{
 			m_alive = false;
+			OnCallableExited();
 		}
 
 		// Removed tasklet is paused
@@ -810,7 +830,7 @@ bool Tasklet::ThrowException( PyObject* exception, PyObject* value, PyObject* tb
 			else
 			{
 				// If exception state is tasklet exit then handle silently
-				if( m_exceptionState == m_taskletExitException )
+				if( PyErr_GivenExceptionMatches( m_exceptionState, m_taskletExitException ) )
 				{
 					ClearException();
 
@@ -854,7 +874,7 @@ bool Tasklet::ThrowException( PyObject* exception, PyObject* value, PyObject* tb
                 if(!m_alive)
 				{
 					// If exception state is tasklet exit then handle silently
-					if( m_exceptionState == m_taskletExitException )
+					if( PyErr_GivenExceptionMatches( m_exceptionState, m_taskletExitException ) )
 					{
 						ClearException();
 
@@ -942,17 +962,23 @@ int Tasklet::SetParent( Tasklet* parent )
 
 bool Tasklet::TaskletExceptionRaised()
 {
-	return PyErr_Occurred() == m_taskletExitException;
+	PyObject* exception = PyErr_Occurred();
+	if( exception )
+    {
+		return PyErr_ExceptionMatches( m_taskletExitException );
+    }
+
+    return false;
 }
 
 void Tasklet::ClearTaskletException()
 {
-	if( PyErr_Occurred() == m_taskletExitException )
-	{
+    if (TaskletExceptionRaised())
+    {
 		ClearException();
 
 		PyErr_Clear();
-	}
+    }
 }
 
 void Tasklet::SetReschedule( RescheduleType value )
@@ -1067,6 +1093,89 @@ bool Tasklet::Setup( PyObject* args, PyObject* kwargs )
 
 }
 
+bool Tasklet::SetCallsiteData( PyObject* callable )
+{
+	m_methodName = { "unknown_method" };
+	m_moduleName = { "unknown_module" };
+	m_fileName =   { "unknown_file" };
+	m_lineNumber = { 0 };
+
+	if( PyObject_HasAttrString( callable, "__name__" ) )
+	{
+		PyObject* dunderName = PyObject_GetAttrString( callable, "__name__" );
+
+        // In most places, __name__ is a string.
+        // But in some places in the python code, we are setting it to something else
+		PyObject* nameString = PyObject_Str( dunderName );
+
+        Py_DECREF( dunderName );
+
+		if( !StdStringFromPyObject( nameString, m_methodName ) )
+		{
+			Py_DECREF( nameString );
+			return false;
+		}
+
+        Py_DECREF( nameString );
+	}
+
+	
+	if( PyObject_HasAttrString( callable, "__module__" ) )
+	{
+		PyObject* dunderModule = PyObject_GetAttrString( callable, "__module__" );
+		PyObject* moduleString = PyObject_Str( dunderModule );
+
+		Py_DECREF( dunderModule );
+
+        // In most places, __module__ is a string.
+        // But in some places in the python code, we are setting it to something else
+		if( !StdStringFromPyObject( moduleString, m_moduleName ) )
+		{
+			Py_DECREF( moduleString );
+			return false;
+		}
+        
+		Py_DECREF( moduleString );
+	}
+   
+    if (!PyObject_HasAttrString(callable, "__code__"))
+    {
+        return true;
+    }
+
+    PyObject* dunderCode = PyObject_GetAttrString( callable, "__code__" );
+
+    if( !PyObject_HasAttrString( dunderCode, "co_filename" ) )
+	{
+		PyObject* coFileName = PyObject_GetAttrString( dunderCode, "co_filename" );
+		bool res = StdStringFromPyObject(coFileName , m_fileName );
+		Py_DECREF( coFileName );
+        
+        if (!res)
+        {
+			Py_DECREF( dunderCode );
+			return false;
+        }
+	}
+
+	if( PyObject_HasAttrString( dunderCode, "co_firstlineno" ) )
+	{
+		PyObject* coLineNumber = PyObject_GetAttrString( dunderCode, "co_firstlineno" );
+		m_lineNumber = PyLong_AsLong( coLineNumber );
+		Py_DECREF( coLineNumber );
+
+        if (PyErr_Occurred())
+        {
+			Py_DECREF( dunderCode );
+			return false;
+        }
+	}
+
+    Py_DECREF( dunderCode );
+
+    return true;
+}
+
 bool Tasklet::Bind(PyObject* callable, PyObject* args, PyObject* kwargs)
 {
 	if( !BelongsToCurrentThread() )
@@ -1086,9 +1195,37 @@ bool Tasklet::Bind(PyObject* callable, PyObject* args, PyObject* kwargs)
         }
         else
         {
-			Py_IncRef( callable );
+            if( !SetCallsiteData( callable ) )
+			{
+				return false;
+			}
 
-            SetCallable( callable );
+            if (m_dontRaise)
+            {
+				PyObject* wrapperArgsTuple = PyTuple_New( 1 );
+
+				Py_IncRef( callable ); // PyTuple_SetItem steals a reference
+				PyTuple_SetItem( wrapperArgsTuple, 0, callable );
+
+				PyObject* pyCallableWrapper = PyObject_CallObject( reinterpret_cast<PyObject*>( ScheduleManager::s_callableWrapperType ), wrapperArgsTuple );
+
+				Py_DECREF( wrapperArgsTuple );
+
+				if( !pyCallableWrapper )
+				{
+					return false;
+				}
+
+                PyCallableWrapperObject* wrapper = reinterpret_cast<PyCallableWrapperObject*>( pyCallableWrapper );
+				wrapper->m_ownerTasklet = this;
+
+				SetCallable( pyCallableWrapper );
+            }
+            else
+            {
+				Py_IncRef( callable );
+				SetCallable( callable );
+            }
         }
     }
 
@@ -1290,16 +1427,6 @@ void Tasklet::SetParentCallsite(std::string& parentCallsite)
 	m_parentCallsite = parentCallsite;
 }
 
-std::string Tasklet::GetParentMethodName()
-{
-	return m_parentMethodName;
-}
-
-void Tasklet::SetParentMethodName(std::string& parentMethodName)
-{
-	m_parentMethodName = parentMethodName;
-}
-
 long long Tasklet::GetStartTime()
 {
 	return m_startTime;
@@ -1338,4 +1465,34 @@ bool Tasklet::GetHighlighted()
 void Tasklet::SetHighlighted( bool highlighted )
 {
 	m_highlighted = highlighted;
+}
+
+bool Tasklet::GetDontRaise() const
+{
+	return m_dontRaise;
+}
+
+bool Tasklet::SetDontRaise( bool dontRaise )
+{
+	if( m_greenlet )
+	{
+		PyErr_SetString( PyExc_RuntimeError, "dont_raise cannot be altered after the Tasklet has been bound" );
+		return false;
+	}
+
+	m_dontRaise = dontRaise;
+
+	return true;
+}
+
+PyObject* Tasklet::GetContextManagerCallable() const
+{
+	return m_ContextManagerCallable;
+}
+
+void Tasklet::SetContextManagerCallable( PyObject* contextManagerCallable )
+{
+	Py_XDECREF( m_ContextManagerCallable );
+
+	m_ContextManagerCallable = contextManagerCallable;
 }

@@ -66,6 +66,13 @@ Exception handling
    
    guides/howExceptionsAreManaged
 
+Tasklet Context Managers
+---------------------------
+.. toctree::
+   :maxdepth: 1
+
+   guides/settingContextManagers
+
 .. _capi-guides:
 
 C-API Usage

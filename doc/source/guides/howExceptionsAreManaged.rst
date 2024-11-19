@@ -115,6 +115,39 @@ For further information on kill refer to :doc:`killingTasklets`.
 
    >>>Kill called
 
+Preventing uncaught exceptions from being raised on parent tasklets using :py:attr:`scheduler.tasklet.dont_raise`
+-----------------------------------------------------------------------------------------------
+
+Usually, (excluding TaskletExit exceptions) an uncaught exception on a child tasklet will result in that exception being raised on the parent tasklet. setting :py:attr:`scheduler.tasklet.dont_raise` to `True` before binding a tasklet will prevent this from happening.
+
+.. code-block:: python
+
+   def testMethod():
+      raise TypeError("test")
+      print("SHOULD NOT PRINT")
+
+   t = scheduler.tasklet()
+   t.dont_raise = True
+   t.bind(testMethod)
+   t.setup()
+
+   scheduler.run()
+   print("scheduler.run() call did not raise")
+
+   >>>scheduler.run() call did not raise
+
+Attempting to change the value of :py:attr:`scheduler.tasklet.dont_raise` after a taslket has been bound will result in a RuntimeError being raised.
+
+.. code-block:: python
+
+   def testMethod():
+      pass
+
+   t = scheduler.tasklet(testMethod)()
+   t.dont_raise = True
+
+   >>>RuntimeError: You cannot change this value after the tasklet has been bound
+
 Suggested Further Reading
 -------------------------
 

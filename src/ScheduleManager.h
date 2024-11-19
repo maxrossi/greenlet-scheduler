@@ -102,6 +102,8 @@ private:
 
 public:
 
+    inline static PyTypeObject* s_callableWrapperType;
+
     inline static PyTypeObject* s_taskletType;
 
     inline static PyTypeObject* s_scheduleManagerType;

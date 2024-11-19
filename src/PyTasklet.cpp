@@ -1,9 +1,11 @@
 #include "Tasklet.h"
+#include "stdafx.h"
 
 #include <new>
 
 #include "ScheduleManager.h"
 #include "PyTasklet.h"
+#include "PyCallableWrapper.h"
 #include "Utils.h"
 
 static PyObject* TaskletExit;
@@ -321,28 +323,6 @@ static PyObject*
     return PyUnicode_FromStringAndSize( str.c_str(), str.size() );
 }
 
-static int
-    TaskletMethodNameSet(PyTaskletObject* self, PyObject* value, void* closure)
-{
-    // Ensure PyTaskletObject is in a valid state
-	if( !PyTaskletObjectIsValid( self ) )
-	{
-		return -1;
-	}
-
-	
-	std::string cstr;
-
-    if( !StdStringFromPyObject( value, cstr ) )
-    {
-		return -1;
-    }
-
-    self->m_implementation->SetMethodName( cstr );
-
-    return 0;
-}
-
 static PyObject*
     TaskletModuleNameGet(PyTaskletObject* self, void* closure)
 {
@@ -355,26 +335,6 @@ static PyObject*
 	std::string str = self->m_implementation->GetModuleName();
 
 	return PyUnicode_FromStringAndSize( str.c_str(), str.size() );
-}
-
-static int
-	TaskletModuleNameSet( PyTaskletObject* self, PyObject* value, void* closure )
-{
-	// Ensure PyTaskletObject is in a valid state
-	if( !PyTaskletObjectIsValid( self ) )
-	{
-		return -1;
-	}
-	std::string cstr;
-
-	if( !StdStringFromPyObject( value, cstr ) )
-	{
-		return -1;
-	}
-
-	self->m_implementation->SetModuleName( cstr );
-
-	return 0;
 }
 
 static PyObject*
@@ -426,27 +386,6 @@ static PyObject*
 	return PyUnicode_FromStringAndSize( str.c_str(), str.size() );
 }
 
-static int
-	TaskletFileNameSet( PyTaskletObject* self, PyObject* value, void* closure )
-{
-	// Ensure PyTaskletObject is in a valid state
-	if( !PyTaskletObjectIsValid( self ) )
-	{
-		return -1;
-	}
-
-	std::string cstr;
-
-	if( !StdStringFromPyObject( value, cstr ) )
-	{
-		return -1;
-	}
-
-	self->m_implementation->SetFilename( cstr );
-
-	return 0;
-}
-
 static PyObject*
     TaskletLineNumberGet(PyTaskletObject* self, void* closure)
 {
@@ -459,27 +398,6 @@ static PyObject*
 	long lineNumber = self->m_implementation->GetLineNumber();
 
 	return PyLong_FromLong( lineNumber );
-}
-
-static int
-    TaskletLineNumberSet(PyTaskletObject* self, PyObject* value, void* closure)
-{
-	// Ensure PyTaskletObject is in a valid state
-	if( !PyTaskletObjectIsValid( self ) )
-	{
-		return -1;
-	}
-
-    long lineNumber = PyLong_AsLong( value );
-
-    if (PyErr_Occurred())
-    {
-		return -1;
-    }
-
-    self->m_implementation->SetLineNumber( lineNumber );
-    
-    return 0;
 }
 
 static PyObject*
@@ -518,41 +436,6 @@ static int
 }
 
 static PyObject*
-    TaskletParentMethodNameGet(PyTaskletObject* self, void* closure)
-{
-	// Ensure PyTaskletObject is in a valid state
-	if( !PyTaskletObjectIsValid( self ) )
-	{
-		return nullptr;
-	}
-
-	std::string str = self->m_implementation->GetParentMethodName();
-
-	return PyUnicode_FromStringAndSize( str.c_str(), str.size() );
-}
-
-static int
-TaskletParentMethodNameSet(PyTaskletObject* self, PyObject* value, void* closure)
-{
-	// Ensure PyTaskletObject is in a valid state
-	if( !PyTaskletObjectIsValid( self ) )
-	{
-		return -1;
-	}
-
-	std::string cstr;
-
-	if( !StdStringFromPyObject( value, cstr ) )
-	{
-		return -1;
-	}
-
-	self->m_implementation->SetParentMethodName( cstr );
-
-	return 0;
-}
-
-static PyObject*
 TaskletStartTimeGet(PyTaskletObject* self, void* closure)
 {
 	// Ensure PyTaskletObject is in a valid state
@@ -564,27 +447,6 @@ TaskletStartTimeGet(PyTaskletObject* self, void* closure)
 	long long startTime = self->m_implementation->GetStartTime();
 
 	return PyLong_FromLongLong( startTime );
-}
-
-static int
-	TaskletStartTimeSet( PyTaskletObject* self, PyObject* value, void* closure )
-{
-	// Ensure PyTaskletObject is in a valid state
-	if( !PyTaskletObjectIsValid( self ) )
-	{
-		return -1;
-	}
-
-	long long startTime = PyLong_AsLongLong( value );
-
-	if( PyErr_Occurred() )
-	{
-		return -1;
-	}
-
-	self->m_implementation->SetStartTime( startTime );
-
-	return 0;
 }
 
 static PyObject*
@@ -599,27 +461,6 @@ static PyObject*
 	long long endTime = self->m_implementation->GetEndTime();
 
 	return PyLong_FromLongLong( endTime );
-}
-
-static int
-	TaskletEndTimeSet( PyTaskletObject* self, PyObject* value, void* closure )
-{
-	// Ensure PyTaskletObject is in a valid state
-	if( !PyTaskletObjectIsValid( self ) )
-	{
-		return -1;
-	}
-
-	long long endTime = PyLong_AsLongLong( value );
-
-	if( PyErr_Occurred() )
-	{
-		return -1;
-	}
-
-	self->m_implementation->SetStartTime( endTime );
-
-	return 0;
 }
 
 static PyObject*
@@ -692,6 +533,86 @@ static int
     return 0;
 }
 
+static PyObject* TaskletDontRaiseGet(PyTaskletObject* self, void* closure)
+{
+	if( !PyTaskletObjectIsValid( self ) )
+	{
+		return nullptr;
+	}
+
+    if (self->m_implementation->GetDontRaise())
+    {
+		Py_RETURN_TRUE;
+    }
+
+    Py_RETURN_FALSE;
+}
+
+static int TaskletDontRaiseSet( PyTaskletObject* self, PyObject* value, void* closure )
+{
+	if( !PyTaskletObjectIsValid( self ) )
+	{
+		return -1;
+	}
+    
+    if( !PyBool_Check( value ) )
+	{
+		PyErr_SetString( PyExc_TypeError, "dont_raise must be either a True or False value" );
+		return -1;
+	}
+
+    if (!self->m_implementation->SetDontRaise(Py_IsTrue(value)))
+    {
+		return -1;
+    }
+
+    return 0;
+}
+
+static int TaskletContextManagerCallableSet(PyTaskletObject* self, PyObject* value, void* closure)
+{
+	if( !PyTaskletObjectIsValid( self ) )
+	{
+		return -1;
+	}
+
+    if (value == Py_None)
+    {
+		Py_IncRef( value );
+		self->m_implementation->SetContextManagerCallable( value );
+		return 0;
+    }
+
+    if (!PyCallable_Check(value))
+    {
+		PyErr_SetString( PyExc_TypeError, "context_manager_fun must be a callable that returns a context manager object" );
+		return -1;
+    }
+
+    Py_IncRef( value );
+	self->m_implementation->SetContextManagerCallable( value );
+
+    return 0;
+}
+
+static PyObject* TaskletContextManagerCallableGet( PyTaskletObject* self, void* closure )
+{
+    if( !PyTaskletObjectIsValid( self ) )
+	{
+		return nullptr;
+	}
+
+	PyObject* contextManagerCallable = self->m_implementation->GetContextManagerCallable();
+
+    if( !contextManagerCallable )
+    {
+		Py_RETURN_NONE;
+    }
+
+    Py_INCREF( contextManagerCallable );
+	return contextManagerCallable;
+}
+
 static PyGetSetDef Tasklet_getsetters[] = {
 	{ "alive", 
         (getter)TaskletAliveGet,
@@ -760,13 +681,13 @@ static PyGetSetDef Tasklet_getsetters[] = {
         NULL },
 	{ "method_name",
 	  (getter)TaskletMethodNameGet,
-	  (setter)TaskletMethodNameSet,
-		"(in the near future, this field will be read-only) the name of the callable bound to the tasklet.",
+	  NULL,
+		"(readonly) the name of the callable bound to the tasklet.",
         NULL },
 	{ "module_name",
 	  (getter)TaskletModuleNameGet,
-	  (setter)TaskletModuleNameSet,
-	    "(in the near future, this field will be read-only) the name of the callable bound to the tasklet.",
+	  NULL,
+	    "(readonly) the name of the callable bound to the tasklet.",
 	    NULL },
 	{ "context",
 	  (getter)TaskletContextGet,
@@ -775,33 +696,28 @@ static PyGetSetDef Tasklet_getsetters[] = {
 	    NULL },
 	{ "file_name",
 	  (getter)TaskletFileNameGet,
-	  (setter)TaskletFileNameSet,
-	  "(in the near future, this field will be read-only) name of the file containing callable bound to the tasklet tasklet.",
+	  NULL,
+	  "(readonly) name of the file containing callable bound to the tasklet tasklet.",
 	  NULL },
 	{ "line_number",
 	  (getter)TaskletLineNumberGet,
-	  (setter)TaskletLineNumberSet,
-	  "(in the near future, this field will be read-only) line number of the callable boud to the tasklet.",
+	  NULL,
+	  "(readonly) line number of the callable boud to the tasklet.",
 	  NULL },
 	{ "parent_callsite",
 	  (getter)TaskletParentCallsiteGet,
 	  (setter)TaskletParentCallsiteSet,
 	  "(in the near future, this field will be read-only) callsite of the parent tasklet when this tasklet was created.",
 	  NULL },
-	{ "parent_method_name",
-	  (getter)TaskletParentMethodNameGet,
-	  (setter)TaskletParentMethodNameSet,
-	  "(in the near future, this field will be read-only) name of the callable bound to the parent tasklet when this tasklet was created.",
-	  NULL },
 	{ "startTime",
 	  (getter)TaskletStartTimeGet,
-	  (setter)TaskletStartTimeSet,
-	  "(in the near future, this field will be read-only) Time the tasklet was started.",
+	  NULL,
+	  "(readlonly) Time the tasklet was started.",
 	  NULL },
 	{ "endTime",
 	  (getter)TaskletEndTimeGet,
-	  (setter)TaskletEndTimeSet,
-	  "(in the near future, this field will be read-only) Time the tasklet finished.",
+	  NULL,
+	  "(readonly) Time the tasklet finished.",
 	  NULL },
 	{ "runTime",
 	  (getter)TaskletRunTimeGet,
@@ -813,7 +729,16 @@ static PyGetSetDef Tasklet_getsetters[] = {
 	  (setter)TaskletHighlightedSet,
 	  "A generic boolean marker used for tracing purposes.",
 	  NULL },
-
+	{ "dont_raise",
+	  (getter)TaskletDontRaiseGet,
+	  (setter)TaskletDontRaiseSet,
+	  "If set to true uncaught exceptions that occur on this tasklet will not be raised on parent tasklets. Attempting to set this field after a Tasklet has been bound will result in a RuntimeError exception.",
+      NULL },
+	{ "context_manager_getter",
+      (getter)TaskletContextManagerCallableGet,
+	  (setter)TaskletContextManagerCallableSet,
+       "A callable that takes a reference to this Tasklet and must return a context manager object who's __enter__ & __exit__ methods get called at the beggining and end of the tasklet callable respectively as if the context manager wrapped the callable in a `with(ctxManager)` statement. If this is None, then this attribute has no effect. None by default. Any errors raised by the callable are caught before __exit__ is called, so __exit__'s arguments will always be `(None, None, None)`. PLEASE NOTE: if dont_raise is false, this attribute has no effect.",
+      NULL },
 	{ NULL } /* Sentinel */
 };
 
@@ -1129,6 +1054,12 @@ static int
 		Py_VISIT( bind_args );
 	}
 
+    PyObject* contextMgrCallable = tasklet->GetContextManagerCallable();
+	if( contextMgrCallable )
+    {
+		Py_VISIT( contextMgrCallable );
+    }
+
 	return 0;
 }
 
@@ -1296,3 +1227,269 @@ static PyTypeObject TaskletType = {
 	0, /*tp_is_gc*/
 };
 
+static void
+	CallableWrapperDealloc( PyCallableWrapperObject* self )
+{
+	// Untrack garbage
+	PyObject_GC_UnTrack( self );
+
+	Py_XDECREF( self->m_callable );
+
+	// Handle weakrefs
+	if( self->m_weakrefList != nullptr )
+	{
+		PyObject_ClearWeakRefs( (PyObject*)self );
+	}
+
+	Py_TYPE( self )->tp_free( (PyObject*)self );
+}
+
+static PyObject*
+	CallableWrapperCall( PyObject* self, PyObject* args, PyObject* kwargs )
+{
+	PyCallableWrapperObject* wrapperObject = reinterpret_cast<PyCallableWrapperObject*>( self );
+
+    Tasklet* t = reinterpret_cast<Tasklet*>( wrapperObject->m_ownerTasklet );
+
+    PyObject* contextMgrCallable = t->GetContextManagerCallable();
+
+    PyObject* enterCallable = nullptr;
+	PyObject* exitCallable = nullptr;
+	PyObject* exitArgs = nullptr;
+	PyObject* contextManager = nullptr;
+
+    if (contextMgrCallable && contextMgrCallable != Py_None)
+    {
+		contextManager = PyObject_CallOneArg( contextMgrCallable, t->PythonObject() );
+        if (!contextManager)
+        {
+			return nullptr;
+        }
+
+        enterCallable = PyObject_GetAttrString( contextManager, "__enter__" );
+        if (!enterCallable)
+        {
+			Py_DecRef( contextManager );
+			return nullptr;
+        }
+
+        exitCallable = PyObject_GetAttrString( contextManager, "__exit__" );
+        if (!exitCallable)
+        {
+			Py_DecRef( enterCallable );
+			Py_DecRef( contextManager );
+			return nullptr;
+        }
+
+        exitArgs = PyTuple_New( 3 );
+		if(!exitArgs)
+        {
+			Py_DecRef( enterCallable );
+			Py_DecRef( exitCallable );
+			Py_DecRef( contextManager );
+			return nullptr;
+        }
+
+        // we 'catch' any and all errors raised by the callable, so __exit__ args can all be None
+		Py_IncRef( Py_None );
+		PyTuple_SetItem( exitArgs, 0, Py_None );
+		Py_IncRef( Py_None );
+		PyTuple_SetItem( exitArgs, 1, Py_None );
+		Py_IncRef( Py_None );
+		PyTuple_SetItem( exitArgs, 2, Py_None );
+
+        if( !PyObject_CallNoArgs( enterCallable ) )
+		{
+			Py_DecRef( enterCallable );
+			Py_DecRef( exitCallable );
+			Py_DecRef( exitArgs );
+			Py_DecRef( contextManager );
+			return nullptr;
+		}
+
+        Py_DecRef( enterCallable );
+    }
+
+    // this is where we actually call the original callable
+	PyObject* result = PyObject_Call( wrapperObject->m_callable, args, kwargs );
+
+	if( PyErr_Occurred() )
+	{
+		PyObject* exception = PyErr_GetRaisedException();
+
+
+		if( PyErr_GivenExceptionMatches( exception, TaskletExit ) )
+		{
+			PyErr_SetRaisedException( exception );
+			Py_XDECREF( contextManager );
+			Py_XDECREF(exitCallable);
+			Py_XDECREF( exitArgs );
+			return nullptr;
+		}
+
+		if( wrapperObject->m_ownerTasklet )
+		{
+
+			std::string exceptionString;
+			PyObject* exceptionStringPyObj = PyObject_Str( exception );
+			StdStringFromPyObject( exceptionStringPyObj, exceptionString );
+			Py_DecRef( exceptionStringPyObj );
+			Py_DecRef( exception );
+
+			CCP_LOGERR( "Unhandled exception in Tasklet <alive=%d blocked=%d paused=%d scheduled=%d context=%s>", t->IsAlive(), t->IsBlocked(), t->IsScheduled(), t->IsPaused(), t->GetContext().data() );
+		}
+
+		// if there's an exception set after running the callback, we should return nullptr here
+		if( PyErr_Occurred() )
+		{
+			Py_XDECREF( contextManager );
+			Py_XDECREF( exitCallable );
+			Py_XDECREF( exitArgs );
+			return nullptr;
+		}
+
+        if (exitCallable)
+        {
+			if( !PyObject_Call( exitCallable, exitArgs, nullptr ) )
+			{
+				Py_DecRef( contextManager );
+				Py_DecRef( exitCallable );
+				return nullptr;
+			}
+
+            Py_DecRef( contextManager );
+            Py_DecRef( exitCallable );
+        }
+
+		Py_RETURN_NONE;
+	}
+
+    if( exitCallable )
+	{
+        if (!PyObject_Call(exitCallable, exitArgs, nullptr))
+        {
+			Py_DecRef( exitCallable );
+			Py_DecRef( contextManager );
+			return nullptr;
+        }
+
+        Py_DecRef( exitCallable );
+		Py_DecRef( contextManager );
+	}
+
+	return result;
+}
+
+static int
+	CallableWrapperTraverse( PyCallableWrapperObject* self, visitproc visit, void* arg )
+{
+	if( self->m_callable )
+	{
+		Py_VISIT( self->m_callable );
+	}
+
+	return 0;
+}
+
+static PyObject*
+	CallableWrapperNew( PyTypeObject* type, PyObject* args, PyObject* kwds )
+{
+	PyCallableWrapperObject* self;
+
+	self = (PyCallableWrapperObject*)type->tp_alloc( type, 0 );
+
+	if( self != nullptr )
+	{
+
+		self->m_callable = nullptr;
+
+		self->m_weakrefList = nullptr;
+	}
+
+
+	return (PyObject*)self;
+}
+
+static int
+	CallableWrapperInit( PyTypeObject* self, PyObject* args, PyObject* kwds )
+{
+	PyCallableWrapperObject* wrapperObj = reinterpret_cast<PyCallableWrapperObject*>( self );
+
+	PyObject* callable = nullptr;
+
+	if( !PyArg_ParseTuple( args, "O", &callable ) )
+	{
+		PyErr_SetString( PyExc_RuntimeError, "Failed while parsing arguments" );
+		return -1;
+	}
+
+	if( !PyCallable_Check( callable ) )
+	{
+		PyErr_SetString( PyExc_TypeError, "CallableWrapper only accepts a callable as an argument" );
+		return -1;
+	}
+
+	Py_IncRef( callable );
+
+	wrapperObj->m_callable = callable;
+
+	return 0;
+}
+
+static int
+	CallableWrapperClear( PyCallableWrapperObject* self )
+{
+	Py_CLEAR( self->m_callable );
+	self->m_callable = nullptr;
+
+	return 0;
+}
+
+static PyMethodDef CallableWrapper_methods[] = { { NULL } };
+static PyGetSetDef CallableWrapper_getsetters[] = { { NULL } };
+
+
+
+static PyTypeObject CallableWrapperType = {
+	PyVarObject_HEAD_INIT( NULL, 0 ) "scheduler.CallableWrapper", /*tp_name*/
+	sizeof( PyCallableWrapperObject ), /*tp_basicsize*/
+	0, /*tp_itemsize*/
+	/* methods */
+	(destructor)CallableWrapperDealloc, /*tp_dealloc*/
+	0, /*tp_vectorcall_offset*/
+	0, /*tp_getattr*/
+	0, /*tp_setattr*/
+	0, /*tp_as_async*/
+	0, /*tp_repr*/
+	0, /*tp_as_number*/
+	0, /*tp_as_sequence*/
+	0, /*tp_as_mapping*/
+	0, /*tp_hash*/
+	CallableWrapperCall, /*tp_call*/
+	0, /*tp_str*/
+	0, /*tp_getattro*/
+	0, /*tp_setattro*/
+	0, /*tp_as_buffer*/
+	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
+	PyDoc_STR( "CallableWrapper objects" ), /*tp_doc*/
+	(traverseproc)CallableWrapperTraverse, /*tp_traverse*/
+	(inquiry)CallableWrapperClear, /*tp_clear*/
+	0, /*tp_richcompare*/
+	offsetof( PyCallableWrapperObject, m_weakrefList ), /*tp_weaklistoffset*/
+	0, /*tp_iter*/
+	0, /*tp_iternext*/
+	CallableWrapper_methods, /*tp_methods*/
+	0, /*tp_members*/
+	CallableWrapper_getsetters, /*tp_getset*/
+	0,
+	/* see PyInit_xx */ /*tp_base*/
+	0, /*tp_dict*/
+	0, /*tp_descr_get*/
+	0, /*tp_descr_set*/
+	0, /*tp_dictoffset*/
+	(initproc)CallableWrapperInit, /*tp_init*/
+	0, /*tp_alloc*/
+	CallableWrapperNew, /*tp_new*/
+	0, /*tp_free*/
+	0, /*tp_is_gc*/
+};

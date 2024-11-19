@@ -16,6 +16,8 @@
 #include "PyChannel.cpp"
 #include "PyScheduleManager.cpp"
 
+const char* g_moduleName = "carbon-scheduler";
+
 // End C API
 static PyObject*
 	SetChannelCallback( PyObject* self, PyObject* args )
@@ -1187,10 +1189,15 @@ PyMODINIT_FUNC PyInit__scheduler(void)
     PyObject *m;
 	static SchedulerCAPI api;
 	PyObject* c_api_object;
-
+    
     ScheduleManager::m_scheduleManagerThreadKey = PyUnicode_FromString( "SCHEDULE_MANAGER" );
 
 	//Add custom types
+    if (PyType_Ready(&CallableWrapperType) < 0)
+    {
+		return nullptr;
+    }
+
     if (PyType_Ready(&TaskletType) < 0)
     {
 		return nullptr;
@@ -1211,10 +1218,19 @@ PyMODINIT_FUNC PyInit__scheduler(void)
     {
 		return nullptr;
     }
+
+    Py_INCREF( &CallableWrapperType );
+    if (PyModule_AddObject(m, "callable_wrapper", (PyObject*)&CallableWrapperType) < 0)
+    {
+		Py_DECREF( &CallableWrapperType );
+		Py_DECREF( m );
+		return nullptr;
+    }
         
 	Py_INCREF( &TaskletType );
 	if( PyModule_AddObject( m, "tasklet", (PyObject*)&TaskletType ) < 0 )
 	{
+		Py_DECREF( &CallableWrapperType );
 		Py_DECREF( &TaskletType );
 		Py_DECREF( m );
 		return nullptr;
@@ -1223,6 +1239,7 @@ PyMODINIT_FUNC PyInit__scheduler(void)
 	Py_INCREF( &ChannelType );
 	if( PyModule_AddObject( m, "channel", (PyObject*)&ChannelType ) < 0 )
 	{
+		Py_DECREF( &CallableWrapperType );
 		Py_DECREF( &TaskletType );
 		Py_DECREF( &ChannelType );
 		Py_DECREF( m );
@@ -1232,6 +1249,7 @@ PyMODINIT_FUNC PyInit__scheduler(void)
     Py_INCREF( &ScheduleManagerType );
 	if( PyModule_AddObject( m, "schedule_manager", (PyObject*)&ScheduleManagerType ) < 0 )
 	{
+		Py_DECREF( &CallableWrapperType );
 		Py_DECREF( &TaskletType );
 		Py_DECREF( &ChannelType );
 		Py_DECREF( &ScheduleManagerType );
@@ -1245,6 +1263,7 @@ PyMODINIT_FUNC PyInit__scheduler(void)
 	Py_XINCREF( TaskletExit );
 	if( PyModule_AddObject( m, "TaskletExit", TaskletExit ) < 0 )
 	{
+		Py_DECREF( &CallableWrapperType );
 		Py_DECREF( &TaskletType );
 		Py_DECREF( &ChannelType );
 		Py_DECREF( &ScheduleManagerType );
@@ -1260,6 +1279,7 @@ PyMODINIT_FUNC PyInit__scheduler(void)
     if( !greenlet_module )
 	{
 		PySys_WriteStdout( "Failed to import greenlet module\n" );
+		Py_DECREF( &CallableWrapperType );
 		Py_DECREF( &TaskletType );
 		Py_DECREF( &ChannelType );
 		Py_DECREF( &ScheduleManagerType );
@@ -1324,6 +1344,7 @@ PyMODINIT_FUNC PyInit__scheduler(void)
 
 	if( PyModule_AddObject( m, "_C_API", c_api_object ) < 0 )
 	{
+		Py_DECREF( &CallableWrapperType );
 		Py_DECREF( &TaskletType );
 		Py_DECREF( &ChannelType );
 		Py_DECREF( &ScheduleManagerType );
@@ -1336,9 +1357,10 @@ PyMODINIT_FUNC PyInit__scheduler(void)
 
 	ScheduleManager::s_scheduleManagerType = &ScheduleManagerType;
 	ScheduleManager::s_taskletType = &TaskletType;
+	ScheduleManager::s_callableWrapperType = &CallableWrapperType;
 
     //Setup initial channel callback static
 	Channel::SetChannelCallback(nullptr);
-    
+        
     return m;
 }
