@@ -112,3 +112,5 @@ Attributes
 .. autoattribute:: scheduler.tasklet.dont_raise
 
 .. autoattribute:: scheduler.tasklet.context_manager_getter
+
+.. autoattribute:: scheduler.tasklet.times_switched_to

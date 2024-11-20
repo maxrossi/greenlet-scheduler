@@ -589,6 +589,24 @@ extern "C"
 		return 0;
 	}
 
+    /// @brief Return the number of times this tasklet has been switched to
+	/// @param tasklet to be checked, python object type derived from PyTaskletType
+	/// @return the number of times this tasklet has been switched to as a long
+    static long PyTasklet_GetTimesSwitchedTo(PyTaskletObject* tasklet)
+    {
+		GILRAII gil;
+		return tasklet->m_implementation->GetTimesSwitchedTo();
+    }
+
+	/// @brief Return tasklet context as a C style string. The caller is not responsible for the string memory.
+	/// @param tasklet to get context from, python object type derived from PyTaskletType
+	/// @return a null terminated c-style const char* string
+    static const char* PyTasklet_GetContext(PyTaskletObject* tasklet)
+    {
+		GILRAII gil;
+		return tasklet->m_implementation->GetContext().data();
+    }
+
 	// Channel functions
 
     /// @brief Creates new channel.
@@ -1308,6 +1326,8 @@ PyMODINIT_FUNC PyInit__scheduler(void)
 	api.PyTasklet_Check = PyTasklet_Check;
 	api.PyTasklet_Alive = PyTasklet_Alive;
 	api.PyTasklet_Kill = PyTasklet_Kill;
+	api.PyTasklet_GetTimesSwitchedTo = PyTasklet_GetTimesSwitchedTo;
+	api.PyTasklet_GetContext = PyTasklet_GetContext;
 
     // Channel Functions
 	api.PyChannel_New = PyChannel_New;

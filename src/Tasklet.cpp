@@ -30,6 +30,7 @@ Tasklet::Tasklet( PyObject* pythonObject, PyObject* taskletExitException, bool i
 	m_paused( false ),
 	m_taskletParent( nullptr ),
 	m_firstRun( true ),
+	m_timesSwitchedTo( 0 ),
 	m_reschedule( RescheduleType::NONE ),
 	m_taggedForRemoval( false ),
 	m_previousBlocked( nullptr ),
@@ -385,6 +386,8 @@ bool Tasklet::SwitchTo( )
             }
 		
         }
+
+        m_timesSwitchedTo++;
 
         // Tasklet is on the same thread so can be switched to now
 		scheduleManager->SetCurrentTasklet( this );
@@ -1287,6 +1290,8 @@ bool Tasklet::Bind(PyObject* callable, PyObject* args, PyObject* kwargs)
         SetAlive( true );
     }
 
+    m_timesSwitchedTo = 0;
+
     return true;
 
 }
@@ -1495,4 +1500,10 @@ void Tasklet::SetContextManagerCallable( PyObject* contextManagerCallable )
 	Py_XDECREF( m_ContextManagerCallable );
 
 	m_ContextManagerCallable = contextManagerCallable;
+}
+
+
+long Tasklet::GetTimesSwitchedTo()
+{
+	return m_timesSwitchedTo;
 }

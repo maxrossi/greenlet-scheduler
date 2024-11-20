@@ -45,6 +45,8 @@ struct SchedulerCAPI
     using PyTasklet_Check_Routine                                       = std::add_pointer_t<int(PyObject*)>;
     using PyTasklet_Alive_Routine                                       = std::add_pointer_t<int(struct PyTaskletObject*)>;
     using PyTasklet_Kill_Routine                                        = std::add_pointer_t<int(struct PyTaskletObject*)>;
+    using PyTasklet_GetTimesSwitchedTo_Routine                          = std::add_pointer_t<long(struct PyTaskletObject*)>;
+    using PyTasklet_GetContext_Routine                                  = std::add_pointer_t<const char*(struct PyTaskletObject*)>;
 
     //channel functions
 	using PyChannel_New_Routine           		                        = std::add_pointer_t<struct PyChannelObject*(PyTypeObject*)>;
@@ -125,6 +127,9 @@ struct SchedulerCAPI
 
     // exceptions
 	PyObject** TaskletExit;
+
+    PyTasklet_GetTimesSwitchedTo_Routine PyTasklet_GetTimesSwitchedTo;
+	PyTasklet_GetContext_Routine PyTasklet_GetContext;
 };
 
 

@@ -613,6 +613,16 @@ static PyObject* TaskletContextManagerCallableGet( PyTaskletObject* self, void* 
 	return contextManagerCallable;
 }
 
+static PyObject* TaskletTimesSwitchedToGet(PyTaskletObject* self, void* closure)
+{
+	if( !PyTaskletObjectIsValid( self ) )
+	{
+		return nullptr;
+	}
+
+    return PyLong_FromLong( self->m_implementation->GetTimesSwitchedTo() );
+}
+
 static PyGetSetDef Tasklet_getsetters[] = {
 	{ "alive", 
         (getter)TaskletAliveGet,
@@ -739,6 +749,11 @@ static PyGetSetDef Tasklet_getsetters[] = {
 	  (setter)TaskletContextManagerCallableSet,
        "A callable that takes a reference to this Tasklet and must return a context manager object who's __enter__ & __exit__ methods get called at the beggining and end of the tasklet callable respectively as if the context manager wrapped the callable in a `with(ctxManager)` statement. If this is None, then this attribute has no effect. None by default. Any errors raised by the callable are caught before __exit__ is called, so __exit__'s arguments will always be `(None, None, None)`. PLEASE NOTE: if dont_raise is false, this attribute has no effect.",
       NULL },
+	{ "times_switched_to",
+	  (getter)TaskletTimesSwitchedToGet,
+      NULL,
+	  "Number of times this tasklet has been switched to. This gets reset to zero when the tasklet is re-bound",
+	  NULL },
 	{ NULL } /* Sentinel */
 };
 

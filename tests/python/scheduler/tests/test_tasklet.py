@@ -422,8 +422,38 @@ class TestTasklets(test_utils.SchedulerTestCaseBase):
 
         self.assertEqual(valueOut[0],valueIn[0])
 
+    def test_times_switched_to(self):
+        def foo(c):
+            self.assertEqual(scheduler.getcurrent().times_switched_to, 1)
+            c.receive()
+            self.assertEqual(scheduler.getcurrent().times_switched_to, 2)
+            scheduler.schedule()
+            self.assertEqual(scheduler.getcurrent().times_switched_to, 3)
 
+        chan = scheduler.channel()
+        t = scheduler.tasklet(foo)(chan)
+        scheduler.run()
+        chan.send(None)
 
+    def test_times_switched_to_bind_reset(self):
+        def foo(c):
+            self.assertEqual(scheduler.getcurrent().times_switched_to, 1)
+            c.receive()
+            self.assertEqual(scheduler.getcurrent().times_switched_to, 2)
+            scheduler.schedule()
+            self.assertEqual(scheduler.getcurrent().times_switched_to, 3)
+
+        def bar():
+            self.assertEqual(scheduler.getcurrent().times_switched_to, 1)
+
+        chan = scheduler.channel()
+        t = scheduler.tasklet(foo)(chan)
+        scheduler.run()
+        chan.send(None)
+
+        t.bind(bar)
+        t.setup()
+        scheduler.run()
 
 class TestTaskletThrowBase(object):
 

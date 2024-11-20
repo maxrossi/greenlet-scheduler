@@ -215,6 +215,8 @@ public:
 
     void SetContextManagerCallable( PyObject* contextManagerCallable );
 
+    long GetTimesSwitchedTo();
+
 private:
 
     void SetExceptionState( PyObject* exception, PyObject* arguments = Py_None );
@@ -282,6 +284,8 @@ private:
     bool m_paused;
 
     bool m_firstRun;
+
+    long m_timesSwitchedTo;
 
     RescheduleType m_reschedule;
 
