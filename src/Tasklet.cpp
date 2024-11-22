@@ -1149,7 +1149,7 @@ bool Tasklet::SetCallsiteData( PyObject* callable )
 
     PyObject* dunderCode = PyObject_GetAttrString( callable, "__code__" );
 
-    if( !PyObject_HasAttrString( dunderCode, "co_filename" ) )
+    if( PyObject_HasAttrString( dunderCode, "co_filename" ) )
 	{
 		PyObject* coFileName = PyObject_GetAttrString( dunderCode, "co_filename" );
 		bool res = StdStringFromPyObject(coFileName , m_fileName );

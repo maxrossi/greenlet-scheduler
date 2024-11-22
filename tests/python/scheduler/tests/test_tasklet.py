@@ -1236,6 +1236,13 @@ class TestTaskletMetricsCollection(test_utils.SchedulerTestCaseBase):
         t = scheduler.tasklet(testMethod)()
         self.assertEqual(testMethod.__code__.co_firstlineno, t.line_number)
 
+    def test_file_name(self):
+        def testMethod():
+            return 0
+
+        t = scheduler.tasklet(testMethod)()
+        self.assertTrue(t.file_name.endswith("test_tasklet.py"))
+
 
     def test_start_end_time(self):
         def testMethod():
