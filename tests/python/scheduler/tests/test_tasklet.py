@@ -1404,3 +1404,55 @@ class TestTaskletDontRaise(test_utils.SchedulerTestCaseBase):
         self.assertRaises(TypeError, scheduler.run)
 
         self.assertEqual(a, [ (1, t), 1, (2, t) ])
+
+    def test_exception_handler(self):
+        def testMethod():
+            raise TypeError("test")
+
+        info = []
+
+        def exception_handler(infostring):
+            import sys
+            type, _, _ = sys.exc_info()
+            info.append(type)
+
+        t = scheduler.tasklet()
+        t.dont_raise = True
+        t.bind(testMethod)
+        t.setup()
+        t.exception_handler = exception_handler
+        scheduler.run()
+
+        self.assertEqual(info, [TypeError])
+
+    def test_exception_handler_none(self):
+        def testMethod():
+          raise TypeError("test")
+
+        t = scheduler.tasklet()
+        t.dont_raise = True
+        t.bind(testMethod)
+        t.setup()
+        t.exception_handler = None
+        scheduler.run()
+
+    def test_exception_handler_raises(self):
+        def testMethod():
+            raise TypeError("test")
+
+        info = []
+
+        def exception_handler(infostring):
+            import sys
+            type, _, _ = sys.exc_info()
+            info.append(type)
+            raise RuntimeError("this should not bubble up")
+
+        t = scheduler.tasklet()
+        t.dont_raise = True
+        t.bind(testMethod)
+        t.setup()
+        t.exception_handler = exception_handler
+        scheduler.run()
+
+        self.assertEqual(info, [TypeError])

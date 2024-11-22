@@ -623,6 +623,50 @@ static PyObject* TaskletTimesSwitchedToGet(PyTaskletObject* self, void* closure)
     return PyLong_FromLong( self->m_implementation->GetTimesSwitchedTo() );
 }
 
+static PyObject* TaskletExceptionHandlerGet(PyTaskletObject* self, void* closure)
+{
+	if( !PyTaskletObjectIsValid( self ) )
+	{
+		return nullptr;
+	}
+
+    PyObject* exceptionHandler = self->m_implementation->GetExceptionHandler();
+
+    if (exceptionHandler == nullptr)
+    {
+		Py_RETURN_NONE;
+    }
+
+    return exceptionHandler;
+}
+
+static int TaskletExceptionHandlerSet(PyTaskletObject* self, PyObject* value, void* closure)
+{
+	if( !PyTaskletObjectIsValid( self ) )
+	{
+		return -1;
+	}
+
+    if (value == Py_None)
+    {
+		Py_IncRef( value );
+		self->m_implementation->SetExceptionHandler( value );
+
+        return 0;
+    }
+
+    if( !PyCallable_Check( value ) )
+	{
+		PyErr_SetString( PyExc_TypeError, "exception_handler must be a callable" );
+		return -1;
+	}
+
+	Py_IncRef( value );
+	self->m_implementation->SetExceptionHandler( value );
+
+    return 0;
+}
+
 static PyGetSetDef Tasklet_getsetters[] = {
 	{ "alive", 
         (getter)TaskletAliveGet,
@@ -754,6 +798,11 @@ static PyGetSetDef Tasklet_getsetters[] = {
       NULL,
 	  "Number of times this tasklet has been switched to. This gets reset to zero when the tasklet is re-bound",
 	  NULL },
+	{ "exception_handler",
+	  (getter)TaskletExceptionHandlerGet,
+	  (setter)TaskletExceptionHandlerSet,
+	  "If dont_raise is True, this callable will be called with one argument (a tasklet information string) whenever an uncaught exception is raised by the tasket's callable",
+      NULL },
 	{ NULL } /* Sentinel */
 };
 
@@ -1328,10 +1377,9 @@ static PyObject*
     // this is where we actually call the original callable
 	PyObject* result = PyObject_Call( wrapperObject->m_callable, args, kwargs );
 
-	if( PyErr_Occurred() )
+	if( result == nullptr )
 	{
 		PyObject* exception = PyErr_GetRaisedException();
-
 
 		if( PyErr_GivenExceptionMatches( exception, TaskletExit ) )
 		{
@@ -1342,26 +1390,38 @@ static PyObject*
 			return nullptr;
 		}
 
-		if( wrapperObject->m_ownerTasklet )
+        PyErr_SetRaisedException( exception );
+
+        PyObject *type, *value, *traceback;
+		PyErr_Fetch( &type, &value, &traceback );
+        PyErr_SetExcInfo( type, value, traceback );
+
+        PyObject* exceptionHandlerCallable = t->GetExceptionHandler();
+
+        if(exceptionHandlerCallable && exceptionHandlerCallable != Py_None)
 		{
+			
+            PyObject* formatString = PyUnicode_FromFormat( 
+                "Unhandled exception in <Tasklet alive=%d blocked=%d paused=%d scheduled=%d context=%s>",
+				t->IsAlive(),
+				t->IsBlocked(),
+				t->IsPaused(),
+				t->IsScheduled(),
+				t->GetContext().data()
+            );
 
-			std::string exceptionString;
-			PyObject* exceptionStringPyObj = PyObject_Str( exception );
-			StdStringFromPyObject( exceptionStringPyObj, exceptionString );
-			Py_DecRef( exceptionStringPyObj );
-			Py_DecRef( exception );
+			PyObject* exceptionHandlerResult = PyObject_CallOneArg( exceptionHandlerCallable, formatString );
+			Py_DECREF( formatString );
 
-			CCP_LOGERR( "Unhandled exception in Tasklet <alive=%d blocked=%d paused=%d scheduled=%d context=%s>", t->IsAlive(), t->IsBlocked(), t->IsScheduled(), t->IsPaused(), t->GetContext().data() );
+			if( exceptionHandlerResult == nullptr )
+			{
+				PyObject* exceptionHandlerRaisedException = PyErr_GetRaisedException();
+				PyErr_DisplayException( exceptionHandlerRaisedException );
+				Py_DECREF( exceptionHandlerRaisedException );
+			}
 		}
 
-		// if there's an exception set after running the callback, we should return nullptr here
-		if( PyErr_Occurred() )
-		{
-			Py_XDECREF( contextManager );
-			Py_XDECREF( exitCallable );
-			Py_XDECREF( exitArgs );
-			return nullptr;
-		}
+        PyErr_SetExcInfo( nullptr, nullptr, nullptr );
 
         if (exitCallable)
         {

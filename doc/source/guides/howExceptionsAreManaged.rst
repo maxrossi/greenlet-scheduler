@@ -143,10 +143,42 @@ Attempting to change the value of :py:attr:`scheduler.tasklet.dont_raise` after 
    def testMethod():
       pass
 
-   t = scheduler.tasklet(testMethod)()
+   t = scheduler.tasklet()
    t.dont_raise = True
+   t.bind(testMethod)
+   t.setup()
 
    >>>RuntimeError: You cannot change this value after the tasklet has been bound
+
+You can set an exception handler (None by default) by setting :py:attr:`scheduler.tasklet.exception_handler` to a function that takes one argument, a string containing tasklet information:
+
+.. code-block:: python
+   
+   def testMethod():
+      raise TypeError("test")
+
+   def exception_handler(infostring):
+      print(infostring)
+      import traceback
+      traceback.print_exc()
+
+   t = scheduler.tasklet()
+   t.dont_raise = True
+   t.context = "extra info"
+   t.bind(testMethod)
+   t.setup()
+   t.exception_handler = exception_handler
+
+   scheduler.run()
+
+   >>>Unhandled exception in <Tasklet alive=1 blocked=0 paused=0 scheduled=1 context=extra info>
+      Traceback (most recent call last):
+        File "yourPythonCode.py", line 3, in testMethod
+          raise TypeError("test")
+      TypeError: test
+
+Any exceptions that occur in the handler code will cause both exceptions to be written to stderr.
+
 
 Suggested Further Reading
 -------------------------

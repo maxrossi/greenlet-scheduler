@@ -217,6 +217,10 @@ public:
 
     long GetTimesSwitchedTo();
 
+    PyObject* GetExceptionHandler() const;
+
+    void SetExceptionHandler( PyObject* exceptionHandler );
+
 private:
 
     void SetExceptionState( PyObject* exception, PyObject* arguments = Py_None );
@@ -300,6 +304,8 @@ private:
 	PyObject* m_exceptionArguments;
 
     PyObject* m_taskletExitException; //Weak ref
+
+    PyObject* m_exceptionHandler;
 
     ScheduleManager* m_scheduleManager;
 

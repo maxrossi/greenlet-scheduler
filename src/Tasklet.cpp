@@ -45,7 +45,8 @@ Tasklet::Tasklet( PyObject* pythonObject, PyObject* taskletExitException, bool i
 	m_runTime( 0.0 ),
 	m_highlighted( false ),
 	m_dontRaise( false ),
-	m_ContextManagerCallable( nullptr )
+	m_ContextManagerCallable( nullptr ),
+	m_exceptionHandler(nullptr)
 {
     // Update Tasklet counters
 	s_totalAllTimeTaskletCount++;
@@ -1506,4 +1507,16 @@ void Tasklet::SetContextManagerCallable( PyObject* contextManagerCallable )
 long Tasklet::GetTimesSwitchedTo()
 {
 	return m_timesSwitchedTo;
+}
+
+PyObject* Tasklet::GetExceptionHandler() const
+{
+	return m_exceptionHandler;
+}
+
+void Tasklet::SetExceptionHandler(PyObject* exceptionHander)
+{
+	Py_XDECREF( m_exceptionHandler );
+
+    m_exceptionHandler = exceptionHander;
 }

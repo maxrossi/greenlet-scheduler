@@ -114,3 +114,5 @@ Attributes
 .. autoattribute:: scheduler.tasklet.context_manager_getter
 
 .. autoattribute:: scheduler.tasklet.times_switched_to
+
+.. autoattribute:: scheduler.tasklet.exception_handler
