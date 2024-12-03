@@ -25,6 +25,7 @@
 
 #include <map>
 #include <chrono>
+#include <unordered_set>
 
 typedef int( schedule_hook_func )( struct PyTaskletObject* from, struct PyTaskletObject* to );  // TODO remove redef
 
@@ -92,6 +93,15 @@ public:
 
     static int GetNumberOfTaskletsSwitchedLastRunWithTimeout();
 
+    void RegisterTaskletToThread( Tasklet* tasklet );
+
+	void UnregisterTaskletFromThread( Tasklet* tasklet );
+
+	void ClearThreadTasklets();
+
+	unsigned long ThreadId() const;
+
+
 private:
 
     void RunSchedulerCallback( Tasklet* previous, Tasklet* next );
@@ -114,7 +124,7 @@ public:
 
 private:
 
-    long m_threadId;
+    unsigned long m_threadId;
 
     Tasklet* m_schedulerTasklet;
 
@@ -149,6 +159,10 @@ private:
     static inline long s_numberOfTaskletsSwitchedLastRunWithTimeout = 0;
 
     static inline long s_numberOfActiveScheduleManagers = 0;
+
+    std::unordered_set<Tasklet*> m_taskletsOnSchedulerThread;
+
+	static inline std::map<long, ScheduleManager*> s_closingScheduleManagers;
     
 };
 

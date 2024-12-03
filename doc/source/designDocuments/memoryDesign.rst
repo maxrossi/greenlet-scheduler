@@ -24,20 +24,18 @@ Therefore if an operation which requires a :doc:`../pythonApi/scheduleManager` i
 
 Each :doc:`../pythonApi/scheduleManager` requires its own :doc:`../pythonApi/tasklet`, this is commonly referred to as the Main :doc:`../pythonApi/tasklet`. (see :doc:`../guides/theMainTasklet`).
 
-From a memory design point of view Main Tasklets are special in that they **do not** hold a strong reference to their associated :doc:`../pythonApi/scheduleManager`.
-
-This is because the :doc:`../pythonApi/scheduleManager` holds a strong reference to its Main tasklet and that would produce a circular dependancy.
+The :doc:`../pythonApi/scheduleManager` will hold a strong reference to any :doc:`../pythonApi/tasklet` added to its runnables queue. These will be released when removed from the queue.
 
 It is possible to request a strong reference to a :doc:`../pythonApi/scheduleManager` via :py:func:`scheduler.get_schedule_manager`.
 
-However, there is no need to hold a strong reference to the schedule manager, as one is held internally by the `PyThreadState <https://docs.python.org/3/c-api/init.html#c.PyThreadState_GetDict>` 
+However, there is no need to hold a strong reference to the schedule manager, as one is held internally by the `PyThreadState <https://docs.python.org/3/c-api/init.html#c.PyThreadState_GetDict>`_
 when a :doc:`../pythonApi/scheduleManager` is created.
 
 When the thread dies or ends, this strong reference is released and the :doc:`../pythonApi/scheduleManager` will be destroyed if no other strong references to it exist on another thread.
 
 In a multithreaded environment, holding a strong reference to another thread's :doc:`../pythonApi/scheduleManager` will naturally prevent the :doc:`../pythonApi/scheduleManager` auto cleanup once that thread has ended.
 
-The :doc:`../pythonApi/scheduleManager` will hold a strong reference to any :doc:`../pythonApi/tasklet` added to its runnables queue. These will be released when removed from the queue.
+When a thread with a :doc:`../pythonApi/scheduleManager` finishes, each :doc:`../pythonApi/tasklet` associated with the thread's :doc:`../pythonApi/scheduleManager` will be killed. This is also true for Tasklets blocked on a :doc:`../pythonApi/channel`.
 
 
 Tasklets (Non Main)
@@ -45,20 +43,13 @@ Tasklets (Non Main)
 
 Tasklets are also bound to a Python thread.
 
-when a :doc:`../pythonApi/tasklet` is created it stores a strong reference to the :doc:`../pythonApi/scheduleManager` of the same Python thread. This is only released when the :doc:`../pythonApi/tasklet` is destroyed.
-
-This means that while a reference to a :doc:`../pythonApi/tasklet` on a Python thread exists the :doc:`../pythonApi/scheduleManager` will be kept alive.
-
-This also means that holding a reference to another thread's tasklet, will prevent that thread's schedule manager from being auto cleaned up once that thread has ended.
-
-The :doc:`../pythonApi/tasklet` can even be outside the :doc:`../pythonApi/scheduleManager` for example after a :py:func:`scheduler.tasklet.schedule_remove`.
-
-Once all Tasklets in a thread, all manual references to :doc:`../pythonApi/scheduleManager` are destroyed, and the tread has ended then the :doc:`../pythonApi/scheduleManager` will automatically clean up.
+If a thread is finished that a :doc:`../pythonApi/tasklet` is associated with, the :doc:`../pythonApi/tasklet` will be killed. 
 
 Tasklets hold a strong reference to their parent. The parent is the :doc:`../pythonApi/tasklet` that started it. Multiple nesting levels are possible. When a :doc:`../pythonApi/tasklet` yields it yields to its parent. By keeping a strong reference to its parent it ensures that this yield location remains valid even if the parent :doc:`../pythonApi/tasklet` has finished.
 
-For more information on :doc:`../pythonApi/tasklet` nesting see :py:func:`scheduler.tasklet.run` and :doc:`../guides/understandingTaskletScheduleOrder`.
+The nesting behaviour of can be turned via :py:func:`scheduler.set_use_nested_tasklets`. A reason for this nesting behaviour is yet to emerge, it is likely to be removed in the future.
 
+For more information on :doc:`../pythonApi/tasklet` nesting see :py:func:`scheduler.tasklet.run` and :doc:`../guides/understandingTaskletScheduleOrder`.
 
 
 Channels
@@ -71,6 +62,8 @@ Channels hold a store of Tasklets that are 'blocked' on them (see :doc:`../guide
 When a :doc:`../pythonApi/tasklet` is 'blocked' on a :doc:`../pythonApi/channel`, the :doc:`../pythonApi/channel` will hold a strong reference to it to keep it alive.
 
 If a :doc:`../pythonApi/tasklet` is 'unblocked' due to a completed data transfer the strong reference is removed.
+
+If the thread associated with a blocked :doc:`../pythonApi/tasklet` finishes then it will be killed and removed from the channel block list.
 
 
 Greenlet and References

@@ -1347,3 +1347,33 @@ class TestChannels(SchedulerTestCaseBase):
         a = chan.queue
         self.assertEqual(a, t2)
         chan.receive()
+
+    def test_tasklet_channel_cleanup_on_thread_finish(self):
+        ''' Test that tasklets belonging to a finished thread are removed from channel. '''
+        import threading
+        c = scheduler.channel()
+
+        tasklet = [None]
+        testValue = [False]
+
+        def callable():
+            c.receive()
+            # Code should never be reached
+            testValue[0] = True
+
+        def thread_func():
+            tasklet[0] = scheduler.tasklet(callable)()
+            tasklet[0].run()
+
+        thread = threading.Thread(target=thread_func)
+        thread.start()
+        thread.join()
+
+        self.assertEqual(testValue[0],False)
+
+        # The Tasklet will have been removed from blocked
+        self.assertEqual(c.balance,0)
+
+        # There should now only be one reference remaining (2 for sys.getrefcount)
+        self.assertEqual(sys.getrefcount(tasklet[0]),2)
+        tasklet[0] = None

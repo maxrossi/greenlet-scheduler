@@ -18,7 +18,7 @@ Tasklet::Tasklet( PyObject* pythonObject, PyObject* taskletExitException, bool i
 	m_blocktrap( false ),
 	m_previous( nullptr ),
 	m_next( nullptr ),
-	m_threadId( PyThread_get_thread_ident() ),
+	m_threadId( -1 ),
 	m_transferArguments( nullptr ),
 	m_transferException( nullptr ),
 	m_channelBlockedOn( nullptr ),
@@ -52,30 +52,22 @@ Tasklet::Tasklet( PyObject* pythonObject, PyObject* taskletExitException, bool i
 	s_totalAllTimeTaskletCount++;
 	s_totalActiveTasklets++;
 
-    // If tasklet is not a scheduler tasklet then register the tasklet with the scheduler
-    // This will create a scheduler if required and while the tasklet is alive 
-    // it will hold an incref to it
+    // If tasklet is not a scheduler tasklet then register the tasklet with the thread's ScheduleManager
 	if( !m_isMain )
 	{
-		m_scheduleManager = ScheduleManager::GetThreadScheduleManager( ); // This will return a new reference which is then decreffed in destructor
+		SetScheduleManager( ScheduleManager::GetThreadScheduleManager() );
 	}
 }
 
 Tasklet::~Tasklet()
 {
-    // Decriment Tasklet Counter
-	s_totalActiveTasklets--;
-
-	if( !m_isMain )
+	if( m_alive )
 	{
-		m_scheduleManager->Decref(); // Decref tasklets usage
+		SetAlive( false );
 	}
 
-    // Clearing parent releases a strong reference to it held by the child
-    // This is usually set to null by schedule manager but if it was last on a channel
-    // then it needs clearing at this stage.
-    // TODO when channel switching is done using the scheduler queue this can change.
-    SetParent( nullptr );
+    // Decriment Tasklet Counter
+	s_totalActiveTasklets--;
 
 	Py_CLEAR( m_callable );
 
@@ -88,8 +80,6 @@ Tasklet::~Tasklet()
 	Py_XDECREF( m_transferArguments );
 
     Py_XDECREF( m_ContextManagerCallable );
-
-    m_scheduleManager = nullptr;
 
 }
 
@@ -323,19 +313,17 @@ bool Tasklet::SwitchTo( )
 		kwArgsSupplied = true;
 	}
 
-    ScheduleManager* scheduleManager = ScheduleManager::GetThreadScheduleManager();
-
-    auto main_tasklet = scheduleManager->GetMainTasklet();
+    auto main_tasklet = m_scheduleManager->GetMainTasklet();
 	// Check required arguments have been supplied if this is the first time the tasklet
 	// Has been switch to
 	if( m_firstRun && (main_tasklet != this) && !( kwArgsSupplied || argsSuppled ) )
 	{
 		PyErr_SetString( PyExc_RuntimeError, "No arguments supplied to tasklet" );
 
-        scheduleManager->Decref();
-
 		return false;
 	}
+
+    ScheduleManager* scheduleManager = ScheduleManager::GetThreadScheduleManager();
 
 	if( scheduleManager != m_scheduleManager)
 	{
@@ -344,19 +332,15 @@ bool Tasklet::SwitchTo( )
 
         if ( !scheduleManager->Yield() )
         {
-			scheduleManager->Decref();
-
             return false;
         }
     }
 	else
 	{
 
-		if( scheduleManager->IsSwitchTrapped() )
+		if( m_scheduleManager->IsSwitchTrapped() )
 		{
 			PyErr_SetString( PyExc_RuntimeError, "Cannot schedule when scheduler switch_trap level is non-zero" );
-
-            scheduleManager->Decref();
 
 			return false;
         }
@@ -368,17 +352,13 @@ bool Tasklet::SwitchTo( )
 			// If tasklet exit has been raised then don't run tasklet and keep silent
 			if( PyErr_GivenExceptionMatches( m_exceptionState, m_taskletExitException ) )
 			{
-				m_alive = false;
-
-                scheduleManager->Decref();
+				SetAlive( false );
 
 				return true;
             }
 			else
 			{
 				SetPythonExceptionStateFromTaskletExceptionState();
-
-                scheduleManager->Decref();
 
                 // Inform scheduler to remove this tasklet
                 m_remove = true;
@@ -426,8 +406,6 @@ bool Tasklet::SwitchTo( )
 
             currentTasklet->SetPythonExceptionStateFromTaskletExceptionState();
 
-            scheduleManager->Decref();
-
             return false;
   
         }
@@ -435,7 +413,8 @@ bool Tasklet::SwitchTo( )
         // Check state of tasklet
         if( !m_blocked && !m_transferInProgress && !m_isMain && !m_paused && m_reschedule == RescheduleType::NONE && !m_taggedForRemoval ) 
 		{
-			m_alive = false;
+			SetAlive( false );
+
 			OnCallableExited();
 		}
 
@@ -456,8 +435,6 @@ bool Tasklet::SwitchTo( )
 		}
 
     }
-
-    scheduleManager->Decref();
 
 	return ret;
 }
@@ -714,6 +691,15 @@ void Tasklet::Unblock()
 
 void Tasklet::SetAlive( bool value )
 {
+	if( value )
+	{
+		m_scheduleManager->RegisterTaskletToThread( this );
+	}
+	else
+	{
+		m_scheduleManager->UnregisterTaskletFromThread( this );
+	}
+
 	m_alive = value;
 }
 
@@ -919,20 +905,17 @@ Tasklet* Tasklet::GetParent()
 	return m_taskletParent;
 }
 
-int Tasklet::SetParent( Tasklet* parent )
+bool Tasklet::SetParent( Tasklet* parent )
 {
-	int ret = 0;
-
 	if( parent )
 	{
 		parent->Incref();
 
-	    ret = PyGreenlet_SetParent( m_greenlet, parent->m_greenlet );
-
+	    int ret = PyGreenlet_SetParent( m_greenlet, parent->m_greenlet );
 
 	    if( ret == -1 )
 	    {
-		    return ret;
+		    return false;
 	    }
 
     }
@@ -944,11 +927,11 @@ int Tasklet::SetParent( Tasklet* parent )
 
             main->Incref();
 
-			ret = PyGreenlet_SetParent( m_greenlet, main->m_greenlet );
+			int ret = PyGreenlet_SetParent( m_greenlet, main->m_greenlet );
 
 			if( ret == -1 )
 			{
-				return ret;
+				return false;
 			}
 
         }
@@ -961,7 +944,7 @@ int Tasklet::SetParent( Tasklet* parent )
 
 	m_taskletParent = parent;
 
-    return ret;
+    return true;
 }
 
 bool Tasklet::TaskletExceptionRaised()
@@ -1029,9 +1012,35 @@ void Tasklet::SetBlockedDirection( ChannelDirection direction )
 
 void Tasklet::SetScheduleManager( ScheduleManager* scheduleManager )
 {
-    // This is something only used for main Tasklets
-    // The resulting will store only a weak reference
-	m_scheduleManager = scheduleManager;
+	if( !scheduleManager )
+	{
+		// Clean Up Tasklet if alive
+		if( m_alive && !IsMain() )
+		{
+			Kill();
+		}
+
+		// If the Tasklet is now not alive then finish setting the ScheduleManager to
+		// null, if not the Tasklet is still alive and still needs it's current ScheduleManager
+		// It is not valid to have a Tasklet that is alive with no ScheduleManager
+		if( !m_alive )
+		{
+			m_threadId = -1;
+			m_scheduleManager = scheduleManager;
+		}
+
+		return;
+	}
+	else
+	{
+		m_threadId = scheduleManager->ThreadId();
+
+		m_scheduleManager = scheduleManager;
+
+		return;
+	}
+
+	return;
 }
 
 ScheduleManager* Tasklet::GetScheduleManager()
@@ -1366,8 +1375,6 @@ bool Tasklet::BelongsToCurrentThread()
     ScheduleManager* scheduleManager = ScheduleManager::GetThreadScheduleManager();
 
     ret = scheduleManager == m_scheduleManager;
-
-    scheduleManager->Decref();
 
     return ret;
 }

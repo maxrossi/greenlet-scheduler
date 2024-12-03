@@ -117,8 +117,6 @@ static PyObject*
 
     currentTasklet->Incref();
 
-    currentScheduler->Decref();
-
 	return currentTasklet->PythonObject();
 }
 
@@ -131,8 +129,6 @@ static PyObject*
 
     mainTasklet->Incref();
 
-    currentScheduler->Decref();
-
 	return mainTasklet->PythonObject();
 }
 
@@ -142,8 +138,6 @@ static PyObject*
 	ScheduleManager* currentScheduler = ScheduleManager::GetThreadScheduleManager();
 
     PyObject* ret = PyLong_FromLong( currentScheduler->GetCachedTaskletCount() );
-
-    currentScheduler->Decref();
 
 	return ret;
 }
@@ -155,8 +149,6 @@ static PyObject*
 
 	PyObject* ret = PyLong_FromLong( currentScheduler->GetCalculatedTaskletCount() );
 
-	currentScheduler->Decref();
-
 	return ret;
 }
 
@@ -166,8 +158,6 @@ static PyObject*
 	ScheduleManager* currentScheduler = ScheduleManager::GetThreadScheduleManager();
 
     bool scheduleSuccessful = currentScheduler->Schedule( RescheduleType::BACK );
-
-    currentScheduler->Decref();
 
 	if( scheduleSuccessful )
 	{
@@ -188,8 +178,6 @@ static PyObject*
 
     bool scheduleRemoveSuccessful = currentScheduler->Schedule( RescheduleType::BACK, true );
 
-    currentScheduler->Decref();
-
 	if( scheduleRemoveSuccessful )
 	{
 		Py_IncRef( Py_None );
@@ -208,8 +196,6 @@ static PyObject*
 	ScheduleManager* currentScheduler = ScheduleManager::GetThreadScheduleManager();
 
     bool ret = currentScheduler->Run();
-
-    currentScheduler->Decref();
 
     if (ret)
     {
@@ -243,8 +229,6 @@ static PyObject*
 		ScheduleManager* currentScheduler = ScheduleManager::GetThreadScheduleManager();
 
 		bool ret = currentScheduler->RunNTasklets( numberOfTasklets );
-
-        currentScheduler->Decref();
 
         if (ret)
         {
@@ -287,8 +271,6 @@ static PyObject*
 			currentScheduler->SetSchedulerCallback( nullptr );
         }
 
-        currentScheduler->Decref();
-
 		if( previousCallback )
 		{
 			return previousCallback;
@@ -327,8 +309,6 @@ static PyObject*
 		ret = Py_None;
 	}
 
-	currentScheduler->Decref();
-
 	return ret;
     
 }
@@ -354,8 +334,6 @@ static PyObject*
 
 	PyTuple_SetItem( threadInfoTuple, 2, PyLong_FromLong( currentScheduler->GetCachedTaskletCount() + 1 ) );
 
-    currentScheduler->Decref();
-
 	return threadInfoTuple;
 }
 
@@ -376,8 +354,6 @@ static PyObject*
 
 	currentScheduler->SetSwitchTrapLevel( originalSwitchTrap + delta );
 
-    currentScheduler->Decref();
-
 	return PyLong_FromLong( originalSwitchTrap );
 }
 
@@ -388,6 +364,8 @@ static PyObject*
 
     if (scheduleManager)
     {
+		scheduleManager->Incref();
+
         return scheduleManager->PythonObject();
     }
     else
@@ -843,8 +821,6 @@ extern "C"
 
         int ret = scheduleManager->GetCachedTaskletCount();
 
-        scheduleManager->Decref();
-
 		return ret;
 	}
 
@@ -860,8 +836,6 @@ extern "C"
 
         currentTasklet->Incref();
 
-        scheduleManager->Decref();
-
 		return currentTasklet->PythonObject();
 	}
 
@@ -875,8 +849,6 @@ extern "C"
 		ScheduleManager* scheduleManager = ScheduleManager::GetThreadScheduleManager();
 
 		bool ret = scheduleManager->RunTaskletsForTime( timeout );
-        
-        scheduleManager->Decref();
 
         if ( ret )
         {
@@ -899,8 +871,6 @@ extern "C"
 		ScheduleManager* scheduleManager = ScheduleManager::GetThreadScheduleManager();
 
 		bool ret = scheduleManager->RunNTasklets( number_of_tasklets_to_run );
-
-        scheduleManager->Decref();
 
         if (ret)
         {
@@ -956,8 +926,6 @@ extern "C"
 
 		currentScheduler->SetSchedulerCallback( callable );
 
-        currentScheduler->Decref();
-
 		return 0;
 	}
 
@@ -969,8 +937,6 @@ extern "C"
 		ScheduleManager* currentScheduler = ScheduleManager::GetThreadScheduleManager();
 
 		currentScheduler->SetSchedulerFastCallback( func );
-
-        currentScheduler->Decref();
 	}
 
     /// @brief Get number of active ScheduleManagers

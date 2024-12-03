@@ -206,8 +206,6 @@ static PyObject*
 
 	Tasklet* currentTasklet = scheduleManager->GetCurrentTasklet();
 
-    scheduleManager->Decref();
-
 	return reinterpret_cast<PyObject*>( self ) == currentTasklet->PythonObject() ? Py_True : Py_False;
 }
 
@@ -791,7 +789,11 @@ static PyGetSetDef Tasklet_getsetters[] = {
 	{ "context_manager_getter",
       (getter)TaskletContextManagerCallableGet,
 	  (setter)TaskletContextManagerCallableSet,
-       "A callable that takes a reference to this Tasklet and must return a context manager object who's __enter__ & __exit__ methods get called at the beggining and end of the tasklet callable respectively as if the context manager wrapped the callable in a `with(ctxManager)` statement. If this is None, then this attribute has no effect. None by default. Any errors raised by the callable are caught before __exit__ is called, so __exit__'s arguments will always be `(None, None, None)`. PLEASE NOTE: if dont_raise is false, this attribute has no effect.",
+	  "A callable that takes a reference to this Tasklet and must return a context manager object who's __enter__ & __exit__ methods get called at the beginning and end of the tasklet callable respectively as if the context manager wrapped the callable in a `with(ctxManager)` statement. \n\n\
+       None by default. \n\n\
+       If this is None, then this attribute has no effect. \n\n\
+       Any errors raised by the callable are caught before __exit__ is called, so __exit__'s arguments will always be `(None, None, None)`. \n\n\
+            :note: If dont_raise is false, this attribute has no effect.",
       NULL },
 	{ "times_switched_to",
 	  (getter)TaskletTimesSwitchedToGet,

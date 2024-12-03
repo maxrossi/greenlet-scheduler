@@ -9,11 +9,7 @@ import scheduler
 class SchedulerTestCaseBase(unittest.TestCase):
 
     def setUp(self):
-        # Store reference to schedule manager to keep it alive during test
-        self.scheduleManager = scheduler.get_schedule_manager()
-
-        #Sanity check
-        self.assertEqual(sys.getrefcount(self.scheduleManager), 3)
+        pass
 
     def tearDown(self):
 
@@ -36,11 +32,7 @@ class SchedulerTestCaseBase(unittest.TestCase):
         scheduler.run()
         
         # Check references in schedule manager are all cleaned up and ready for removal
-        self.assertEqual(sys.getrefcount(self.scheduleManager), 3)
-
-        # remove reference to schedule manager, it should then die
-        # TODO if it doesn't then this should fail test as it implies mem leak
-        self.scheduleManager = None
+        self.assertEqual(sys.getrefcount(scheduler.get_schedule_manager()), 2)
 
         # Ensure garbage collector has run and collected last schedule manager
         gc.collect()

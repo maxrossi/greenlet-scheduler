@@ -31,6 +31,21 @@ ScheduleManager::ScheduleManager( PyObject* pythonObject ) :
 
 ScheduleManager::~ScheduleManager()
 {
+	s_closingScheduleManagers[m_threadId] = this;
+	
+	// It is possible that this becomes and infinate loop
+	// For example if the python code catches the TaskletExit/generic exceptionscheduleManager->Decref(
+	// as part of an inifinate loop
+	// If this is the case carbon-scheduler will start to leak scheduleManagers and threads
+	// This could be noticable through metrics
+	// We could put a limit on the pumping of below and just instead opt to leak Tasklets/arguments
+	while( m_taskletsOnSchedulerThread.size() > 0 )
+	{
+		ClearThreadTasklets();
+	}
+    
+	s_closingScheduleManagers.erase( m_threadId );
+
 	m_schedulerTasklet->Decref();
 
     s_numberOfActiveScheduleManagers--;
@@ -68,6 +83,22 @@ ScheduleManager* ScheduleManager::GetThreadScheduleManager()
 {
 
     GILRAII gil; // we MUST hold the gil - this is being extra safe
+    
+    // When a thread is destroyed it will cause ScheduleManager destruction to be called
+	// The destructor attempts to clean up Tasklets on the ScheduleManager and this requires
+	// calls to GetThreadScheduleManager. At this point when GetThreadScheduleManager is called
+	// the ScheduleManager will not be found in the thread dict and so a new one would be made.
+	// This means that subsequent equality checks will indicate a thread missmatch
+	// To stop this a temporary container of closing scheduleManagers is held using the threadId
+	// as a key. We are not in danger of the threadId being reused at this point as technically
+	// the thread will not have fully finished until the scheduleManager destructor is completed
+	// at the end of which the scheduleManager will be removed from the closingScheduleManagers list.
+	long threadId = PyThread_get_thread_ident();
+	auto res = s_closingScheduleManagers.find( threadId );
+	if( res != s_closingScheduleManagers.end() )
+	{
+		return res->second;
+	}
 
     PyObject* threadDict = PyThreadState_GetDict();
     
@@ -85,6 +116,8 @@ ScheduleManager* ScheduleManager::GetThreadScheduleManager()
         scheduleManager->m_schedulerTasklet->SetScheduleManager( scheduleManager );
 
 		int res = PyDict_SetItem( threadDict, m_scheduleManagerThreadKey, pyScheduleManager );
+        
+        scheduleManager->Decref();
 
         if (res == -1)
         {
@@ -97,7 +130,6 @@ ScheduleManager* ScheduleManager::GetThreadScheduleManager()
 	else
 	{
 		scheduleManager = reinterpret_cast<PyScheduleManagerObject*>( pyScheduleManager )->m_implementation;
-		scheduleManager->Incref();
     }
 
     return scheduleManager;
@@ -432,7 +464,7 @@ bool ScheduleManager::Run( Tasklet* startTasklet /* = nullptr */ )
 			return true;
         }
 
-        if (currentTasklet->SetParent(ScheduleManager::GetCurrentTasklet()) == -1)
+        if (!currentTasklet->SetParent(ScheduleManager::GetCurrentTasklet()))
         {
 			return false;
         }
@@ -687,4 +719,32 @@ int ScheduleManager::GetNumberOfTaskletsCompletedLastRunWithTimeout()
 int ScheduleManager::GetNumberOfTaskletsSwitchedLastRunWithTimeout()
 {
 	return s_numberOfTaskletsSwitchedLastRunWithTimeout;
+}
+
+
+void ScheduleManager::RegisterTaskletToThread( Tasklet* tasklet )
+{
+	m_taskletsOnSchedulerThread.insert( tasklet );
+}
+
+void ScheduleManager::UnregisterTaskletFromThread( Tasklet* tasklet )
+{
+	if( m_taskletsOnSchedulerThread.find( tasklet ) != m_taskletsOnSchedulerThread.end() )
+	{
+		m_taskletsOnSchedulerThread.erase( tasklet );
+	}
+}
+
+void ScheduleManager::ClearThreadTasklets()
+{
+	for( Tasklet* t : m_taskletsOnSchedulerThread )
+	{
+		// Disassociate tasklet from thread
+		t->SetScheduleManager( nullptr );
+	}
+}
+
+unsigned long ScheduleManager::ThreadId() const
+{
+	return m_threadId;
 }

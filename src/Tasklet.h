@@ -125,7 +125,7 @@ public:
 
     Tasklet* GetParent();
 
-    int SetParent( Tasklet* parent );
+    bool SetParent( Tasklet* parent );
 
     bool TaskletExceptionRaised();
 

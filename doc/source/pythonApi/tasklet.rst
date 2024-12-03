@@ -13,11 +13,23 @@ Methods
 
 .. autofunction:: scheduler.tasklet.insert
 
+    .. note::
+
+        It is possible to perform this operation from a thread other than the thread associated with the Tasklet in question.
+
     For further information see :doc:`../guides/understandingTaskletScheduleOrder`.
 
 .. autofunction:: scheduler.tasklet.remove
 
+    .. note::
+
+        It is possible to perform this operation from a thread other than the thread associated with the Tasklet in question.
+
 .. autofunction:: scheduler.tasklet.run
+
+    .. note::
+
+        It is not possible to perform this operation from a thread other than the thread associated with the Tasklet in question. If performed will silently ignore.
 
     For further information see:
     
@@ -28,9 +40,17 @@ Methods
 
 .. autofunction:: scheduler.tasklet.switch
 
+    .. note::
+
+        It is not possible to perform this operation from a thread other than the thread associated with the Tasklet in question. Will raise a RuntimeError.
+
     For further information regarding manual switching see :doc:`../guides/manualControlScheduling`.
 
 .. autofunction:: scheduler.tasklet.throw
+
+    .. note::
+
+        It is not possible to perform this operation from a thread other than the thread associated with the Tasklet in question. Will raise a RuntimeError.
 
     :seealso: :py:func:`scheduler.TaskletExit`
 
@@ -38,11 +58,19 @@ Methods
 
 .. autofunction:: scheduler.tasklet.raise_exception
 
+    .. note::
+
+        It is not possible to perform this operation from a thread other than the thread associated with the Tasklet in question. Will raise a RuntimeError.
+
     :seealso: :py:func:`scheduler.TaskletExit`
 
     For further information see :doc:`../guides/howExceptionsAreManaged`.
 
 .. autofunction:: scheduler.tasklet.kill
+
+    .. note::
+
+        It is not possible to perform this operation from a thread other than the thread associated with the Tasklet in question. Will raise a RuntimeError.
 
     :seealso: :py:func:`scheduler.TaskletExit`
 
@@ -52,11 +80,19 @@ Methods
 
 .. autofunction:: scheduler.tasklet.bind
 
+    .. note::
+
+        It is not possible to perform this operation from a thread other than the thread associated with the Tasklet in question. Will raise a RuntimeError.
+
 .. autofunction:: scheduler.tasklet.__call__
 
     Calls :py:func:`scheduler.tasklet.setup`
 
 .. autofunction:: scheduler.tasklet.setup
+
+    .. note::
+
+        It is not possible to perform this operation from a thread other than the thread associated with the Tasklet in question. Will raise a RuntimeError.
 
 Attributes
 ----------
