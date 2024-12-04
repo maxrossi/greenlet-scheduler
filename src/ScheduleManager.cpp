@@ -33,16 +33,8 @@ ScheduleManager::~ScheduleManager()
 {
 	s_closingScheduleManagers[m_threadId] = this;
 	
-	// It is possible that this becomes and infinate loop
-	// For example if the python code catches the TaskletExit/generic exceptionscheduleManager->Decref(
-	// as part of an inifinate loop
-	// If this is the case carbon-scheduler will start to leak scheduleManagers and threads
-	// This could be noticable through metrics
-	// We could put a limit on the pumping of below and just instead opt to leak Tasklets/arguments
-	while( m_taskletsOnSchedulerThread.size() > 0 )
-	{
-		ClearThreadTasklets();
-	}
+    //Clear any Tasklets that may be remaining and associated with this Thread
+	ClearThreadTasklets();
     
 	s_closingScheduleManagers.erase( m_threadId );
 
@@ -737,10 +729,25 @@ void ScheduleManager::UnregisterTaskletFromThread( Tasklet* tasklet )
 
 void ScheduleManager::ClearThreadTasklets()
 {
-	for( Tasklet* t : m_taskletsOnSchedulerThread )
+    // Tasklets will be removed from being scheduled if their ScheduleManger is set to null
+    // Tasklets without a schedule manager is an invalid state so Tasklets are killed if this is about to happen
+	// It is possible that this becomes and infinate loop
+	// For example if the python code catches the TaskletExit/generic exceptionscheduleManager->Decref(
+	// as part of an inifinate loop
+	// If this is the case carbon-scheduler will start to leak scheduleManagers and threads
+	// This could be noticable through metrics
+	// We could put a limit on the pumping of below and just instead opt to leak Tasklets/arguments
+
+	auto taskletIter = m_taskletsOnSchedulerThread.begin();
+
+	while( taskletIter != m_taskletsOnSchedulerThread.end() )
 	{
+		Tasklet* t = *taskletIter;
+
 		// Disassociate tasklet from thread
 		t->SetScheduleManager( nullptr );
+
+        taskletIter = m_taskletsOnSchedulerThread.begin();
 	}
 }
 
