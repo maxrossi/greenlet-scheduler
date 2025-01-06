@@ -10,10 +10,10 @@ Channel::Channel( PyObject* pythonObject ) :
 	PythonCppType( pythonObject ),
 	m_balance(0),
 	m_preference(ChannelPreference::RECEIVER),
-	m_lastBlockedOnSend( nullptr ),
 	m_firstBlockedOnSend( nullptr ),
-	m_lastBlockedOnReceive( nullptr ),
+	m_lastBlockedOnSend( nullptr ),
 	m_firstBlockedOnReceive( nullptr ),
+	m_lastBlockedOnReceive( nullptr ),
 	m_closing( false ),
 	m_closed( false )
 {
@@ -37,13 +37,13 @@ bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */, bool re
 
     Tasklet* current = scheduleManager->GetCurrentTasklet();
 
-	RunChannelCallback( this, current, true, m_firstBlockedOnReceive == nullptr );
+	RunChannelCallback( this, current, true, m_lastBlockedOnReceive == nullptr );
 
     current->SetTransferInProgress(true);
 
 	ChannelDirection direction = ChannelDirection::SENDER;
 
-	if( m_lastBlockedOnReceive == nullptr )
+	if( m_firstBlockedOnReceive == nullptr )
 	{
 		direction = ChannelDirection::RECEIVER;
 
@@ -168,7 +168,7 @@ PyObject* Channel::Receive()
 	// Block as there is no tasklet sending
 	Tasklet* current = scheduleManager->GetCurrentTasklet();
 
-	RunChannelCallback( this , current, false, m_firstBlockedOnSend == nullptr );
+	RunChannelCallback( this , current, false, m_lastBlockedOnSend == nullptr );
 
     if( current == nullptr )
 	{
@@ -179,7 +179,7 @@ PyObject* Channel::Receive()
 		return nullptr;
 	}
 
-    if( m_lastBlockedOnSend == nullptr )
+    if( m_firstBlockedOnSend == nullptr )
 	{
 		current->Incref();
 		AddTaskletToWaitingToReceive( current );
@@ -364,45 +364,45 @@ void Channel::UnblockTaskletFromChannel( Tasklet* tasklet )
 void Channel::RemoveTaskletFromBlocked( Tasklet* tasklet )
 {
 	bool endNode = false;
-    if (tasklet == m_firstBlockedOnReceive)
-    {
-		m_firstBlockedOnReceive = tasklet->NextBlocked();
-        if (m_firstBlockedOnReceive != nullptr)
-        {
-			m_firstBlockedOnReceive->SetPreviousBlocked( nullptr );
-        }
-
-		endNode = true;
-    }
-
-    if (tasklet == m_firstBlockedOnSend)
-    {
-		m_firstBlockedOnSend = tasklet->NextBlocked();
-        if (m_firstBlockedOnSend != nullptr)
-        {
-			m_firstBlockedOnSend->SetPreviousBlocked( nullptr );
-        }
-
-        endNode = true;
-    }
-
     if (tasklet == m_lastBlockedOnReceive)
     {
-		m_lastBlockedOnReceive = tasklet->PreviousBlocked();
+		m_lastBlockedOnReceive = tasklet->NextBlocked();
         if (m_lastBlockedOnReceive != nullptr)
         {
-			m_lastBlockedOnReceive->SetNextBlocked( nullptr );
+			m_lastBlockedOnReceive->SetPreviousBlocked( nullptr );
         }
-		
+
 		endNode = true;
     }
 
     if (tasklet == m_lastBlockedOnSend)
     {
-		m_lastBlockedOnSend = tasklet->PreviousBlocked();
+		m_lastBlockedOnSend = tasklet->NextBlocked();
         if (m_lastBlockedOnSend != nullptr)
         {
-			m_lastBlockedOnSend->SetNextBlocked( nullptr );
+			m_lastBlockedOnSend->SetPreviousBlocked( nullptr );
+        }
+
+        endNode = true;
+    }
+
+    if (tasklet == m_firstBlockedOnReceive)
+    {
+		m_firstBlockedOnReceive = tasklet->PreviousBlocked();
+        if (m_firstBlockedOnReceive != nullptr)
+        {
+			m_firstBlockedOnReceive->SetNextBlocked( nullptr );
+        }
+		
+		endNode = true;
+    }
+
+    if (tasklet == m_firstBlockedOnSend)
+    {
+		m_firstBlockedOnSend = tasklet->PreviousBlocked();
+        if (m_firstBlockedOnSend != nullptr)
+        {
+			m_firstBlockedOnSend->SetNextBlocked( nullptr );
         }
 		
 		endNode = true;
@@ -462,16 +462,16 @@ void Channel::RunChannelCallback( Channel* channel, Tasklet* tasklet, bool sendi
 
 void Channel::AddTaskletToWaitingToSend( Tasklet* tasklet )
 {
-    if( m_firstBlockedOnSend == nullptr )
+    if( m_lastBlockedOnSend == nullptr )
     {
-		m_firstBlockedOnSend = tasklet;
 		m_lastBlockedOnSend = tasklet;
+		m_firstBlockedOnSend = tasklet;
     }
 	else
 	{
-		m_firstBlockedOnSend->SetPreviousBlocked( tasklet );
-		tasklet->SetNextBlocked( m_firstBlockedOnSend );
-		m_firstBlockedOnSend = tasklet;
+		m_lastBlockedOnSend->SetPreviousBlocked( tasklet );
+		tasklet->SetNextBlocked( m_lastBlockedOnSend );
+		m_lastBlockedOnSend = tasklet;
     }
 
     tasklet->SetBlockedDirection( ChannelDirection::SENDER );
@@ -480,16 +480,16 @@ void Channel::AddTaskletToWaitingToSend( Tasklet* tasklet )
 
 void Channel::AddTaskletToWaitingToReceive( Tasklet* tasklet )
 {
-	if( m_firstBlockedOnReceive == nullptr )
+	if( m_lastBlockedOnReceive == nullptr )
     {
-		m_firstBlockedOnReceive = tasklet;
-        m_lastBlockedOnReceive = tasklet;
+		m_lastBlockedOnReceive = tasklet;
+        m_firstBlockedOnReceive = tasklet;
     }
     else
     {
-		m_firstBlockedOnReceive->SetPreviousBlocked( tasklet );
-		tasklet->SetNextBlocked( m_firstBlockedOnReceive );
-		m_firstBlockedOnReceive = tasklet;
+		m_lastBlockedOnReceive->SetPreviousBlocked( tasklet );
+		tasklet->SetNextBlocked( m_lastBlockedOnReceive );
+		m_lastBlockedOnReceive = tasklet;
     }
 
     tasklet->SetBlockedDirection( ChannelDirection::RECEIVER );
@@ -499,9 +499,9 @@ void Channel::AddTaskletToWaitingToReceive( Tasklet* tasklet )
 Tasklet* Channel::PopNextTaskletBlockedOnSend()
 {
 	Tasklet* next = nullptr;
-    if (m_lastBlockedOnSend != nullptr)
+    if (m_firstBlockedOnSend != nullptr)
     {
-		next = m_lastBlockedOnSend;
+		next = m_firstBlockedOnSend;
 
 		RemoveTaskletFromBlocked( next );
     }
@@ -512,9 +512,9 @@ Tasklet* Channel::PopNextTaskletBlockedOnSend()
 Tasklet* Channel::PopNextTaskletBlockedOnReceive()
 {
 	Tasklet* next = nullptr;
-    if (m_lastBlockedOnReceive != nullptr)
+    if (m_firstBlockedOnReceive != nullptr)
     {
-		next = m_lastBlockedOnReceive;
+		next = m_firstBlockedOnReceive;
 
 		RemoveTaskletFromBlocked( next );
     }
@@ -546,13 +546,13 @@ void Channel::SetPreferenceFromInt( int value )
 
 Tasklet* Channel::BlockedQueueFront() const
 {
-	if( m_lastBlockedOnReceive != nullptr )
+	if( m_firstBlockedOnReceive != nullptr )
     {
-		return m_lastBlockedOnReceive;
+		return m_firstBlockedOnReceive;
     }
-    else if (m_lastBlockedOnSend != nullptr)
+    else if (m_firstBlockedOnSend != nullptr)
     {
-		return m_lastBlockedOnSend;
+		return m_firstBlockedOnSend;
     }
 	return nullptr;
 }
@@ -560,14 +560,14 @@ Tasklet* Channel::BlockedQueueFront() const
 void Channel::ClearBlocked( bool pending )
 {
 	// Kill all blocked tasklets
-	while( m_lastBlockedOnReceive )
+	while( m_firstBlockedOnReceive )
 	{
-		m_lastBlockedOnReceive->Kill( pending );
+		m_firstBlockedOnReceive->Kill( pending );
 	}
 
-	while( m_lastBlockedOnSend )
+	while( m_firstBlockedOnSend )
 	{
-		m_lastBlockedOnSend->Kill( pending );
+		m_firstBlockedOnSend->Kill( pending );
 	}
 
 }
