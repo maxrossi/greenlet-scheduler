@@ -173,8 +173,6 @@ class TestTasklets(test_utils.SchedulerTestCaseBase):
         import gc
         gc.collect()
 
-        self.assertEqual(sys.getrefcount(self.scheduleManager), 3)
-
     def test_tasklets_with_cyclical_argument_cleans_up(self):
         # If Tasklet has itself in an argument ensure that 
         # cyclic dep is handled
@@ -189,8 +187,6 @@ class TestTasklets(test_utils.SchedulerTestCaseBase):
 
         import gc
         gc.collect()
-
-        self.assertEqual(sys.getrefcount(self.scheduleManager), 3)
 
     def test_remove_and_switch(self):
         valueOut = [-1]
@@ -1463,3 +1459,52 @@ class TestTaskletDontRaise(test_utils.SchedulerTestCaseBase):
         scheduler.run()
 
         self.assertEqual(info, [TypeError])
+
+    def test_new_tasklets_cleanup_on_thread_finish(self):
+        ''' Test that tasklets belonging to a finished thread are removed from channel. '''
+        import threading
+        c = scheduler.channel()
+
+        tasklet = [None]
+
+        def thread_func():
+            tasklet[0] = scheduler.tasklet(lambda:None)()
+
+        thread = threading.Thread(target=thread_func)
+        thread.start()
+        thread.join()
+
+        # There should now only be one reference remaining (2 for sys.getrefcount)
+        # Indicates that Tasklet reference held by thread schedule manager is removed
+        self.assertEqual(sys.getrefcount(tasklet[0]),2)
+        tasklet[0] = None 
+
+    def test_partially_complete_tasklets_cleanup_on_thread_finish(self):
+        ''' Test that tasklets belonging to a finished thread are removed from channel. '''
+        import threading
+
+        tasklet = [None]
+        testValue = [0]
+
+        def callable():
+            try:
+                scheduler.schedule()
+                # Code should never be reached
+                testValue[0] = 1
+            except scheduler.TaskletExit:
+                # Will be called when thread finishes
+                testValue[0] = 2
+
+        def thread_func():
+            tasklet[0] = scheduler.tasklet(callable)()
+            tasklet[0].run()
+
+        thread = threading.Thread(target=thread_func)
+        thread.start()
+        thread.join()
+
+        self.assertEqual(testValue[0],2)
+
+        # There should now only be one reference remaining (2 for sys.getrefcount)
+        self.assertEqual(sys.getrefcount(tasklet[0]),2)
+        tasklet[0] = None

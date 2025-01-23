@@ -52,8 +52,6 @@ bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */, bool re
 		{
 			PyErr_SetString( PyExc_RuntimeError, "No current tasklet set" );
 
-            scheduleManager->Decref();
-
 			return false;
 		}
 
@@ -62,8 +60,6 @@ bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */, bool re
 		{
 			PyErr_SetString( PyExc_RuntimeError, "Channel cannot block on main tasklet with block_trap set true" );
 
-            scheduleManager->Decref();
-
 			return false;
 		}
 
@@ -71,8 +67,6 @@ bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */, bool re
         if (m_closed || m_closing)
         {
 			PyErr_SetString( PyExc_ValueError, "Send operation on a closed channel" );
-
-			scheduleManager->Decref();
 
 			return false;
         }
@@ -109,8 +103,6 @@ bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */, bool re
             }
 
             current->Unblock();
-            
-            scheduleManager->Decref();
 
             UpdateCloseState();
 
@@ -137,7 +129,6 @@ bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */, bool re
 			receivingTasklet->Decref();
 			if( !scheduleManager->Schedule( RescheduleType::BACK ) )
 			{
-				scheduleManager->Decref();
 				UpdateCloseState();
 				return false;
 			}
@@ -150,8 +141,6 @@ bool Channel::Send( PyObject* args, PyObject* exception /* = nullptr */, bool re
     }
 
 	current->SetTransferInProgress( false );
-
-    scheduleManager->Decref();
 
     UpdateCloseState();
 
@@ -174,8 +163,6 @@ PyObject* Channel::Receive()
 	{
 		PyErr_SetString( PyExc_RuntimeError, "No current tasklet set" );
 
-        scheduleManager->Decref();
-
 		return nullptr;
 	}
 
@@ -192,8 +179,6 @@ PyObject* Channel::Receive()
 
 			PyErr_SetString( PyExc_RuntimeError, "Channel cannot block on main tasklet with block_trap set true" );
 
-            scheduleManager->Decref();
-
             current->Decref();
 
 			return nullptr;
@@ -208,8 +193,6 @@ PyObject* Channel::Receive()
             current->SetTransferInProgress( false );
 
 			PyErr_SetString( PyExc_ValueError, "receive operation on a closed channel" );
-
-			scheduleManager->Decref();
 
 			return nullptr;
 		}
@@ -250,8 +233,6 @@ PyObject* Channel::Receive()
                 // The tasklet reference belonged to the channel as it was in the block list
 				current->Decref();
             }
-		
-            scheduleManager->Decref();
 
             UpdateCloseState();
 
@@ -282,7 +263,6 @@ PyObject* Channel::Receive()
 			if( !scheduleManager->Schedule( RescheduleType::BACK ) )
             {
 				current->Decref();
-				scheduleManager->Decref();
 				UpdateCloseState();
 				return nullptr;
             }
@@ -330,8 +310,6 @@ PyObject* Channel::Receive()
         current->ClearTransferArguments();
 
 		current->SetTransferInProgress( false );
-        
-        scheduleManager->Decref();
 
         UpdateCloseState();
        
@@ -344,8 +322,6 @@ PyObject* Channel::Receive()
 	auto ret = current->GetTransferArguments();
 
 	current->ClearTransferArguments();
-
-    scheduleManager->Decref();
 
 	return ret;
 }
