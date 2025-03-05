@@ -1,0 +1,16 @@
+{
+  "dependencies": [
+    {
+      "name": "python3",
+      "version>=": "3.12.3"
+    },
+    {
+      "name": "greenlet",
+      "version>=": "3.0.3"
+    },
+    {
+      "name": "gtest",
+      "version>=": "1.16.0"
+    }
+  ]
+}

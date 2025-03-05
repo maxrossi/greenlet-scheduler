@@ -1,9 +1,9 @@
-cmake_minimum_required(VERSION 3.18)
+cmake_minimum_required(VERSION 3.31)
 
 project(SchedulerCapiTest)
 
-find_package(Python REQUIRED NO_CMAKE_PATH)
-find_package(GTest REQUIRED NO_CMAKE_PATH)
+find_package(Python3 COMPONENTS Development REQUIRED)
+find_package(GTest CONFIG REQUIRED)
 
 include(GoogleTest)
 
@@ -25,7 +25,7 @@ target_include_directories(SchedulerCapiTest PRIVATE ${CMAKE_CURRENT_BINARY_DIR}
 
 target_precompile_headers(SchedulerCapiTest PRIVATE StdAfx.h)
 
-target_link_libraries(SchedulerCapiTest PRIVATE GTest::GTest GTest::Main Python Scheduler)
+target_link_libraries(SchedulerCapiTest PRIVATE GTest::gtest GTest::gtest_main Python3::Python Scheduler)
 
 # Generate paths Include for each config
 # Allows for easy use inside IDE
@@ -37,9 +37,9 @@ file (GENERATE
 #include <string>
 std::wstring SCHEDULER_CEXTENSION_MODULE_PATH = L\"$<TARGET_FILE_DIR:Scheduler>\";
 std::wstring SCHEDULER_PACKAGE_PATH = L\"${CMAKE_SOURCE_DIR}/python\";
-std::wstring STDLIB_PATH = L\"${BRANCH_ROOT_DIR}/carbon/common/stdlib/\";
-std::wstring GREENLET_CEXTENSION_MODULE_PATH = L\"${Greenlet_ROOT}/${CCP_VENDOR_BIN_PATH}\";
-std::wstring GREENLET_MODULE_PATH = L\"${Greenlet_ROOT}/python\";
+std::wstring STDLIB_PATH = L\"${PYTHON_TOOL_ROOT_DIR}/Lib\";
+std::wstring GREENLET_CEXTENSION_MODULE_PATH = L\"${GREENLET_IMPORTED_LOCATION_DIR}\";
+std::wstring GREENLET_MODULE_PATH = L\"${GREENLET_IMPORTED_LOCATION_DIR}/python\";
 "
 )
 
@@ -50,6 +50,8 @@ elseif(APPLE)
     set(PythonLibName "libpython3.12.dylib")
 endif()
 
+
+cmake_policy(SET CMP0175 OLD) # Allows us to use OUTPUT with PRE_BUILD in add_custom_command
 add_custom_command (
         COMMAND ${CMAKE_COMMAND} "-E" "copy_if_different" "PackagePaths_$<CONFIG>.h" "PackagePaths.h"
         VERBATIM
@@ -65,7 +67,11 @@ add_dependencies(SchedulerCapiTest GeneratePackagePathsHeader)
 add_custom_command(
   TARGET SchedulerCapiTest POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy 
-    ${Python_ROOT}/${CCP_VENDOR_BIN_PATH}/${PythonLibName}
+    ${PYTHON_TOOL_ROOT_DIR}/${PythonLibName}
     $<TARGET_FILE_DIR:SchedulerCapiTest>)
 
-gtest_discover_tests(SchedulerCapiTest capiTests)
+gtest_discover_tests(
+        SchedulerCapiTest capiTests
+        DISCOVERY_MODE PRE_TEST
+        WORKING_DIRECTORY $<TARGET_FILE_DIR:Python3::Python>
+)
