@@ -37,7 +37,7 @@ file (GENERATE
 #include <string>
 std::wstring SCHEDULER_CEXTENSION_MODULE_PATH = L\"$<TARGET_FILE_DIR:Scheduler>\";
 std::wstring SCHEDULER_PACKAGE_PATH = L\"${CMAKE_SOURCE_DIR}/python\";
-std::wstring STDLIB_PATH = L\"${PYTHON_TOOL_ROOT_DIR}/Lib\";
+std::wstring STDLIB_PATH = L\"$<TARGET_FILE_DIR:Python3::Python>/python3.12\";
 std::wstring GREENLET_CEXTENSION_MODULE_PATH = L\"${GREENLET_IMPORTED_LOCATION_DIR}\";
 std::wstring GREENLET_MODULE_PATH = L\"${GREENLET_IMPORTED_LOCATION_DIR}/python\";
 "
@@ -64,14 +64,34 @@ add_custom_command (
 add_custom_target(GeneratePackagePathsHeader DEPENDS "PackagePaths.h")
 add_dependencies(SchedulerCapiTest GeneratePackagePathsHeader)
 
-add_custom_command(
-  TARGET SchedulerCapiTest POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy 
-    ${PYTHON_TOOL_ROOT_DIR}/${PythonLibName}
-    $<TARGET_FILE_DIR:SchedulerCapiTest>)
 
-gtest_discover_tests(
-        SchedulerCapiTest capiTests
-        DISCOVERY_MODE PRE_TEST
-        WORKING_DIRECTORY $<TARGET_FILE_DIR:Python3::Python>
-)
+if (APPLE)
+    add_custom_command(
+            TARGET SchedulerCapiTest POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy
+            $<TARGET_FILE_DIR:Python3::Python>/${PythonLibName}
+            $<TARGET_FILE_DIR:SchedulerCapiTest>)
+
+    gtest_discover_tests(
+            SchedulerCapiTest capiTests
+            DISCOVERY_MODE PRE_TEST
+            WORKING_DIRECTORY ${PYTHON_TOOL_ROOT_DIR}
+    )
+
+elseif (WIN32)
+    add_custom_command(
+            TARGET SchedulerCapiTest POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy
+            ${PYTHON_TOOL_ROOT_DIR}/${PythonLibName}
+            $<TARGET_FILE_DIR:SchedulerCapiTest>)
+
+    gtest_discover_tests(
+            SchedulerCapiTest capiTests
+            DISCOVERY_MODE PRE_TEST
+            WORKING_DIRECTORY $<TARGET_FILE_DIR:Python3::Python>
+    )
+
+endif ()
+
+
+
