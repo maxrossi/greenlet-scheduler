@@ -29,6 +29,13 @@ target_link_libraries(SchedulerCapiTest PRIVATE GTest::gtest GTest::gtest_main P
 
 # Generate paths Include for each config
 # Allows for easy use inside IDE
+
+if(WIN32)
+    set(PYTHON_STDLIB_PATH ${PYTHON_TOOL_ROOT_DIR}/Lib)
+elseif(APPLE)
+    set(PYTHON_STDLIB_PATH $<TARGET_FILE_DIR:Python3::Python>/python3.12)
+endif()
+
 file (GENERATE
     OUTPUT "PackagePaths_$<CONFIG>.h"
     CONTENT
@@ -37,7 +44,7 @@ file (GENERATE
 #include <string>
 std::wstring SCHEDULER_CEXTENSION_MODULE_PATH = L\"$<TARGET_FILE_DIR:Scheduler>\";
 std::wstring SCHEDULER_PACKAGE_PATH = L\"${CMAKE_SOURCE_DIR}/python\";
-std::wstring STDLIB_PATH = L\"$<TARGET_FILE_DIR:Python3::Python>/python3.12\";
+std::wstring STDLIB_PATH = L\"${PYTHON_STDLIB_PATH}\";
 std::wstring GREENLET_CEXTENSION_MODULE_PATH = L\"${GREENLET_IMPORTED_LOCATION_DIR}\";
 std::wstring GREENLET_MODULE_PATH = L\"${GREENLET_IMPORTED_LOCATION_DIR}/python\";
 "
