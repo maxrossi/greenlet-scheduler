@@ -224,9 +224,6 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
                 FILES carbon-schedulerConfig.cmake
                 DESTINATION ${CMAKE_INSTALL_PREFIX}/share/carbon-scheduler)
 
-
-        install(FILES ${GREENLET_IMPORTED_LOCATION} DESTINATION bin/)
-
         # Install scheduler extension package
         install(DIRECTORY python/scheduler DESTINATION bin/python/
                 FILES_MATCHING
