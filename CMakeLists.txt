@@ -72,6 +72,17 @@ add_custom_command(
 
 # Provide an install target iff this is the top level project only
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+
+    if (WIN32)
+        find_program(BUILT_PYTHON_EXECUTABLE python REQUIRED NO_SYSTEM_ENVIRONMENT_PATH NO_CMAKE_SYSTEM_PATH)
+    elseif(APPLE)
+        find_program(BUILT_PYTHON_EXECUTABLE python3 REQUIRED NO_SYSTEM_ENVIRONMENT_PATH NO_CMAKE_SYSTEM_PATH)
+    endif()
+
+    get_filename_component(PYTHON_TOOL_ROOT_DIR ${BUILT_PYTHON_EXECUTABLE} DIRECTORY)
+    get_target_property(GREENLET_IMPORTED_LOCATION Greenlet IMPORTED_LOCATION)
+    get_filename_component(GREENLET_IMPORTED_LOCATION_DIR ${GREENLET_IMPORTED_LOCATION} DIRECTORY)
+
     # Determine if/when to generate/build documentation. The rules are as follows:
     # - If running locally - Build documentation is OFF by default
     # - If running on a build agent (TeamCity) - Build documentation is ON by default
@@ -105,18 +116,19 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
         # Set up sphinx build
         set(SPHINX_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/doc/source)
         set(SPHINX_BUILD ${CMAKE_CURRENT_BINARY_DIR}/doc/build)
+        set(PYTHON_SCRIPTS_DIR ${PYTHON_TOOL_ROOT_DIR}/Scripts/)
 
         # Run sphinx
         if(WIN32)
-            set(PYTHON_PATH "${Python_ROOT}/${CCP_VENDOR_BIN_PATH}\;${BRANCH_ROOT_DIR}/packages\;${BRANCH_ROOT_DIR}/carbon/common/stdlib\;${BRANCH_ROOT_DIR}/carbon/common/lib\;$<TARGET_FILE_DIR:Scheduler>\;${CMAKE_CURRENT_SOURCE_DIR}/python\;${Greenlet_ROOT}/${CCP_VENDOR_BIN_PATH}\;${Greenlet_ROOT}/python")
+            SET(PYTHONPATH_ENV "${PYTHON_SCRIPTS_DIR}\;${CMAKE_SOURCE_DIR}/python/\;$<TARGET_FILE_DIR:Scheduler>\;${PYTHON_TOOL_ROOT_DIR}/Lib\;${PYTHON_TOOL_ROOT_DIR}\;${GREENLET_IMPORTED_LOCATION_DIR}/python\;${GREENLET_IMPORTED_LOCATION_DIR}")
         elseif(APPLE)
-            set(PYTHON_PATH "${Python_ROOT}/${CCP_VENDOR_BIN_PATH}:${BRANCH_ROOT_DIR}/packages:${BRANCH_ROOT_DIR}/carbon/common/stdlib:${BRANCH_ROOT_DIR}/carbon/common/lib:$<TARGET_FILE_DIR:Scheduler>:${CMAKE_CURRENT_SOURCE_DIR}/python:${Greenlet_ROOT}/${CCP_VENDOR_BIN_PATH}:${Greenlet_ROOT}/python")
+            SET(PYTHONPATH_ENV "${PYTHON_SCRIPTS_DIR}:${CMAKE_SOURCE_DIR}/python/:$<TARGET_FILE_DIR:Scheduler>:${PYTHON_TOOL_ROOT_DIR}/Lib:${PYTHON_TOOL_ROOT_DIR}:${GREENLET_IMPORTED_LOCATION_DIR}/python:${GREENLET_IMPORTED_LOCATION_DIR}")
         endif()
 
         add_custom_target(Sphinx ALL
-                COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${PYTHON_PATH} ${PYTHON_EXECUTABLE} -m sphinx build -E -b html -D breathe_projects.doxygen=${CMAKE_CURRENT_BINARY_DIR}/docs/xml -c ${SPHINX_SOURCE} ${SPHINX_SOURCE} ${SPHINX_BUILD}
+                COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${PYTHONPATH_ENV} ${BUILT_PYTHON_EXECUTABLE} -m sphinx build -E -b html -D breathe_projects.doxygen=${CMAKE_CURRENT_BINARY_DIR}/docs/xml -c ${SPHINX_SOURCE} ${SPHINX_SOURCE} ${SPHINX_BUILD}
                 WORKING_DIRECTORY ${BRANCH_ROOT_DIR}
-                DEPENDS ${DOXYGEN_INDEX_FILE}
+                DEPENDS ${DOXYGEN_INDEX_FILE} Scheduler
                 COMMENT "Generating documentation with Sphinx")
 
         # Ensure that Scheduler is built before Spinx target
@@ -126,19 +138,9 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
         install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doc/build/ DESTINATION documentation)
     endif()
 
-    set(TESTS ON CACHE BOOL "Build and run tests")
-    if(TESTS)
+    option(BUILD_TESTING "Build and run tests" ON)
+    if(BUILD_TESTING)
         enable_testing()
-
-        if (WIN32)
-            find_program(BUILT_PYTHON_EXECUTABLE python REQUIRED NO_SYSTEM_ENVIRONMENT_PATH NO_CMAKE_SYSTEM_PATH)
-        elseif(APPLE)
-            find_program(BUILT_PYTHON_EXECUTABLE python3 REQUIRED NO_SYSTEM_ENVIRONMENT_PATH NO_CMAKE_SYSTEM_PATH)
-        endif()
-
-        get_filename_component(PYTHON_TOOL_ROOT_DIR ${BUILT_PYTHON_EXECUTABLE} DIRECTORY)
-        get_target_property(GREENLET_IMPORTED_LOCATION Greenlet IMPORTED_LOCATION)
-        get_filename_component(GREENLET_IMPORTED_LOCATION_DIR ${GREENLET_IMPORTED_LOCATION} DIRECTORY)
 
         # Build test
         add_subdirectory(tests/capiTest)
