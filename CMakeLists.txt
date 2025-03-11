@@ -210,8 +210,7 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
         install(
                 TARGETS Scheduler
                 EXPORT SchedulerTargets
-                CONFIGURATIONS Release
-                LIBRARY DESTINATION lib/
+                LIBRARY DESTINATION bin/
                 ARCHIVE DESTINATION lib/
                 RUNTIME DESTINATION bin/
         )
