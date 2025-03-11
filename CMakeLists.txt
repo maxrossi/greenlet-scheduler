@@ -116,13 +116,17 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
         # Set up sphinx build
         set(SPHINX_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/doc/source)
         set(SPHINX_BUILD ${CMAKE_CURRENT_BINARY_DIR}/doc/build)
-        set(PYTHON_SCRIPTS_DIR ${PYTHON_TOOL_ROOT_DIR}/Scripts/)
+        if(WIN32)
+            set(PYTHON_SCRIPTS_DIR ${PYTHON_TOOL_ROOT_DIR}/Scripts/)
+        elseif (APPLE)
+            set(PYTHON_SCRIPTS_DIR ${PYTHON_TOOL_ROOT_DIR}/pip_prefix_location/bin:${PYTHON_TOOL_ROOT_DIR}/pip_prefix_location/lib/python3.12/site-packages:${PYTHON_TOOL_ROOT_DIR})
+        endif()
 
         # Run sphinx
         if(WIN32)
             SET(PYTHONPATH_ENV "${PYTHON_SCRIPTS_DIR}\;${CMAKE_SOURCE_DIR}/python/\;$<TARGET_FILE_DIR:Scheduler>\;${PYTHON_TOOL_ROOT_DIR}/Lib\;${PYTHON_TOOL_ROOT_DIR}\;${GREENLET_IMPORTED_LOCATION_DIR}/python\;${GREENLET_IMPORTED_LOCATION_DIR}")
         elseif(APPLE)
-            SET(PYTHONPATH_ENV "${PYTHON_SCRIPTS_DIR}:${CMAKE_SOURCE_DIR}/python/:$<TARGET_FILE_DIR:Scheduler>:${PYTHON_TOOL_ROOT_DIR}/Lib:${PYTHON_TOOL_ROOT_DIR}:${GREENLET_IMPORTED_LOCATION_DIR}/python:${GREENLET_IMPORTED_LOCATION_DIR}")
+            SET(PYTHONPATH_ENV "${PYTHON_SCRIPTS_DIR}:${CMAKE_SOURCE_DIR}/python/:$<TARGET_FILE_DIR:Scheduler>:${PYTHON_TOOL_ROOT_DIR}:${GREENLET_IMPORTED_LOCATION_DIR}/python:${GREENLET_IMPORTED_LOCATION_DIR}")
         endif()
 
         add_custom_target(Sphinx ALL
