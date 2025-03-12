@@ -129,9 +129,12 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
             SET(PYTHONPATH_ENV "${PYTHON_SCRIPTS_DIR}:${CMAKE_SOURCE_DIR}/python/:$<TARGET_FILE_DIR:Scheduler>:${PYTHON_TOOL_ROOT_DIR}:${GREENLET_IMPORTED_LOCATION_DIR}/python:${GREENLET_IMPORTED_LOCATION_DIR}")
         endif()
 
+        set(SPHINX_COMMAND python -m sphinx build -E -b html -D breathe_projects.doxygen=${CMAKE_CURRENT_BINARY_DIR}/docs/xml -c ${SPHINX_SOURCE} ${SPHINX_SOURCE} ${SPHINX_BUILD})
+        set(RUN_COMMAND ${PYTHON_TOOL_ROOT_DIR}/activate_and_run.py)
+
         add_custom_target(Sphinx ALL
-                COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${PYTHONPATH_ENV} ${BUILT_PYTHON_EXECUTABLE} -m sphinx build -E -b html -D breathe_projects.doxygen=${CMAKE_CURRENT_BINARY_DIR}/docs/xml -c ${SPHINX_SOURCE} ${SPHINX_SOURCE} ${SPHINX_BUILD}
-                WORKING_DIRECTORY ${BRANCH_ROOT_DIR}
+                COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${PYTHONPATH_ENV} ${BUILT_PYTHON_EXECUTABLE} ${RUN_COMMAND} carbon_documentation_venv ${SPHINX_COMMAND}
+                WORKING_DIRECTORY ${PYTHON_TOOL_ROOT_DIR}
                 DEPENDS ${DOXYGEN_INDEX_FILE} Scheduler
                 COMMENT "Generating documentation with Sphinx")
 
