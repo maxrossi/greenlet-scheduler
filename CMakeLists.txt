@@ -95,48 +95,33 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     option(BUILD_DOCUMENTATION "Build Documentation" ${BUILD_DOCUMENTATION_DEFAULT_FLAG})
 
     if(BUILD_DOCUMENTATION)
-        find_package(Doxygen)
 
-        # Evaluate config file for Doxygen to input project values
-        set(DOXYFILE_IN ${CMAKE_CURRENT_SOURCE_DIR}/doc/Doxyfile.in)
-        set(DOXYFILE_OUT ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
-        set(DOXYGEN_INDEX_FILE ${CMAKE_CURRENT_BINARY_DIR}/xml/index.xml)
-        configure_file(${DOXYFILE_IN} ${DOXYFILE_OUT} @ONLY)
-
-        # Regenerate with source changes
-        add_custom_command(OUTPUT ${DOXYGEN_INDEX_FILE}
-                            DEPENDS ${SRC_FILES}
-                            COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYFILE_OUT}
-                            MAIN_DEPENDENCY ${DOXYFILE_OUT} ${DOXYFILE_IN}
-                            COMMENT "Running Doxygen"
-                            VERBATIM)
-
-        add_custom_target(Doxygen ALL DEPENDS ${DOXYGEN_INDEX_FILE})
-
-        # Set up sphinx build
+#        # Run sphinx
+        if(WIN32)
+            set(PYTHONPATH_ENV_SPHINX "${CMAKE_SOURCE_DIR}/python/\;$<TARGET_FILE_DIR:Scheduler>\;${PYTHON_TOOL_ROOT_DIR}/Lib\;${PYTHON_TOOL_ROOT_DIR}\;${GREENLET_IMPORTED_LOCATION_DIR}/python\;${GREENLET_IMPORTED_LOCATION_DIR}")
+        elseif(APPLE)
+            set(PYTHONPATH_ENV_SPHINX "${CMAKE_SOURCE_DIR}/python/:$<TARGET_FILE_DIR:Scheduler>:${PYTHON_TOOL_ROOT_DIR}:${GREENLET_IMPORTED_LOCATION_DIR}/python:${GREENLET_IMPORTED_LOCATION_DIR}")
+        endif()
+#
         set(SPHINX_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/doc/source)
         set(SPHINX_BUILD ${CMAKE_CURRENT_BINARY_DIR}/doc/build)
 
-        # Run sphinx
-        if(WIN32)
-            set(PYTHONPATH_ENV_SPHINX "${CMAKE_SOURCE_DIR}/python/\;$<TARGET_FILE_DIR:Scheduler>\;${PYTHON_TOOL_ROOT_DIR}/Lib\;${PYTHON_TOOL_ROOT_DIR}\;${GREENLET_IMPORTED_LOCATION_DIR}/python\;${GREENLET_IMPORTED_LOCATION_DIR}")
-            set(SPHINX_COMMAND carbon_documentation_venv/Scripts/sphinx-build -E -b html -D breathe_projects.doxygen=${CMAKE_CURRENT_BINARY_DIR}/docs/xml -c ${SPHINX_SOURCE} ${SPHINX_SOURCE} ${SPHINX_BUILD})
-        elseif(APPLE)
-            set(PYTHONPATH_ENV_SPHINX "${CMAKE_SOURCE_DIR}/python/:$<TARGET_FILE_DIR:Scheduler>:${PYTHON_TOOL_ROOT_DIR}:${GREENLET_IMPORTED_LOCATION_DIR}/python:${GREENLET_IMPORTED_LOCATION_DIR}")
-            set(SPHINX_COMMAND carbon_documentation_venv/bin/sphinx-build -E -b html -D breathe_projects.doxygen=${CMAKE_CURRENT_BINARY_DIR}/docs/xml -c ${SPHINX_SOURCE} ${SPHINX_SOURCE} ${SPHINX_BUILD})
-        endif()
+        find_package(carbon-documentation CONFIG REQUIRED)
 
-        add_custom_target(Sphinx ALL
-                COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${PYTHONPATH_ENV_SPHINX} ${SPHINX_COMMAND}
-                WORKING_DIRECTORY ${PYTHON_TOOL_ROOT_DIR}
-                DEPENDS ${DOXYGEN_INDEX_FILE} Scheduler
-                COMMENT "Generating documentation with Sphinx")
+        create_carbon_docs_sphinx_target(
+                PYTHONPATH_ENV ${PYTHONPATH_ENV_SPHINX}
+                SPHINX_SOURCE ${SPHINX_SOURCE}
+                SPHINX_BUILD ${SPHINX_BUILD}
+                VENV_DIR ${PYTHON_TOOL_ROOT_DIR}/carbon_documentation_venv
+                DOXYGEN_SRC_FILES ${SRC_FILES}
+                SPHINX_TARGET_NAME Sphinx
+                DOXYGEN_TARGET_NAME Doxygen
+                INSTALL_DESTINATION documentation
+        )
 
         # Ensure that Scheduler is built before Spinx target
         add_dependencies(Sphinx Scheduler)
 
-        # Install rule for documentation
-        install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/doc/build/ DESTINATION documentation)
     endif()
 
     option(BUILD_TESTING "Build and run tests" ON)
