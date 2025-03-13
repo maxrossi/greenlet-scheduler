@@ -4,6 +4,7 @@ project(Scheduler)
 include(cmake/CcpGlobalSettings.cmake)
 include(cmake/CcpVendorUtilities.cmake)
 include(cmake/CcpTargetConfigurations.cmake)
+include(cmake/CcpDocsGenerator.cmake)
 
 find_package(Python3 COMPONENTS Development REQUIRED)
 find_package(greenlet CONFIG REQUIRED)
@@ -106,13 +107,12 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
         set(SPHINX_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/doc/source)
         set(SPHINX_BUILD ${CMAKE_CURRENT_BINARY_DIR}/doc/build)
 
-        find_package(carbon-documentation CONFIG REQUIRED)
-
         create_carbon_docs_sphinx_target(
+                PYTHON_EXE ${BUILT_PYTHON_EXECUTABLE}
+                VENV_NAME docs_generation_venv
                 PYTHONPATH_ENV ${PYTHONPATH_ENV_SPHINX}
                 SPHINX_SOURCE ${SPHINX_SOURCE}
                 SPHINX_BUILD ${SPHINX_BUILD}
-                VENV_DIR ${PYTHON_TOOL_ROOT_DIR}/carbon_documentation_venv
                 DOXYGEN_SRC_FILES ${SRC_FILES}
                 SPHINX_TARGET_NAME Sphinx
                 DOXYGEN_TARGET_NAME Doxygen

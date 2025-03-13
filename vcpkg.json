@@ -11,10 +11,6 @@
     {
       "name": "gtest",
       "version>=": "1.16.0"
-    },
-    {
-      "name": "carbon-documentation",
-      "host": true
     }
   ]
 }
