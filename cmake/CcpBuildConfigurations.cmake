@@ -1,3 +1,6 @@
+#[[
+Defines our supported build configurations, also known as build flavors.
+]]
 # this applies to multi-configuration build system, e.g. XCode, Visual Studio, Ninja Multi-Config
 set(CMAKE_CONFIGURATION_TYPES Debug TrinityDev Internal Release)
 
@@ -8,7 +11,7 @@ if(is_multi_config)
         STRING
         "Reset the configurations to what we need"
         FORCE
-    )
+        )
 else()
     if (NOT CMAKE_BUILD_TYPE)
         message(STATUS "No CMAKE_BUILD_TYPE was specified, defaulting to 'Debug'")
@@ -20,7 +23,7 @@ else()
         STRING
         "Choose the type of build, options are: ${CMAKE_CONFIGURATION_TYPES}."
         FORCE
-    )
+        )
 
     # check if a valid build type was supplied
     if (CMAKE_BUILD_TYPE IN_LIST CMAKE_CONFIGURATION_TYPES)
@@ -122,8 +125,8 @@ elseif(APPLE)
     # adjust warning settings for all our projects, but do not treat them as errors just yet.
     add_compile_options(-Wall)
     # we want to use the two ones below once we're good with -Wall
-#    add_compile_options(-Wpedantic)
-#    add_compile_options(-Wextra)
+    #    add_compile_options(-Wpedantic)
+    #    add_compile_options(-Wextra)
 
     # We're using a lot of MSVC specific pragmas in our codebase, so we silence those warnings until we got around to
     # cleaning them up
@@ -140,9 +143,5 @@ elseif(APPLE)
     # Manually add debug symbols to builds
     add_compile_options(-g)
 
-    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "13")
-        set(MATH_OPTIMIZE_FLAG -ffast-math -fhonor-infinities -fhonor-nans)
-    else()
-        set(MATH_OPTIMIZE_FLAG -ffast-math -ffp-model=fast -fhonor-infinities -fhonor-nans)
-    endif()
+    set(MATH_OPTIMIZE_FLAG -ffast-math -ffp-model=fast)
 endif()

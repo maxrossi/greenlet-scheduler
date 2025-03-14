@@ -65,11 +65,6 @@ set_target_properties(Scheduler PROPERTIES
     OUTPUT_NAME "_scheduler"
     DEBUG_POSTFIX ""
 )
-add_custom_command(
-        TARGET Scheduler
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E echo "$<TARGET_PROPERTY:Python3::Python,IMPORTED_LOCATION>"
-)
 
 # Provide an install target iff this is the top level project only
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
