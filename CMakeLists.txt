@@ -191,7 +191,6 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
                 TARGETS Scheduler
                 EXPORT SchedulerTargets
                 LIBRARY DESTINATION bin/
-                ARCHIVE DESTINATION lib/
                 RUNTIME DESTINATION bin/
         )
         # Install rule for available public headers
@@ -200,10 +199,7 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
         install(
                 EXPORT SchedulerTargets
                 DESTINATION ${CMAKE_INSTALL_PREFIX}/share/carbon-scheduler
-                FILE carbon-scheduler.cmake)
-        install(
-                FILES carbon-schedulerConfig.cmake
-                DESTINATION ${CMAKE_INSTALL_PREFIX}/share/carbon-scheduler)
+                FILE carbon-schedulerConfig.cmake)
 
         # Install scheduler extension package
         install(DIRECTORY python/scheduler DESTINATION bin/python/
