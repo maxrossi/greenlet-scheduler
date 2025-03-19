@@ -9,9 +9,9 @@ include(cmake/CcpDocsGenerator.cmake)
 find_package(Python3 COMPONENTS Development REQUIRED)
 find_package(greenlet CONFIG REQUIRED)
 
-get_target_property(GREENLET_INCLUDE_DIRECTORY
-        Greenlet
-        INTERFACE_INCLUDE_DIRECTORIES)
+#get_target_property(GREENLET_INCLUDE_DIRECTORY
+#        _greenlet
+#        INTERFACE_INCLUDE_DIRECTORIES)
 
 set(SRC_FILES
     include/Scheduler.h
@@ -48,10 +48,9 @@ target_include_directories(Scheduler
 
 target_link_libraries(Scheduler PRIVATE Python3::Python)
 
-target_include_directories(Scheduler
-        PRIVATE
-        ${GREENLET_INCLUDE_DIRECTORY}
-        )
+get_target_property(GREENLET_INCLUDE_DIR _greenlet INTERFACE_INCLUDE_DIRECTORIES)
+
+target_include_directories(Scheduler PRIVATE ${GREENLET_INCLUDE_DIR})
 
 get_target_property(_SOURCES Scheduler SOURCES)
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -75,9 +74,9 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
         find_program(BUILT_PYTHON_EXECUTABLE python3 REQUIRED NO_SYSTEM_ENVIRONMENT_PATH NO_CMAKE_SYSTEM_PATH)
     endif()
 
+    get_target_property(GREENLET_IMPORTED_LOCATION_RELEASE _greenlet IMPORTED_LOCATION_RELEASE)
     get_filename_component(PYTHON_TOOL_ROOT_DIR ${BUILT_PYTHON_EXECUTABLE} DIRECTORY)
-    get_target_property(GREENLET_IMPORTED_LOCATION Greenlet IMPORTED_LOCATION)
-    get_filename_component(GREENLET_IMPORTED_LOCATION_DIR ${GREENLET_IMPORTED_LOCATION} DIRECTORY)
+    get_filename_component(GREENLET_IMPORTED_LOCATION_DIR ${GREENLET_IMPORTED_LOCATION_RELEASE} DIRECTORY)
 
     # Determine if/when to generate/build documentation. The rules are as follows:
     # - If running locally - Build documentation is OFF by default
