@@ -10,3 +10,7 @@ set(VCPKG_ENV_PASSTHROUGH CCP_EVE_PERFORCE_BRANCH_PATH)
 if (PORT MATCHES "python3")
     set(VCPKG_BUILD_TYPE release)
 endif()
+
+if (PORT MATCHES "greenlet")
+    set(VCPKG_BUILD_TYPE release)
+endif()

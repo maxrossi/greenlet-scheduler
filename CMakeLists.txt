@@ -7,11 +7,8 @@ include(cmake/CcpTargetConfigurations.cmake)
 include(cmake/CcpDocsGenerator.cmake)
 
 find_package(Python3 COMPONENTS Development REQUIRED)
-find_package(greenlet CONFIG REQUIRED)
+find_package(greenlet CONFIG REQUIRED NO_CMAKE_PATH)
 
-#get_target_property(GREENLET_INCLUDE_DIRECTORY
-#        _greenlet
-#        INTERFACE_INCLUDE_DIRECTORIES)
 
 set(SRC_FILES
     include/Scheduler.h
@@ -48,7 +45,7 @@ target_include_directories(Scheduler
 
 target_link_libraries(Scheduler PRIVATE Python3::Python)
 
-get_target_property(GREENLET_INCLUDE_DIR _greenlet INTERFACE_INCLUDE_DIRECTORIES)
+get_target_property(GREENLET_INCLUDE_DIR Greenlet INTERFACE_INCLUDE_DIRECTORIES)
 
 target_include_directories(Scheduler PRIVATE ${GREENLET_INCLUDE_DIR})
 
@@ -74,9 +71,9 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
         find_program(BUILT_PYTHON_EXECUTABLE python3 REQUIRED NO_SYSTEM_ENVIRONMENT_PATH NO_CMAKE_SYSTEM_PATH)
     endif()
 
-    get_target_property(GREENLET_IMPORTED_LOCATION_RELEASE _greenlet IMPORTED_LOCATION_RELEASE)
+    get_target_property(GREENLET_IMPORTED_LOCATION Greenlet IMPORTED_LOCATION)
     get_filename_component(PYTHON_TOOL_ROOT_DIR ${BUILT_PYTHON_EXECUTABLE} DIRECTORY)
-    get_filename_component(GREENLET_IMPORTED_LOCATION_DIR ${GREENLET_IMPORTED_LOCATION_RELEASE} DIRECTORY)
+    get_filename_component(GREENLET_IMPORTED_LOCATION_DIR ${GREENLET_IMPORTED_LOCATION} DIRECTORY)
 
     # Determine if/when to generate/build documentation. The rules are as follows:
     # - If running locally - Build documentation is OFF by default
@@ -187,24 +184,15 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
         install(FILES ${GREENLET_IMPORTED_LOCATION} DESTINATION bin/)
     else()
         # Install rule to ensure that our runtime and linker files are in the expected, platform-specific folders
-        install(
-                TARGETS Scheduler
-                EXPORT SchedulerTargets
-                LIBRARY DESTINATION bin/
-                RUNTIME DESTINATION bin/
-        )
-        # Install rule for available public headers
         install(DIRECTORY include DESTINATION . FILES_MATCHING PATTERN "*.h")
+        install(FILES python/scheduler/__init__.py DESTINATION bin/python/scheduler/)
 
-        install(
-                EXPORT SchedulerTargets
-                DESTINATION ${CMAKE_INSTALL_PREFIX}/share/carbon-scheduler
-                FILE carbon-schedulerConfig.cmake)
+        if(WIN32)
+            install(FILES $<TARGET_FILE_DIR:Scheduler>/_scheduler.pyd DESTINATION bin/)
+        elseif(APPLE)
+            install(FILES $<TARGET_FILE_NAME:Scheduler>  DESTINATION bin/)
+        endif()
 
-        # Install scheduler extension package
-        install(DIRECTORY python/scheduler DESTINATION bin/python/
-                FILES_MATCHING
-                PATTERN "*.py"
-        )
+        install(FILES carbon-schedulerConfig.cmake DESTINATION ${CMAKE_INSTALL_PREFIX}/share/carbon-scheduler/)
     endif()
 endif()
