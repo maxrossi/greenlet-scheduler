@@ -7,7 +7,7 @@ include(cmake/CcpTargetConfigurations.cmake)
 include(cmake/CcpDocsGenerator.cmake)
 
 find_package(Python3 COMPONENTS Development REQUIRED)
-find_package(greenlet CONFIG REQUIRED NO_CMAKE_PATH)
+find_package(greenlet CONFIG REQUIRED)
 
 
 set(SRC_FILES
