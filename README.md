@@ -1,13 +1,13 @@
 # carbon-scheduler
 
 Provides channels and a scheduler for Greenlet coroutines.
-Tasklet and channel scheduling order and behaviour has been designed to match that of Stackless Python as possible.
+Tasklet and channel scheduling order and behaviour has been designed to match that of Stackless Python as closely as possible.
 
 Only functionality required by Carbon has been implemented from the Stackless Python API.
 
 # Building
 
-Build using provided `CMakeLists` in the repositry root.
+Build using provided `CMakeLists` in the repository root.
 
 # Accessing the Documentation
 
@@ -21,7 +21,7 @@ Documentation provides:
 
 ## Current requirements for documentation generation
 
-1. Documentaion can be built on either Windows or macOS
+1. Documentation can be built on either Windows or macOS
 2. Uses our custom PythonInterpreter
 3. Doxygen 1.12.0 (or higher) installed on build machine
 4. Following libraries available in /carbon/common/lib on build branch:
@@ -66,3 +66,11 @@ Documentation can be built using either .rst (restructuredText) or .md (markdown
 Contribution follows the standard GIT PR model.
 
 When altering Python or C-API exposure ensure that docstrings and c++ documentation blocks reflect changes.
+
+By submitting a pull request or otherwise contributing to this project, you agree to license your contribution under the MIT Licence, and you confirm that you have the right to do so.
+
+# License and Legal Notices 
+
+This project is licensed under the [MIT Licence](LICENSE.txt). Nothing in the MIT License grants any rights to CCP Games' trademarks or game content.
+
+Copyright notice: © 2025 CCP Games.
