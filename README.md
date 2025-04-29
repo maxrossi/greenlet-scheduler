@@ -5,11 +5,11 @@ Tasklet and channel scheduling order and behaviour has been designed to match th
 
 Only functionality required by Carbon has been implemented from the Stackless Python API.
 
-# Building
+# 🛠️ Building
 
 Build using provided `CMakeLists` in the repository root.
 
-# Accessing the Documentation
+# 🔍 Accessing the Documentation
 
 Documentation provides:
 1. Generated Python API.
@@ -59,7 +59,7 @@ Entry point for the documentation is `documentation/index.html`.
 
 Documentation can be built using either .rst (restructuredText) or .md (markdown) files as sources.
 
-# Contributing
+# 🤝 Contributing
 
 Contribution follows the standard GIT PR model.
 
@@ -67,7 +67,7 @@ When altering Python or C-API exposure ensure that docstrings and c++ documentat
 
 By submitting a pull request or otherwise contributing to this project, you agree to license your contribution under the MIT Licence, and you confirm that you have the right to do so.
 
-# License and Legal Notices 
+# 📄 License and Legal Notices 
 
 This project is licensed under the [MIT Licence](LICENSE.txt). Nothing in the MIT License grants any rights to CCP Games' trademarks or game content.
 
