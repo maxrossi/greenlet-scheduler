@@ -11,8 +11,6 @@ Build using provided `CMakeLists` in the repository root.
 
 # Accessing the Documentation
 
-Documentation building is currently WIP and experimental.
-
 Documentation provides:
 1. Generated Python API.
 2. Generated C-API.
