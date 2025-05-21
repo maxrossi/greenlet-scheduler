@@ -29,13 +29,6 @@ target_link_libraries(SchedulerCapiTest PRIVATE GTest::gtest GTest::gtest_main P
 
 # Generate paths Include for each config
 # Allows for easy use inside IDE
-
-if(WIN32)
-    set(PYTHON_STDLIB_PATH ${PYTHON_TOOL_ROOT_DIR}/Lib)
-elseif(APPLE)
-    set(PYTHON_STDLIB_PATH $<TARGET_FILE_DIR:Python3::Python>/python3.12)
-endif()
-
 file (GENERATE
     OUTPUT "PackagePaths_$<CONFIG>.h"
     CONTENT
@@ -44,19 +37,11 @@ file (GENERATE
 #include <string>
 std::wstring SCHEDULER_CEXTENSION_MODULE_PATH = L\"$<TARGET_FILE_DIR:Scheduler>\";
 std::wstring SCHEDULER_PACKAGE_PATH = L\"${CMAKE_SOURCE_DIR}/python\";
-std::wstring STDLIB_PATH = L\"${PYTHON_STDLIB_PATH}\";
+std::wstring STDLIB_PATH = L\"${Python3_STDLIB}\";
 std::wstring GREENLET_CEXTENSION_MODULE_PATH = L\"${GREENLET_IMPORTED_LOCATION_DIR}\";
 std::wstring GREENLET_MODULE_PATH = L\"${GREENLET_IMPORTED_LOCATION_DIR}/python\";
 "
 )
-
-# Copy the python dll to target build directory
-if(WIN32)
-    set(PythonLibName "python312.dll")
-elseif(APPLE)
-    set(PythonLibName "libpython3.12.dylib")
-endif()
-
 
 cmake_policy(SET CMP0175 OLD) # Allows us to use OUTPUT with PRE_BUILD in add_custom_command
 add_custom_command (
@@ -76,21 +61,9 @@ if (APPLE)
     add_custom_command(
             TARGET SchedulerCapiTest POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy
-            $<TARGET_FILE_DIR:Python3::Python>/${PythonLibName}
-            $<TARGET_FILE_DIR:SchedulerCapiTest>)
-
-    gtest_discover_tests(
-            SchedulerCapiTest capiTests
-            DISCOVERY_MODE PRE_TEST
-            WORKING_DIRECTORY ${PYTHON_TOOL_ROOT_DIR}
+            $<TARGET_FILE:Python3::Python>
+            $<TARGET_FILE_DIR:SchedulerCapiTest>
     )
-
-elseif (WIN32)
-    add_custom_command(
-            TARGET SchedulerCapiTest POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy
-            ${PYTHON_TOOL_ROOT_DIR}/${PythonLibName}
-            $<TARGET_FILE_DIR:SchedulerCapiTest>)
 
     gtest_discover_tests(
             SchedulerCapiTest capiTests
@@ -98,7 +71,19 @@ elseif (WIN32)
             WORKING_DIRECTORY $<TARGET_FILE_DIR:Python3::Python>
     )
 
+elseif (WIN32)
+    add_custom_command(
+            TARGET SchedulerCapiTest POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy
+            $<TARGET_RUNTIME_DLLS:SchedulerCapiTest>
+            $<TARGET_FILE_DIR:SchedulerCapiTest>
+            COMMAND_EXPAND_LISTS
+            VERBATIM
+    )
+
+    gtest_discover_tests(
+            SchedulerCapiTest capiTests
+            DISCOVERY_MODE PRE_TEST
+            WORKING_DIRECTORY $<TARGET_FILE_DIR:Python3::Python>
+    )
 endif ()
-
-
-
