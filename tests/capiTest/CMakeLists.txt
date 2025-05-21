@@ -68,7 +68,6 @@ if (APPLE)
     gtest_discover_tests(
             SchedulerCapiTest capiTests
             DISCOVERY_MODE PRE_TEST
-            WORKING_DIRECTORY $<TARGET_FILE_DIR:Python3::Python>
     )
 
 elseif (WIN32)
@@ -84,6 +83,5 @@ elseif (WIN32)
     gtest_discover_tests(
             SchedulerCapiTest capiTests
             DISCOVERY_MODE PRE_TEST
-            WORKING_DIRECTORY $<TARGET_FILE_DIR:Python3::Python>
     )
 endif ()
