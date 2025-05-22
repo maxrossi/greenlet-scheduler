@@ -6,7 +6,7 @@ include(cmake/CcpVendorUtilities.cmake)
 include(cmake/CcpTargetConfigurations.cmake)
 include(cmake/CcpDocsGenerator.cmake)
 
-find_package(Python3 COMPONENTS Development REQUIRED)
+find_package(Python3 COMPONENTS Development Interpreter REQUIRED)
 find_package(greenlet CONFIG REQUIRED)
 
 
@@ -64,16 +64,15 @@ set_target_properties(Scheduler PROPERTIES
 
 # Provide an install target iff this is the top level project only
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
-
-    if (WIN32)
-        find_program(BUILT_PYTHON_EXECUTABLE python REQUIRED NO_SYSTEM_ENVIRONMENT_PATH NO_CMAKE_SYSTEM_PATH)
-    elseif(APPLE)
-        find_program(BUILT_PYTHON_EXECUTABLE python3 REQUIRED NO_SYSTEM_ENVIRONMENT_PATH NO_CMAKE_SYSTEM_PATH)
-    endif()
-
     get_target_property(GREENLET_IMPORTED_LOCATION Greenlet IMPORTED_LOCATION)
-    get_filename_component(PYTHON_TOOL_ROOT_DIR ${BUILT_PYTHON_EXECUTABLE} DIRECTORY)
     get_filename_component(GREENLET_IMPORTED_LOCATION_DIR ${GREENLET_IMPORTED_LOCATION} DIRECTORY)
+
+    # Store python path in environment for subsequent build steps
+    if(WIN32)
+        SET(ENV{PYTHONPATH} "${CMAKE_SOURCE_DIR}/python\;$<TARGET_FILE_DIR:Scheduler>\;${GREENLET_IMPORTED_LOCATION_DIR}/python\;${GREENLET_IMPORTED_LOCATION_DIR}")
+    elseif(APPLE)
+        SET(ENV{PYTHONPATH} "${CMAKE_SOURCE_DIR}/python:$<TARGET_FILE_DIR:Scheduler>:${GREENLET_IMPORTED_LOCATION_DIR}/python:${GREENLET_IMPORTED_LOCATION_DIR}")
+    endif()
 
     # Determine if/when to generate/build documentation. The rules are as follows:
     # - If running locally - Build documentation is OFF by default
@@ -87,21 +86,14 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     option(BUILD_DOCUMENTATION "Build Documentation" ${BUILD_DOCUMENTATION_DEFAULT_FLAG})
 
     if(BUILD_DOCUMENTATION)
-
-#        # Run sphinx
-        if(WIN32)
-            set(PYTHONPATH_ENV_SPHINX "${CMAKE_SOURCE_DIR}/python/\;$<TARGET_FILE_DIR:Scheduler>\;${PYTHON_TOOL_ROOT_DIR}/Lib\;${PYTHON_TOOL_ROOT_DIR}\;${GREENLET_IMPORTED_LOCATION_DIR}/python\;${GREENLET_IMPORTED_LOCATION_DIR}")
-        elseif(APPLE)
-            set(PYTHONPATH_ENV_SPHINX "${CMAKE_SOURCE_DIR}/python/:$<TARGET_FILE_DIR:Scheduler>:${PYTHON_TOOL_ROOT_DIR}:${GREENLET_IMPORTED_LOCATION_DIR}/python:${GREENLET_IMPORTED_LOCATION_DIR}")
-        endif()
-#
+        # Run sphinx
         set(SPHINX_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/doc/source)
         set(SPHINX_BUILD ${CMAKE_CURRENT_BINARY_DIR}/doc/build)
 
         create_carbon_docs_sphinx_target(
-                PYTHON_EXE ${BUILT_PYTHON_EXECUTABLE}
+                PYTHON_EXE ${Python3_EXECUTABLE}
                 VENV_NAME docs_generation_venv
-                PYTHONPATH_ENV ${PYTHONPATH_ENV_SPHINX}
+                PYTHONPATH_ENV $ENV{PYTHONPATH}
                 SPHINX_SOURCE ${SPHINX_SOURCE}
                 SPHINX_BUILD ${SPHINX_BUILD}
                 DOXYGEN_SRC_FILES ${SRC_FILES}
@@ -112,7 +104,6 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
 
         # Ensure that Scheduler is built before Spinx target
         add_dependencies(Sphinx Scheduler)
-
     endif()
 
     option(BUILD_TESTING "Build and run tests" ON)
@@ -122,13 +113,7 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
         # Build test
         add_subdirectory(tests/capiTest)
 
-        if(WIN32)
-            set(ENV{PYTHONPATH} ${CMAKE_SOURCE_DIR}/python/\;${PYTHON_TOOL_ROOT_DIR}/Lib)
-        elseif(APPLE)
-            set(ENV{PYTHONPATH} ${CMAKE_SOURCE_DIR}/python/:${PYTHON_TOOL_ROOT_DIR}/Lib)
-        endif()
-
-        execute_process(COMMAND ${BUILT_PYTHON_EXECUTABLE} discover.py
+        execute_process(COMMAND ${Python3_EXECUTABLE} discover.py
                 OUTPUT_VARIABLE PYTHON_TESTS_STR
                 OUTPUT_STRIP_TRAILING_WHITESPACE
                 ERROR_STRIP_TRAILING_WHITESPACE
@@ -141,30 +126,24 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
             message(FATAL_ERROR "Error encountered during test discovery:\n=== stderr: ===\n${PYTHON_TEST_DISCOVERY_ERRORS}\n=== stdout: ===\n${PYTHON_TESTS_STR}")
         endif()
 
-        if(WIN32)
-            SET(PYTHONPATH_ENV "${CMAKE_SOURCE_DIR}/python/\;$<TARGET_FILE_DIR:Scheduler>\;${PYTHON_TOOL_ROOT_DIR}/Lib\;${PYTHON_TOOL_ROOT_DIR}\;${GREENLET_IMPORTED_LOCATION_DIR}/python\;${GREENLET_IMPORTED_LOCATION_DIR}")
-        elseif(APPLE)
-            SET(PYTHONPATH_ENV "${CMAKE_SOURCE_DIR}/python/:$<TARGET_FILE_DIR:Scheduler>:${PYTHON_TOOL_ROOT_DIR}/Lib:${PYTHON_TOOL_ROOT_DIR}:${GREENLET_IMPORTED_LOCATION_DIR}/python:${GREENLET_IMPORTED_LOCATION_DIR}")
-        endif()
-
         separate_arguments(PYTHON_TESTS UNIX_COMMAND ${PYTHON_TESTS_STR})
 
         foreach (PYTHON_TEST ${PYTHON_TESTS})
             message(STATUS "Found test ${PYTHON_TEST}")
             add_test(NAME ${PYTHON_TEST}
-                COMMAND ${BUILT_PYTHON_EXECUTABLE} -m unittest -v ${PYTHON_TEST}
+                COMMAND ${Python3_EXECUTABLE} -m unittest -v ${PYTHON_TEST}
                 WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/tests/python/scheduler/tests
             )
-            set_tests_properties(${PYTHON_TEST} PROPERTIES ENVIRONMENT "PYTHONPATH=${PYTHONPATH_ENV};BUILDFLAVOR=$<LOWER_CASE:$<CONFIG>>")
+            set_tests_properties(${PYTHON_TEST} PROPERTIES ENVIRONMENT "PYTHONPATH=$ENV{PYTHONPATH};BUILDFLAVOR=$<LOWER_CASE:$<CONFIG>>")
         endforeach ()
 
         set(ALL_PYTHON_TEST RunAllPythonTestsInSingleInterpreterSession)
         add_test(NAME ${ALL_PYTHON_TEST}
-            COMMAND ${BUILT_PYTHON_EXECUTABLE} -m unittest discover -v
+            COMMAND ${Python3_EXECUTABLE} -m unittest discover -v
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/tests/python/scheduler/tests
             COMMAND_EXPAND_LISTS
         )
-        set_tests_properties(${ALL_PYTHON_TEST} PROPERTIES ENVIRONMENT "PYTHONPATH=${PYTHONPATH_ENV};BUILDFLAVOR=$<LOWER_CASE:$<CONFIG>>")
+        set_tests_properties(${ALL_PYTHON_TEST} PROPERTIES ENVIRONMENT "PYTHONPATH=$ENV{PYTHONPATH};BUILDFLAVOR=$<LOWER_CASE:$<CONFIG>>")
     endif()
 
     set(INSTALL_BIN_ONLY OFF CACHE BOOL "Do not Install configuration files meant to be read by projects using this project as a dependency (Cmake Config/ header files etc . . .). Set this to ON when installing this component to the perforce vendor folder")
