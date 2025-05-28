@@ -60,6 +60,8 @@ target_precompile_headers(Scheduler PRIVATE src/stdafx.h)
 set_target_properties(Scheduler PROPERTIES
     OUTPUT_NAME "_scheduler"
     DEBUG_POSTFIX ""
+    INTERNAL_POSTFIX ""
+    TRINITYDEV_POSTFIX ""
 )
 
 # Provide an install target iff this is the top level project only
